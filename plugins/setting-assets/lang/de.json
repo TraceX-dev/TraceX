@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "Ausgeschlossene Klassen und Mixins",
     "ShowInForm": "Im öffentlichen Formular anzeigen",
     "ShowInCreate": "Beim Erstellen einer Karte anzeigen",
     "Setting": "Einstellung",

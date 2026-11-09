@@ -161,7 +161,16 @@ function documentMetadata (
         typeof candidate === 'object' &&
         Object.keys(candidate).length === 1 &&
         ['array', 'ref', 'enum'].some((key) => Object.prototype.hasOwnProperty.call(candidate, key)))
-    return short ? (decode ? decodeAuthoringType(candidate, at) : candidate) : metadata(value, decode)
+    if (short) return decode ? decodeAuthoringType(candidate, at) : candidate
+    const expanded = metadata(value, decode) as Record<string, unknown>
+    if (decode && expanded._class === 'core:class:RefTo' && expanded.excludedClasses !== undefined) {
+      return decodeAuthoringType(expanded, at)
+    }
+    if (!decode && expanded.class === 'core.RefTo' && expanded.excludedClasses !== undefined) return candidate
+    if (expanded[decode ? '_class' : 'class'] === (decode ? 'core:class:ArrOf' : 'core.ArrOf')) {
+      expanded.of = type(object(value, at).of, `${at}.of`)
+    }
+    return expanded
   }
   for (const key of clazz === PROCESS ? ['context', decode ? 'requiredSlots' : 'slots'] : []) {
     if (data[key] !== undefined) {

@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "Excluded classes and mixins",
     "ShowInForm": "Show in public form",
     "ShowInCreate": "Show when creating a card",
     "Setting": "Setting",

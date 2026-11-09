@@ -129,9 +129,11 @@
   const handleChange = (e: any): void => {
     if (e.detail.type !== undefined && e.detail.type !== type) {
       type = e.detail?.type
-      index = e.detail?.index
-      defaultValue = e.detail?.defaultValue
-      extra = e.detail?.extra ?? {}
+      if (e.detail.preserveOptions !== true) {
+        index = e.detail?.index
+        defaultValue = e.detail?.defaultValue
+        extra = e.detail?.extra ?? {}
+      }
     } else {
       index = e.detail?.index ?? index
       defaultValue = e.detail?.defaultValue ?? defaultValue

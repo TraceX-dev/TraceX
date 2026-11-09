@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "Исключённые классы и миксины",
     "ShowInForm": "Показывать в публичной форме",
     "ShowInCreate": "Показывать при создании карточки",
     "Setting": "Настройки",

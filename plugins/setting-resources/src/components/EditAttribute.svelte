@@ -23,7 +23,8 @@
     IndexKind,
     PropertyType,
     Ref,
-    Type
+    Type,
+    updateReferenceExclusions
   } from '@hcengineering/core'
   import { Asset, getEmbeddedLabel, getResource, translateCB } from '@hcengineering/platform'
   import presentation, { getClient, MessageBox } from '@hcengineering/presentation'
@@ -105,6 +106,10 @@
         update.type = type
       }
     }
+    if (exist && type !== undefined) {
+      const updatedType = updateReferenceExclusions(attribute.type, type)
+      if (updatedType !== attribute.type) update.type = updatedType
+    }
     if (automationOnly !== attribute.automationOnly) {
       update.readonly = automationOnly
       update.automationOnly = automationOnly
@@ -159,9 +164,11 @@
   const handleChange = (e: any) => {
     if (e.detail.type !== undefined && e.detail.type !== type && !disabled) {
       type = e.detail?.type
-      index = e.detail?.index
-      defaultValue = e.detail?.defaultValue
-      extra = e.detail?.extra ?? {}
+      if (e.detail.preserveOptions !== true) {
+        index = e.detail?.index
+        defaultValue = e.detail?.defaultValue
+        extra = e.detail?.extra ?? {}
+      }
     } else {
       index = e.detail?.index ?? index
       defaultValue = e.detail?.defaultValue ?? defaultValue

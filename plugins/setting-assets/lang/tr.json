@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "Hariç tutulan sınıflar ve mixin’ler",
     "ShowInForm": "Herkese açık formda göster",
     "ShowInCreate": "Kart oluştururken göster",
     "Setting": "Ayar",

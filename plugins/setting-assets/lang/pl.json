@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "Wykluczone klasy i miksy",
     "ShowInForm": "Pokaż w formularzu publicznym",
     "ShowInCreate": "Pokaż podczas tworzenia karty",
     "Setting": "Ustawienia",

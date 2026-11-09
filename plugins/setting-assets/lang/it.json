@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "Classi e mixin esclusi",
     "ShowInForm": "Mostra nel modulo pubblico",
     "ShowInCreate": "Mostra durante la creazione di una scheda",
     "Setting": "Impostazione",

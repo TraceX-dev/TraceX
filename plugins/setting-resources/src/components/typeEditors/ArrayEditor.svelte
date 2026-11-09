@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,6 +25,7 @@
 
   export let type: ArrOf<Doc> | undefined
   export let editable: boolean = true
+  export let disabled: boolean = false
   export let kind: ButtonKind = 'regular'
   export let size: ButtonSize = 'medium'
   export let width: string | undefined = undefined
@@ -56,7 +58,7 @@
   const handleChange = (e: any): void => {
     if (e.detail?.type !== undefined) {
       const type = e.detail?.type
-      const res = { type: createArrOf(type) }
+      const res = { type: createArrOf(type), preserveOptions: e.detail.preserveOptions }
       dispatch('change', res)
     } else {
       dispatch('change', e.detail)
@@ -100,6 +102,7 @@
       kind,
       size
     }}
+    {disabled}
     on:change={handleChange}
   />
 {/if}

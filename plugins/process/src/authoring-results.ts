@@ -59,7 +59,16 @@ export function decodeAuthoringType (value: unknown, path: string): Record<strin
   const { class: clazz, ...result } = data
   result._class = text(data._class ?? authoringClassName(clazz, true), `${path}.class`)
   if (result._class === 'core:class:ArrOf') result.of = decodeAuthoringType(data.of, `${path}.of`)
-  if (result._class === 'core:class:RefTo') result.to = text(authoringClassName(data.to, true), `${path}.to`)
+  if (result._class === 'core:class:RefTo') {
+    result.to = text(authoringClassName(data.to, true), `${path}.to`)
+    if (data.excludedClasses !== undefined) {
+      if (!Array.isArray(data.excludedClasses))
+        {fail(`${path}.excludedClasses`, 'Expected an array of classes or mixins')}
+      result.excludedClasses = data.excludedClasses.map((clazz, index) =>
+        text(authoringClassName(clazz, true), `${path}.excludedClasses[${index}]`)
+      )
+    }
+  }
   if (result._class === 'core:class:EnumOf') text(data.of, `${path}.of`)
   return result
 }
@@ -79,7 +88,12 @@ export function encodeAuthoringType (value: unknown): unknown {
   if (type.class !== undefined || type.native !== undefined) return { native: type }
   const { _class, ...properties } = type
   if (_class === 'core:class:ArrOf') properties.of = encodeAuthoringType(type.of)
-  if (_class === 'core:class:RefTo') properties.to = authoringClassName(type.to, false)
+  if (_class === 'core:class:RefTo') {
+    properties.to = authoringClassName(type.to, false)
+    if (Array.isArray(type.excludedClasses)) {
+      properties.excludedClasses = type.excludedClasses.map((clazz) => authoringClassName(clazz, false))
+    }
+  }
   return { class: authoringClassName(_class, false), ...properties }
 }
 

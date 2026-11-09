@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "除外するクラスとミックスイン",
     "ShowInForm": "公開フォームに表示",
     "ShowInCreate": "カード作成時に表示",
     "Setting": "設定",

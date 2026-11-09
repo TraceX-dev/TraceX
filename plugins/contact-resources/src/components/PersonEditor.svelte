@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 -->
 <script lang="ts">
   import { Contact, Person } from '@hcengineering/contact'
-  import { DocumentQuery, Ref, RefTo, Space } from '@hcengineering/core'
+  import { DocumentQuery, Ref, RefTo, Space, getReferenceQuery } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { getGuestScopedPersonQuery } from '../utils'
   import { IntlString } from '@hcengineering/platform'
@@ -45,6 +46,7 @@
   }
 
   $: _class = type?.to ?? contact.class.Person
+  $: candidatesQuery = getReferenceQuery(client.getHierarchy(), type, docQuery)
 </script>
 
 <UserBox
@@ -54,7 +56,7 @@
   {size}
   {justify}
   {width}
-  {docQuery}
+  docQuery={candidatesQuery}
   bind:value
   on:change={(e) => {
     onChange(e.detail)

@@ -272,6 +272,12 @@
             "class": {
               "$ref": "#/$defs/class"
             },
+            "excludedClasses": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/class" },
+              "uniqueItems": true,
+              "description": "Classes and mixins excluded from reference candidates, including descendants. Applies to RefTo types."
+            },
             "label": {
               "type": "string"
             },

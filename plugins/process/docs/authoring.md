@@ -109,6 +109,21 @@ The section implies the document class and each block name is its reference iden
 
 Write ordinary localized display labels as text: `label: Estimator`. In v2, slot labels and the labels of card types, tags, fields and permissions are converted to native `embedded:embedded:Estimator` on import and shortened back to text on export. Existing resource ids such as `plugin:string:Label` and explicit embedded ids remain valid. Embedded text that itself resembles a resource id retains its explicit prefix to avoid ambiguity. Native escapes and earlier `model` lists preserve their exact values. Process/state names and action output/result labels are ordinary strings and are not converted.
 
+#### Reference candidate exclusions
+
+A Person reference type can declare `excludedClasses` to hide classes or mixins and their descendants from selection. Candidate filtering is implemented in the Person editor and in Person arrays; other reference editors do not apply this setting. The setting belongs to the field's `RefTo` type; for arrays it belongs to the element type. Existing stored values remain visible. This is a candidate selection constraint, not a server-side write permission or validation rule. Employee exclusions cover active and inactive employees.
+
+Use the full type form so the existing reference shorthand stays unchanged:
+
+```yaml
+type:
+  class: core.RefTo
+  to: contact.Person
+  excludedClasses: [contact.mixin.Employee]
+```
+
+For multiple contacts, place that type inside `type: {array: ...}`. Class names in `excludedClasses` use the same short or explicit-reference forms as `to`. JSON definitions retain the native ids. Export/import preserves the exclusions and rebinds local class identities when cloning a module.
+
 #### Named outputs and references
 
 Ordinary actions publish their result with `as: approval_request`. No action context or process context map is needed: the compiler generates the result class, action/producer references, display index and selected-context value. The result class comes from the method model `createdContext` contract. UI validation/import use the installed workspace model; offline `compileProcessYaml(source)` requires an explicit output class when no model is supplied. `compileProcessYaml(source, model)`, `parseProcessImport(source, kind, model)` and `validateProcessYaml(source, kind, model)` accept a model explicitly. The installed model remains authoritative for operation availability.

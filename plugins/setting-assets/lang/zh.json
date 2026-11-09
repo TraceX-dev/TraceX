@@ -1,5 +1,6 @@
 {
   "string": {
+    "ExcludedClassesAndMixins": "排除的类和混入",
     "ShowInForm": "在公开表单中显示",
     "ShowInCreate": "创建卡片时显示",
     "Setting": "设置",

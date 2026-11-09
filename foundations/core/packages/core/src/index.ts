@@ -52,3 +52,4 @@ export * from './objectAccess'
 export type * from './versioning'
 
 export default core
+export * from './reference'

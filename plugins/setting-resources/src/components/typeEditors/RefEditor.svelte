@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,8 +18,10 @@
   import { TypeRef } from '@hcengineering/model'
   import { getClient } from '@hcengineering/presentation'
   import { Component, DropdownLabelsIntl, Label } from '@hcengineering/ui'
-  import view from '@hcengineering/view-resources/src/plugin'
+  import view from '@hcengineering/view'
   import card from '@hcengineering/card'
+  import contact from '@hcengineering/contact'
+  import setting from '../../plugin'
   import { createEventDispatcher } from 'svelte'
   import type { ButtonKind, ButtonSize, DropdownIntlItem } from '@hcengineering/ui'
 
@@ -26,6 +29,7 @@
   export let attribute: AnyAttribute | undefined
   export let attributeOf: Ref<Class<Doc>>
   export let editable: boolean = true
+  export let disabled: boolean = false
   export let kind: ButtonKind = 'regular'
   export let size: ButtonSize = 'medium'
   export let isCard: boolean = false
@@ -61,7 +65,28 @@
 
   $: selected = classes.find((p) => p.id === refClass)
 
-  $: refClass !== undefined && dispatch('change', { type: TypeRef(refClass) })
+  let excludedClasses: Ref<Class<Doc>>[] = type?.excludedClasses ?? []
+
+  $: exclusionItems =
+    refClass === undefined
+      ? []
+      : hierarchy
+          .getDescendants(refClass)
+          .filter((clazz) => clazz !== refClass && hierarchy.getClass(clazz).label !== undefined)
+          .map((clazz) => ({ id: clazz, label: hierarchy.getClass(clazz).label }))
+
+  function updateType (clazz: Ref<Class<Doc>>, exclusions: Ref<Class<Doc>>[]): void {
+    const compatible =
+      clazz === type?.to
+        ? exclusions
+        : exclusions.filter((excluded) => excluded !== clazz && hierarchy.isDerived(excluded, clazz))
+    const nextType: RefTo<Doc> = { ...type, ...TypeRef(clazz) }
+    if (compatible.length > 0) nextType.excludedClasses = compatible
+    else delete nextType.excludedClasses
+    dispatch('change', { type: nextType, preserveOptions: clazz === type?.to })
+  }
+
+  $: if (refClass !== undefined) updateType(refClass, excludedClasses)
 
   $: editor = refClass !== undefined && hierarchy.classHierarchyMixin(refClass, view.mixin.TypeEditor)?.editor
 </script>
@@ -75,12 +100,33 @@
     items={classes}
     {width}
     bind:selected={refClass}
+    on:selected={() => {
+      excludedClasses = excludedClasses.filter(
+        (excluded) => refClass !== undefined && excluded !== refClass && hierarchy.isDerived(excluded, refClass)
+      )
+    }}
     {kind}
     {size}
     withSearch
   />
 {:else if selected}
   <Label label={selected.label} />
+{/if}
+{#if refClass === contact.class.Person && exclusionItems.length > 0}
+  <span class="label"><Label label={setting.string.ExcludedClassesAndMixins} /></span>
+  <DropdownLabelsIntl
+    label={setting.string.ExcludedClassesAndMixins}
+    items={exclusionItems}
+    bind:selected={excludedClasses}
+    multiselect
+    withSearch
+    {disabled}
+    shouldUpdateUndefined={false}
+    dataId="reference-excluded-classes"
+    {width}
+    {kind}
+    {size}
+  />
 {/if}
 {#if editor}
   <Component is={editor} props={{ attribute, type, editable, attributeOf, isCard }} on:change />

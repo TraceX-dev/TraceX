@@ -324,6 +324,7 @@ export class TTypeAccountUuid extends TType {}
 @Model(core.class.RefTo, core.class.Type)
 export class TRefTo extends TType implements RefTo<Doc> {
   to!: Ref<Class<Doc>>
+  excludedClasses?: Ref<Class<Doc>>[]
 }
 
 @UX(core.string.Collection)
