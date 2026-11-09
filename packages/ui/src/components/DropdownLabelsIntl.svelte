@@ -13,7 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 -->
-<script lang="ts">
+<script
+  lang="ts"
+  generics="Id extends string | number = string | number, Selection extends string | number | Array<string | number> = Id, Multiple extends boolean = false"
+>
   import { IntlString, Asset } from '@hcengineering/platform'
   import { createEventDispatcher } from 'svelte'
   import { deepEqual } from 'fast-equals'
@@ -30,9 +33,14 @@
   export let iconProps: Record<string, any> = {}
   export let label: IntlString = ui.string.DropdownDefaultLabel
   export let params: Record<string, any> = {}
-  export let items: DropdownIntlItem[]
-  export let multiselect: boolean = false
-  type Selection = $$Generic<DropdownIntlItem['id'] | Array<DropdownIntlItem['id']>>
+  export let items: Array<DropdownIntlItem<Id>>
+  export let multiselect: Multiple = false as Multiple
+  // Preserve the selected value type; infer IDs from items when selection is omitted.
+  type SelectedEvent = Multiple extends true
+    ? Selection extends Array<string | number>
+      ? Selection
+      : Selection[]
+    : Selection
   const emptySelection: Array<DropdownIntlItem['id']> = []
   export let selected: Selection | undefined = multiselect ? (emptySelection as Selection) : undefined
   export let disabled: boolean = false
@@ -52,15 +60,16 @@
   let container: HTMLElement
   let opened: boolean = false
 
-  const dispatch = createEventDispatcher<{ selected: Selection }>()
+  const dispatch = createEventDispatcher<{ selected: SelectedEvent }>()
 
   $: selectedItem = multiselect
     ? (items ?? []).filter((p) => (selected as Array<DropdownIntlItem['id']>)?.includes(p.id))
-    : (items ?? []).find((x) => x.id === selected)
+    : (items ?? []).find((x: DropdownIntlItem) => x.id === selected)
   $: if (shouldUpdateUndefined && selected === undefined && items?.[0] !== undefined) {
-    const initial = multiselect ? [items[0].id] : items[0].id
+    const first: DropdownIntlItem = items[0]
+    const initial = multiselect ? [first.id] : first.id
     selected = initial as Selection
-    dispatch('selected', selected)
+    dispatch('selected', selected as SelectedEvent)
   }
 
   function openPopup (): void {
@@ -73,14 +82,14 @@
         (result) => {
           if (result != null) {
             selected = result as Selection
-            dispatch('selected', selected)
+            dispatch('selected', selected as SelectedEvent)
           }
           opened = false
         },
         (result) => {
           if (result != null) {
             selected = result as Selection
-            dispatch('selected', selected)
+            dispatch('selected', selected as SelectedEvent)
           }
         }
       )
