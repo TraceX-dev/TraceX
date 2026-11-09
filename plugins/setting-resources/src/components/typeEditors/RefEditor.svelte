@@ -16,6 +16,7 @@
 <script lang="ts">
   import core, { AnyAttribute, Class, Doc, DOMAIN_STATUS, Ref, RefTo } from '@hcengineering/core'
   import { TypeRef } from '@hcengineering/model'
+  import { getEmbeddedLabel } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import { Component, DropdownLabelsIntl, Label } from '@hcengineering/ui'
   import view from '@hcengineering/view'
@@ -37,20 +38,23 @@
 
   const _classes = [core.class.Doc]
 
-  const dispatch = createEventDispatcher()
+  const dispatch = createEventDispatcher<{ change: { type: RefTo<Doc>, preserveOptions: boolean } }>()
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
+  const removedClasses = new Set(
+    client
+      .getModel()
+      .findAllSync(card.class.MasterTag, { removed: true })
+      .map((clazz) => clazz._id)
+  )
   const classes = fillClasses(_classes)
 
   function fillClasses (classes: Ref<Class<Doc>>[]): DropdownIntlItem[] {
     const res: DropdownIntlItem[] = []
     const descendants = new Set(classes.map((p) => hierarchy.getDescendants(p)).reduce((a, b) => a.concat(b)))
-    // exclude removed card types
-    const removedTypes = client.getModel().findAllSync(card.class.MasterTag, { removed: true })
-    const excluded = new Set(removedTypes.map((p) => p._id))
     for (const desc of descendants) {
-      if (excluded.has(desc)) continue
+      if (removedClasses.has(desc)) continue
       const domain = hierarchy.findDomain(desc)
       if (domain === DOMAIN_STATUS || domain === undefined) continue
       if (hierarchy.classHierarchyMixin(desc, view.mixin.AttributeEditor) === undefined) continue
@@ -65,28 +69,51 @@
 
   $: selected = classes.find((p) => p.id === refClass)
 
-  let excludedClasses: Ref<Class<Doc>>[] = (type?.excludedClasses ?? []).filter((clazz) => hierarchy.hasClass(clazz))
+  let excludedClasses: Ref<Class<Doc>>[] = type?._class === core.class.RefTo ? (type.excludedClasses ?? []) : []
 
   // Candidate exclusions are applied only by the Person and Card reference editors.
   function supportsExclusions (clazz: Ref<Class<Doc>> | undefined): boolean {
     return clazz !== undefined && (clazz === contact.class.Person || hierarchy.isDerived(clazz, card.class.Card))
   }
 
-  $: exclusionItems =
-    refClass === undefined || !supportsExclusions(refClass)
-      ? []
-      : hierarchy
-          .getDescendants(refClass)
-          .filter((clazz) => clazz !== refClass && hierarchy.getClass(clazz).label !== undefined)
-          .map((clazz) => ({ id: clazz, label: hierarchy.getClass(clazz).label }))
+  function getExclusionItems (
+    clazz: Ref<Class<Doc>> | undefined,
+    selected: Ref<Class<Doc>>[]
+  ): Array<DropdownIntlItem<Ref<Class<Doc>>>> {
+    const items = new Map<Ref<Class<Doc>>, DropdownIntlItem<Ref<Class<Doc>>>>()
+    if (clazz !== undefined && supportsExclusions(clazz)) {
+      for (const descendant of hierarchy.getDescendants(clazz)) {
+        if (descendant === clazz || removedClasses.has(descendant)) continue
+        const label = hierarchy.getClass(descendant).label
+        if (label === undefined) continue
+        const item: DropdownIntlItem<Ref<Class<Doc>>> = { id: descendant, label }
+        items.set(descendant, item)
+      }
+    }
+    // Keep stale selections visible and removable until the user explicitly deselects them.
+    for (const excluded of selected) {
+      if (items.has(excluded)) continue
+      const item: DropdownIntlItem<Ref<Class<Doc>>> = {
+        id: excluded,
+        label: hierarchy.findClass(excluded)?.label ?? getEmbeddedLabel(excluded)
+      }
+      items.set(excluded, item)
+    }
+    return Array.from(items.values())
+  }
+
+  $: exclusionItems = getExclusionItems(refClass, excludedClasses)
 
   function updateType (clazz: Ref<Class<Doc>>, exclusions: Ref<Class<Doc>>[]): void {
-    const compatible = supportsExclusions(clazz)
-      ? exclusions.filter(
-          (excluded) => hierarchy.hasClass(excluded) && excluded !== clazz && hierarchy.isDerived(excluded, clazz)
-        )
-      : []
-    const nextType: RefTo<Doc> = { ...type, ...TypeRef(clazz) }
+    const compatible =
+      clazz === type?.to
+        ? exclusions
+        : supportsExclusions(clazz)
+          ? exclusions.filter(
+              (excluded) => hierarchy.hasClass(excluded) && excluded !== clazz && hierarchy.isDerived(excluded, clazz)
+            )
+          : []
+    const nextType: RefTo<Doc> = type?._class === core.class.RefTo ? { ...type, ...TypeRef(clazz) } : TypeRef(clazz)
     if (compatible.length > 0) nextType.excludedClasses = compatible
     else delete nextType.excludedClasses
     dispatch('change', { type: nextType, preserveOptions: clazz === type?.to })

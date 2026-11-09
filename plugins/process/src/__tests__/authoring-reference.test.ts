@@ -43,6 +43,40 @@ cardTypes:
     kind: 0
 `
 
+const nativeArrayTypes: Array<Record<string, unknown>> = [
+  {
+    _class: 'core:class:ArrOf',
+    label: 'custom:label:Array',
+    futureOptions: { levels: [1, 2] },
+    of: { _class: 'core:class:TypeNumber', label: 'core:string:Number', min: 0, digits: 2 }
+  },
+  {
+    _class: 'core:class:ArrOf',
+    label: 'core:string:Array',
+    of: {
+      _class: 'core:class:ArrOf',
+      label: 'custom:label:NestedArray',
+      of: { _class: 'core:class:RefTo', label: 'custom:label:Reference', to: 'record', futureOptions: [true] }
+    }
+  },
+  {
+    _class: 'core:class:ArrOf',
+    label: 'core:string:Array',
+    native: { futureValue: 'opaque' },
+    of: { _class: 'core:class:TypeString', label: 'core:string:String' }
+  },
+  {
+    _class: 'core:class:ArrOf',
+    label: 'core:string:Array',
+    of: {
+      _class: 'extension:class:Type',
+      label: 'extension:string:Type',
+      class: 'literal class',
+      native: { value: 'opaque' }
+    }
+  }
+]
+
 describe('reference selection constraints in authoring', () => {
   it('expands class and mixin names and preserves exclusions in YAML and native JSON round trips', () => {
     const compiled = compileProcessYaml(source)
@@ -69,6 +103,16 @@ describe('reference selection constraints in authoring', () => {
       of: { _class: 'core:class:RefTo', to: 'new_record', excludedClasses: ['new_internal_record'] }
     })
     expectEquivalentModel(compileProcessYaml(exportAuthoringModel(docs, 'card')).docs, docs)
+  })
+
+  it.each(nativeArrayTypes)('preserves arrays without exclusions and their native extensions: %j', (type) => {
+    const compiled = compileProcessYaml(source)
+    const field = compiled.docs.find((doc) => doc._id === 'related_records')
+    if (field === undefined) throw new Error('The reference field fixture is missing')
+    field.type = type
+    const before = JSON.stringify(compiled.docs)
+    expectEquivalentModel(compileProcessYaml(exportAuthoringModel(compiled.docs, 'card')).docs, compiled.docs)
+    expect(JSON.stringify(compiled.docs)).toBe(before)
   })
 
   it('rejects malformed exclusions at their type property path', () => {

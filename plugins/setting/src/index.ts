@@ -1,5 +1,4 @@
 //
-// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2026 TraceX SAS.
 //

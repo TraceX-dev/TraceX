@@ -33,20 +33,20 @@ export function getReferenceQuery<T extends Doc> (
   }
 
   const constraints: DocumentQuery<T> = {}
-  const classes: Ref<Class<Doc>>[] = []
+  const classes = new Set(Array.from(excluded).filter((clazz) => !hierarchy.isMixin(clazz)))
   for (const clazz of excluded) {
     if (hierarchy.isMixin(clazz)) {
+      // The class exclusion already removes every document carrying these mixins.
+      if (classes.has(hierarchy.getBaseClass(clazz))) continue
       const current = query[clazz]
       // An existing requirement for the mixin and its exclusion cannot both hold.
       if (current !== undefined && (typeof current !== 'object' || current === null || current.$exists !== false)) {
         return mergeQueries(query, { _id: { $in: [] } })
       }
       Object.assign(constraints, { [clazz]: { $exists: false } })
-    } else {
-      classes.push(clazz)
     }
   }
-  if (classes.length > 0) constraints._class = { $nin: classes }
+  if (classes.size > 0) constraints._class = { $nin: Array.from(classes) }
   return mergeQueries(query, constraints)
 }
 

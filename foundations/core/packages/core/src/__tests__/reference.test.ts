@@ -24,6 +24,7 @@ import { genMinModel, test } from './minmodel'
 
 const childMixin = 'test:mixin:Child' as Ref<Class<Doc>>
 const childClass = 'test:class:Child' as Ref<Class<Doc>>
+const childClassMixin = 'test:mixin:ChildClassMixin' as Ref<Class<Doc>>
 
 function prepare (): Hierarchy {
   const hierarchy = new Hierarchy()
@@ -41,6 +42,12 @@ function prepare (): Hierarchy {
   }
   hierarchy.tx(factory.createTxCreateDoc(core.class.Class, core.space.Model, mixin, childMixin))
   hierarchy.tx(factory.createTxCreateDoc(core.class.Class, core.space.Model, clazz, childClass))
+  const nestedMixin: Data<Class<Doc>> = {
+    label: core.string.Class,
+    extends: childClass,
+    kind: ClassifierKind.MIXIN
+  }
+  hierarchy.tx(factory.createTxCreateDoc(core.class.Class, core.space.Model, nestedMixin, childClassMixin))
   return hierarchy
 }
 
@@ -75,7 +82,9 @@ describe('reference candidate exclusions', () => {
     expect(result._class).toEqual({ $in: [core.class.Space] })
     expect(result.space).toBe(core.space.Model)
     expect(result._id).toEqual(query._id)
-    expect(result[test.mixin.TaskMixinTodos]).toEqual({ $exists: false })
+    expect(result[test.mixin.TaskMixinTodos]).toBeUndefined()
+    expect(result[childClassMixin]).toBeUndefined()
+    expect(Object.keys(result).sort()).toEqual(['_class', '_id', 'space'])
     expect(JSON.stringify(query)).toBe(before)
   })
 
@@ -84,6 +93,21 @@ describe('reference candidate exclusions', () => {
     expect(result[test.mixin.TestMixin]).toEqual({ $exists: false })
     expect(result[childMixin]).toEqual({ $exists: false })
     expect(result._class).toEqual({ $nin: [core.class.Space] })
+  })
+
+  it('keeps independent mixin exclusions while omitting mixins covered by a class exclusion', () => {
+    const result = getReferenceQuery(prepare(), reference(test.class.Task, test.mixin.TestMixin))
+    expect(result[test.mixin.TestMixin]).toEqual({ $exists: false })
+    expect(result[childMixin]).toEqual({ $exists: false })
+    expect(result[test.mixin.TaskMixinTodos]).toBeUndefined()
+    expect(result[childClassMixin]).toBeUndefined()
+    expect(result._class).toEqual({ $nin: [test.class.Task, childClass] })
+  })
+
+  it('keeps a mixin condition when its base class is not excluded', () => {
+    expect(getReferenceQuery(prepare(), reference(childClassMixin))).toEqual({
+      [childClassMixin]: { $exists: false }
+    })
   })
 
   it('returns no candidates when an existing filter requires an excluded mixin', () => {

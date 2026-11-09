@@ -163,10 +163,14 @@ function documentMetadata (
         ['array', 'ref', 'enum'].some((key) => Object.prototype.hasOwnProperty.call(candidate, key)))
     if (short) return decode ? decodeAuthoringType(candidate, at) : candidate
     const expanded = metadata(value, decode) as Record<string, unknown>
-    if (decode && expanded._class === 'core:class:RefTo' && expanded.excludedClasses !== undefined) {
-      return decodeAuthoringType(expanded, at)
+    if (
+      expanded[decode ? '_class' : 'class'] === (decode ? 'core:class:RefTo' : 'core.RefTo') &&
+      expanded.excludedClasses !== undefined
+    ) {
+      // Encoding already produced portable class names; decoding first restores native metadata keys.
+      return decode ? decodeAuthoringType(expanded, at) : candidate
     }
-    if (!decode && expanded.class === 'core.RefTo' && expanded.excludedClasses !== undefined) return candidate
+    // Recurse through element types while retaining all native properties on the array itself.
     if (expanded[decode ? '_class' : 'class'] === (decode ? 'core:class:ArrOf' : 'core.ArrOf')) {
       expanded.of = type(object(value, at).of, `${at}.of`)
     }

@@ -111,9 +111,9 @@ Write ordinary localized display labels as text: `label: Estimator`. In v2, slot
 
 #### Reference candidate exclusions
 
-A reference to `contact.Person` or to a card type can declare `excludedClasses` to hide classes or mixins and their descendants from selection. Candidate filtering is implemented in the Person and Card editors, for single references and array elements; other reference editors do not apply this setting. The setting belongs to the field's `RefTo` type; for arrays it belongs to the element type. The field editor offers compatible descendants of the selected target and removes unavailable or incompatible ids when the field is edited and saved. Existing stored values remain visible. This is a candidate selection constraint, not a server-side write permission or validation rule. Employee exclusions cover active and inactive employees. If an exclusion class is unavailable, selection remains blocked until the field is edited and saved.
+`excludedClasses` hides classes, mixins and their descendants in Person and Card reference pickers. Set it on the field's `RefTo` type, or on the element type for arrays. Existing values remain visible. This limits UI candidates; permissions and server-side validation are separate.
 
-Use the full type form so the existing reference shorthand stays unchanged:
+An unavailable exclusion blocks selection. The field settings show its stored id and preserve it until explicitly removed and saved.
 
 ```yaml
 type:
@@ -122,7 +122,7 @@ type:
   excludedClasses: [contact.mixin.Employee]
 ```
 
-For multiple contacts, place that type inside `type: {array: ...}`. Class names in `excludedClasses` use the same short or explicit-reference forms as `to`. JSON definitions retain the native ids. Export/import preserves the exclusions and rebinds local class identities when cloning a module.
+For arrays, wrap this type in `type: {array: ...}`. Exclusions use the same class-reference syntax as `to`; import/export preserves them and rebinds local ids when cloning a module.
 
 #### Named outputs and references
 

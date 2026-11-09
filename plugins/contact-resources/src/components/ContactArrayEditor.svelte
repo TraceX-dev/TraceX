@@ -16,7 +16,7 @@
 
 -->
 <script lang="ts">
-  import contact, { Contact } from '@hcengineering/contact'
+  import { Contact } from '@hcengineering/contact'
   import { ArrOf, Ref, RefTo, getReferenceQuery } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { IntlString } from '@hcengineering/platform'
@@ -25,16 +25,15 @@
 
   export let label: IntlString
   export let value: Ref<Contact>[]
-  export let type: ArrOf<Ref<Contact>> | undefined
+  export let type: ArrOf<Contact> | undefined
   export let onChange: (refs: Ref<Contact>[]) => void
   export let readonly = false
   export let kind: ButtonKind = 'link'
 
   const client = getClient()
   $: referenceType = type?.of as RefTo<Contact> | undefined
-  $: candidatesQuery =
-    referenceType?.to === contact.class.Person ? getReferenceQuery(client.getHierarchy(), referenceType) : undefined
-  $: _clazz = (type?.of as RefTo<Contact>)?.to
+  $: candidatesQuery = getReferenceQuery(client.getHierarchy(), referenceType)
+  $: _clazz = referenceType?.to
   let timer: any
 
   function onUpdate (evt: CustomEvent<Ref<Contact>[]>): void {
@@ -52,8 +51,8 @@
   docQuery={candidatesQuery}
   on:update={onUpdate}
   {kind}
-  size={'medium'}
-  justify={'left'}
+  size="medium"
+  justify="left"
   width={kind === 'list' ? undefined : '100%'}
   {readonly}
 />
