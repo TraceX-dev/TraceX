@@ -47,6 +47,7 @@
     "@tiptap/pm": "^3.33.0",
     "@tiptap/starter-kit": "^3.33.0",
     "@tiptap/extensions": "^3.33.0",
+    "@tiptap/extension-unique-id": "3.22.0",
     "@tiptap/extension-heading": "^3.33.0",
     "@tiptap/extension-highlight": "^3.33.0",
     "@tiptap/extension-link": "^3.33.0",

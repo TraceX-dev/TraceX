@@ -367,8 +367,7 @@
   }
 
   async function initialize (): Promise<void> {
-    // it is recommended to wait for the local provider to be loaded
-    // https://discuss.yjs.dev/t/initial-offline-value-of-a-shared-document/465/4
+    // Wait for the provider's server sync before mounting: UniqueID must not persist an empty initial paragraph.
     await provider.loaded
     if (destroyed) return
     synced = true
@@ -446,13 +445,10 @@
     )
     if (destroyed) return
 
-    // Create editor immediately with cached content
-    // BUT keep it read-only until remote sync completes
-    // This prevents stale cached content from overwriting newer server content
     editor = new Editor({
       extensions: [kit],
       element,
-      editable: !readonly,
+      editable: !readonly && (hasAccountRole(account, AccountRole.User) || canEditAsGuestCreator),
       editorProps: {
         attributes: mergeAttributes(defaultEditorAttributes, editorAttributes, {
           class: 'flex-grow',

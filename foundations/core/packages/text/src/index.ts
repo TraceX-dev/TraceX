@@ -29,5 +29,6 @@ export type { QMSInlineCommentMarkOptions } from './marks/qmsInlineCommentMark'
 export * from './kits/common-kit'
 export * from './kits/server-kit'
 export * from './kit'
+export { NodeIDExtension } from './unique-id'
 
 export * from './tiptapExtensions'

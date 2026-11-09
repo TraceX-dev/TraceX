@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -48,11 +49,13 @@ import { CodeBlockExtension, codeBlockOptions, CommentNode, MarkdownNode, TodoIt
 
 import { CodeExtension, codeOptions } from '../marks/code'
 import { MermaidExtension, mermaidOptions } from '../nodes/mermaid'
+import { NodeIDExtension } from '../unique-id'
 
 export const CommonKitFactory = (e: ExtensionFactory) =>
   ({
     text: e(Text),
     document: e(Document),
+    uniqueID: e(NodeIDExtension),
     paragraph: e(Paragraph),
 
     bold: e(Bold),

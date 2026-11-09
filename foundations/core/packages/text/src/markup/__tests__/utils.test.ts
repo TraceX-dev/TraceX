@@ -4,6 +4,7 @@
 
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -69,18 +70,20 @@ describe('EmptyMarkup', () => {
 describe('getMarkup', () => {
   it('with empty content', async () => {
     const editor = new Editor({ extensions })
-    expect(getMarkup(editor)).toEqual('{"type":"doc","content":[{"type":"paragraph","attrs":{"textAlign":null}}]}')
+    expect(getMarkup(editor)).toEqual(
+      '{"type":"doc","content":[{"type":"paragraph","attrs":{"uid":null,"textAlign":null}}]}'
+    )
   })
   it('with some content', async () => {
     const editor = new Editor({ extensions, content: '<p>hello</p>' })
     expect(getMarkup(editor)).toEqual(
-      '{"type":"doc","content":[{"type":"paragraph","attrs":{"textAlign":null},"content":[{"type":"text","text":"hello"}]}]}'
+      '{"type":"doc","content":[{"type":"paragraph","attrs":{"uid":null,"textAlign":null},"content":[{"type":"text","text":"hello"}]}]}'
     )
   })
   it('with empty paragraphs as content', async () => {
     const editor = new Editor({ extensions, content: '<p></p><p></p>' })
     expect(getMarkup(editor)).toEqual(
-      '{"type":"doc","content":[{"type":"paragraph","attrs":{"textAlign":null}},{"type":"paragraph","attrs":{"textAlign":null}}]}'
+      '{"type":"doc","content":[{"type":"paragraph","attrs":{"uid":null,"textAlign":null}},{"type":"paragraph","attrs":{"uid":null,"textAlign":null}}]}'
     )
   })
 })
@@ -297,7 +300,7 @@ describe('pmNodeToJSON', () => {
 
     const json: MarkupNode = {
       type: MarkupNodeType.paragraph,
-      attrs: { textAlign: null },
+      attrs: { uid: null, textAlign: null },
       content: [nodeText('Hello, world!')]
     }
     expect(pmNodeToJSON(node)).toEqual(json)
@@ -346,7 +349,7 @@ describe('htmlToMarkup', () => {
   it('converts HTML to Markup', () => {
     const html = '<p>hello</p>'
     const expectedMarkup =
-      '{"type":"doc","content":[{"type":"paragraph","attrs":{"textAlign":null},"content":[{"type":"text","text":"hello"}]}]}'
+      '{"type":"doc","content":[{"type":"paragraph","attrs":{"uid":null,"textAlign":null},"content":[{"type":"text","text":"hello"}]}]}'
     expect(htmlToMarkup(html)).toEqual(expectedMarkup)
   })
 })
@@ -360,6 +363,7 @@ describe('htmlToJSON', () => {
         {
           type: MarkupNodeType.paragraph,
           attrs: {
+            uid: null,
             textAlign: null
           },
           content: [

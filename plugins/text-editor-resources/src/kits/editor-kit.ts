@@ -74,6 +74,7 @@ import { ListKeymapExtension } from '../components/extension/shortcuts/listKeyma
 import { I18nPlaceholderExtension } from '../components/extension/i18nPlaceholder'
 import { EditorContextExtension } from '../components/extension/editorContext'
 import { MathematicsExtension } from '../components/extension/mathematics'
+import { EditorNodeIDExtension } from '../components/extension/unique-id'
 
 export interface EditorKitContext {
   mode?: 'full' | 'compact'
@@ -94,6 +95,7 @@ const StaticEditorKit = extensionKit(
   (e, context: EditorKitContext) =>
     ({
       ...CommonKitFactory(e),
+      uniqueID: e(EditorNodeIDExtension),
 
       shortcuts: e(subKits.shortcuts, context), // needs to be loaded as early as possible to override the default behavior
 
