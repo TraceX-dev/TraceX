@@ -37,6 +37,7 @@ export * from './objvalue'
 export * from './operations'
 export * from './operator'
 export * from './query'
+export * from './reference'
 export type * from './server'
 export * from './storage'
 export * from './tx'
@@ -52,4 +53,3 @@ export * from './objectAccess'
 export type * from './versioning'
 
 export default core
-export * from './reference'

@@ -65,10 +65,15 @@
 
   $: selected = classes.find((p) => p.id === refClass)
 
-  let excludedClasses: Ref<Class<Doc>>[] = type?.excludedClasses ?? []
+  let excludedClasses: Ref<Class<Doc>>[] = (type?.excludedClasses ?? []).filter((clazz) => hierarchy.hasClass(clazz))
+
+  // Candidate exclusions are applied only by the Person and Card reference editors.
+  function supportsExclusions (clazz: Ref<Class<Doc>> | undefined): boolean {
+    return clazz !== undefined && (clazz === contact.class.Person || hierarchy.isDerived(clazz, card.class.Card))
+  }
 
   $: exclusionItems =
-    refClass === undefined
+    refClass === undefined || !supportsExclusions(refClass)
       ? []
       : hierarchy
           .getDescendants(refClass)
@@ -76,10 +81,11 @@
           .map((clazz) => ({ id: clazz, label: hierarchy.getClass(clazz).label }))
 
   function updateType (clazz: Ref<Class<Doc>>, exclusions: Ref<Class<Doc>>[]): void {
-    const compatible =
-      clazz === type?.to
-        ? exclusions
-        : exclusions.filter((excluded) => excluded !== clazz && hierarchy.isDerived(excluded, clazz))
+    const compatible = supportsExclusions(clazz)
+      ? exclusions.filter(
+          (excluded) => hierarchy.hasClass(excluded) && excluded !== clazz && hierarchy.isDerived(excluded, clazz)
+        )
+      : []
     const nextType: RefTo<Doc> = { ...type, ...TypeRef(clazz) }
     if (compatible.length > 0) nextType.excludedClasses = compatible
     else delete nextType.excludedClasses
@@ -102,7 +108,11 @@
     bind:selected={refClass}
     on:selected={() => {
       excludedClasses = excludedClasses.filter(
-        (excluded) => refClass !== undefined && excluded !== refClass && hierarchy.isDerived(excluded, refClass)
+        (excluded) =>
+          refClass !== undefined &&
+          hierarchy.hasClass(excluded) &&
+          excluded !== refClass &&
+          hierarchy.isDerived(excluded, refClass)
       )
     }}
     {kind}
@@ -112,7 +122,7 @@
 {:else if selected}
   <Label label={selected.label} />
 {/if}
-{#if refClass === contact.class.Person && exclusionItems.length > 0}
+{#if exclusionItems.length > 0}
   <span class="label"><Label label={setting.string.ExcludedClassesAndMixins} /></span>
   <DropdownLabelsIntl
     label={setting.string.ExcludedClassesAndMixins}

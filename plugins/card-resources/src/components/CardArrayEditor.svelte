@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import { Card, MasterTag } from '@hcengineering/card'
-  import { AnyAttribute, ArrOf, Class, Ref, RefTo, Type } from '@hcengineering/core'
+  import { AnyAttribute, ArrOf, Class, Ref, RefTo, Type, getReferenceQuery } from '@hcengineering/core'
   import type { DocumentQuery } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { IconWithEmoji, createQuery, getClient } from '@hcengineering/presentation'
@@ -52,6 +52,9 @@
       card.class.Card
   }
 
+  $: referenceType = (attribute?.type ?? type) as ArrOf<Card> | undefined
+  $: candidatesQuery = getReferenceQuery(hierarchy, referenceType?.of as RefTo<Card> | undefined, docQuery)
+
   const handleOpen = (event: MouseEvent): void => {
     if (onChange === undefined) {
       return
@@ -64,7 +67,7 @@
 
     showPopup(
       CardsPopup,
-      { selectedObjects: toArray(value), _class, multiSelect: true, docQuery },
+      { selectedObjects: toArray(value), _class, multiSelect: true, docQuery: candidatesQuery },
       eventToHTMLElement(event),
       undefined,
       change

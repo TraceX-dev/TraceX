@@ -64,13 +64,12 @@ export function updateReferenceExclusions (type: Type<PropertyType>, source: Typ
   const reference = type as RefTo<Doc>
   const updatedReference = source as RefTo<Doc>
   if (reference.to !== updatedReference.to) return type
-  const exclusions = updatedReference.excludedClasses ?? []
-  const previous = reference.excludedClasses ?? []
-  if (exclusions.length === previous.length && exclusions.every((clazz, index) => clazz === previous[index]))
-    {return type}
+  const exclusions = Array.from(new Set(updatedReference.excludedClasses ?? []))
+  const previous = new Set(reference.excludedClasses ?? [])
+  if (exclusions.length === previous.size && exclusions.every((clazz) => previous.has(clazz))) return type
   const updated: RefTo<Doc> = { ...reference }
-  if ((updatedReference.excludedClasses?.length ?? 0) > 0) {
-    updated.excludedClasses = [...(updatedReference.excludedClasses ?? [])]
+  if (exclusions.length > 0) {
+    updated.excludedClasses = exclusions
   } else {
     delete updated.excludedClasses
   }

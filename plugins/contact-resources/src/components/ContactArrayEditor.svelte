@@ -32,9 +32,8 @@
 
   const client = getClient()
   $: referenceType = type?.of as RefTo<Contact> | undefined
-  $: candidatesQuery = referenceType?.to === contact.class.Person
-    ? getReferenceQuery(client.getHierarchy(), referenceType)
-    : undefined
+  $: candidatesQuery =
+    referenceType?.to === contact.class.Person ? getReferenceQuery(client.getHierarchy(), referenceType) : undefined
   $: _clazz = (type?.of as RefTo<Contact>)?.to
   let timer: any
 

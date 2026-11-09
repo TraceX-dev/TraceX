@@ -172,17 +172,17 @@ async function exportAttribute (
     if (val !== undefined) docs.push(val)
   }
   if (attr.type._class === core.class.RefTo) {
-    const to = (attr.type as RefTo<Doc>).to
-    if (h.isDerived(to, card.class.Card)) {
-      required.push(to)
+    const type = attr.type as RefTo<Doc>
+    for (const clazz of [type.to, ...(type.excludedClasses ?? [])]) {
+      if (h.isDerived(clazz, card.class.Card)) required.push(clazz)
     }
   }
   if (attr.type._class === core.class.ArrOf) {
     const of = (attr.type as ArrOf<Doc>).of
     if (of._class === core.class.RefTo) {
-      const to = (of as RefTo<Doc>).to
-      if (h.isDerived(to, card.class.Card)) {
-        required.push(to)
+      const type = of as RefTo<Doc>
+      for (const clazz of [type.to, ...(type.excludedClasses ?? [])]) {
+        if (h.isDerived(clazz, card.class.Card)) required.push(clazz)
       }
     }
     if (of._class === core.class.EnumOf) {

@@ -114,6 +114,12 @@ describe('updating existing reference field constraints', () => {
     expect(updateReferenceExclusions(array, array)).toBe(array)
   })
 
+  it('treats reordered and repeated exclusions as the same selection constraint', () => {
+    const original = reference(test.mixin.TestMixin, childMixin)
+    expect(updateReferenceExclusions(original, reference(childMixin, test.mixin.TestMixin))).toBe(original)
+    expect(updateReferenceExclusions(original, reference(childMixin, test.mixin.TestMixin, childMixin))).toBe(original)
+  })
+
   it('updates and clears exclusions without changing the reference target or other type properties', () => {
     const original: RefTo<Doc> = { ...reference(), label: core.string.Ref }
     const updated = updateReferenceExclusions(original, reference(test.mixin.TestMixin))

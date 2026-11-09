@@ -62,8 +62,9 @@ export function decodeAuthoringType (value: unknown, path: string): Record<strin
   if (result._class === 'core:class:RefTo') {
     result.to = text(authoringClassName(data.to, true), `${path}.to`)
     if (data.excludedClasses !== undefined) {
-      if (!Array.isArray(data.excludedClasses))
-        {fail(`${path}.excludedClasses`, 'Expected an array of classes or mixins')}
+      if (!Array.isArray(data.excludedClasses)) {
+        fail(`${path}.excludedClasses`, 'Expected an array of classes or mixins')
+      }
       result.excludedClasses = data.excludedClasses.map((clazz, index) =>
         text(authoringClassName(clazz, true), `${path}.excludedClasses[${index}]`)
       )
