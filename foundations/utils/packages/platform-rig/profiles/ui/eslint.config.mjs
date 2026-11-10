@@ -18,6 +18,14 @@ export default defineConfig([
   {
     files: ['**/*.{js,cjs,mjs,ts,cts,mts}'],
     extends: [love, secureCoding.configs.recommended],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        // Must match the .svelte block: the TypeScript project service is shared by all files,
+        // and without this .svelte files fall into slow inferred projects with default compiler options.
+        extraFileExtensions: ['.svelte']
+      }
+    },
     rules: {
       ...LEGACY_COMPATIBILITY_RULES,
       '@typescript-eslint/consistent-type-exports': 'off',

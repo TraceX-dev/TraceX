@@ -93,6 +93,18 @@ async function loadEslintConfig() {
     {
       ...love,
       files: ['**/*.{js,cjs,mjs,ts,cts,mts}'],
+      languageOptions: {
+        ...love.languageOptions,
+        parserOptions: {
+          ...love.languageOptions?.parserOptions,
+          projectService: true,
+          tsconfigRootDir: process.cwd(),
+          // The TypeScript project service is shared by all files in the process. It must know about
+          // .svelte from the very first parsed file, otherwise .svelte files become orphans in inferred
+          // projects (default compiler options, graph rebuilt per file) and formatting gets ~5-8x slower.
+          extraFileExtensions: ['.svelte']
+        }
+      },
       plugins: {
         ...love.plugins,
         '@stylistic': stylistic,
@@ -134,7 +146,8 @@ async function loadEslintConfig() {
         parserOptions: {
           extraFileExtensions: ['.svelte'],
           parser: tsParser,
-          projectService: true
+          projectService: true,
+          tsconfigRootDir: process.cwd()
         }
       },
       rules: {
