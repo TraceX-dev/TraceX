@@ -194,12 +194,17 @@ export async function OnProcessToDoClose (txes: Tx[], control: TriggerControl): 
       await control.findAll(control.ctx, process.class.ProcessToDo, { _id: updateTx.objectId }, { limit: 1 })
     )[0]
     if (todo === undefined) continue
-    if (todo.completionMode === 'all') {
+    if (todo._class === process.class.ProcessToDo && todo.completionMode === 'all') {
       todo = { ...todo, results: [] }
     }
     const cancelledToDos: ProcessToDo[] = []
-    if (todo._class === process.class.ProcessToDo && todo.group !== undefined && todo.completionMode === 'any') {
-      const pending = await control.findAll(control.ctx, process.class.ProcessToDo, {
+    const approvalCompleted = todo._class === process.class.ApproveRequest && (todo as ApproveRequest).approved === true
+    if (
+      (todo._class === process.class.ProcessToDo || approvalCompleted) &&
+      todo.group !== undefined &&
+      todo.completionMode === 'any'
+    ) {
+      const pending = await control.findAll(control.ctx, todo._class, {
         execution: todo.execution,
         group: todo.group,
         doneOn: null

@@ -27,7 +27,7 @@ import core, {
   type RefTo,
   type Type
 } from '@hcengineering/core'
-import type { MasterTag } from '@hcengineering/card'
+import type { MasterTag, Role } from '@hcengineering/card'
 import { getAuthoringProcessIdentities, remapAuthoringReferences } from './authoring-model'
 import type { AuthoringNativeDocument } from './authoring'
 import type { AttributeSlotModel, Process, SlotModel } from './index'
@@ -65,6 +65,7 @@ export function matchesModelSlot (
     actual === expected || hierarchy.isDerived(actual, expected)
   if (slot.slotKind === 'unknown') return doc !== undefined || hierarchy.findAttribute(owner, value) !== undefined
   if (doc === undefined || !derived(doc._class, slot._class)) return false
+  if (slot.slotKind === 'role') return (doc as Role).types.some((type) => derived(owner, type))
   if (slot.slotKind === 'process') return derived(owner, (doc as Process).masterTag)
   if (slot.slotKind === 'association') {
     const assoc = doc as unknown as { classA: Ref<Class<Doc>>, classB: Ref<Class<Doc>> }

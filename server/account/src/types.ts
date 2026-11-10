@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import type { WorkspaceAuditQuery } from '@hcengineering/core'
 import {
   type AccountRole,
   type BackupStatus,
@@ -36,6 +37,7 @@ import {
   type WorkspaceInfo,
   type IntegrationKind
 } from '@hcengineering/core'
+import type { AuditRecord } from '@hcengineering/server-core'
 import type { EndpointInfo } from './utils'
 
 /* ========= D A T A B A S E  E N T I T I E S ========= */
@@ -328,7 +330,18 @@ export type WorkspaceStatusData = Omit<WorkspaceStatus, 'workspaceUuid'>
 export type WorkspaceInviteData = Omit<WorkspaceInvite, 'id'>
 
 /* ========= D A T A B A S E  C O L L E C T I O N S ========= */
+/** Audit journal, independent of account/workspace lifecycle; mutations are append-only. */
+export interface AuditEventStore {
+  insert: (record: AuditRecord) => Promise<void>
+  findWorkspace: (
+    workspace: WorkspaceUuid,
+    query: WorkspaceAuditQuery,
+    events?: readonly string[]
+  ) => Promise<AuditRecord[]>
+}
+
 export interface AccountDB {
+  audit: AuditEventStore
   person: DbCollection<Person>
   account: DbCollection<Account>
   socialId: DbCollection<SocialId>
@@ -560,3 +573,5 @@ export interface AccountAggregatedInfo extends Omit<Account, 'hash' | 'salt'>, P
   socialIds: SocialId[]
   workspaces: Omit<WorkspaceInfo, 'allowReadOnlyGuest' | 'allowGuestSignUp'>[]
 }
+
+export type { WorkspaceAuditQuery, WorkspaceAuditEvent, WorkspaceAuditPage } from '@hcengineering/core'

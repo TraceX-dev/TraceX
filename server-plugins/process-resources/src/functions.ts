@@ -1135,6 +1135,7 @@ export async function RequestApproval (
         withRollback: params.withRollback ?? false,
         results,
         group,
+        completionMode: params.completionMode === 'any' ? 'any' : 'all',
         actionType: params.actionType,
         field: resolveAttributeId(_process, (params as any).field)
       },
@@ -1164,6 +1165,9 @@ export async function ApproveRequestApproved (
   if (params._id === undefined) return false
   const todo = await getApprovalGroup(control, execution, params._id)
   reportApproval(control, todo, true)
+  if (todo[0].completionMode === 'any') {
+    return todo.some((t) => t.approved === true) && !todo.some((t) => t.approved === false)
+  }
   return todo.every((t) => t.approved === true)
 }
 
@@ -1197,7 +1201,7 @@ function reportApproval (control: ProcessControl, requests: ApproveRequest[], ap
   reportProcessDiagnostic(control, {
     code: approved ? 'approvals' : 'rejections',
     message: approved ? process.string.DiagnosticApprovals : process.string.DiagnosticRejections,
-    mode: approved ? 'all' : 'any',
+    mode: approved && requests[0].completionMode !== 'any' ? 'all' : 'any',
     total: requests.length,
     matched,
     params: { total: requests.length, matched },

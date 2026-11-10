@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024 Hardcore Engineering Inc.
 // Copyright © 2026 TraceX
 // Copyright © 2026 TraceX SAS.
@@ -36,6 +37,8 @@ import {
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import type {
+  WorkspaceAuditQuery,
+  WorkspaceAuditPage,
   AccountAggregatedInfo,
   ApiKey,
   CreatedApiKey,
@@ -159,6 +162,8 @@ export interface AccountClient {
   getPerson: () => Promise<Person>
   getPersonInfo: (account: PersonUuid) => Promise<PersonInfo>
   getSocialIds: (includeDeleted?: boolean) => Promise<SocialId[]>
+  /** Read the journal of the token workspace; requires its current owner role. */
+  getWorkspaceAuditEvents: (query: WorkspaceAuditQuery) => Promise<WorkspaceAuditPage>
   getWorkspaceMembers: () => Promise<WorkspaceMemberInfo[]>
   updateWorkspaceRole: (account: string, role: AccountRole) => Promise<void>
   setWorkspaceMemberUnread: (targetAccount: string, hasUnread: boolean) => Promise<void>
@@ -185,7 +190,13 @@ export interface AccountClient {
   listAccounts: (search?: string, skip?: number, limit?: number) => Promise<AccountAggregatedInfo[]>
   deleteAccount: (uuid: AccountUuid) => Promise<void>
 
-  workerHandshake: (region: string, version: Data<Version>, operation: WorkspaceOperation) => Promise<void>
+  /** An optional signal cancels a single handshake attempt; the caller owns retries. */
+  workerHandshake: (
+    region: string,
+    version: Data<Version>,
+    operation: WorkspaceOperation,
+    signal?: AbortSignal
+  ) => Promise<void>
   getPendingWorkspace: (
     region: string,
     version: Data<Version>,
@@ -333,11 +344,12 @@ class AccountClientImpl implements AccountClient {
     })()
   }
 
-  private async _rpc<T>(request: Request): Promise<T> {
+  private async _rpc<T>(request: Request, signal?: AbortSignal): Promise<T> {
     const timezone = getClientTimezone()
     const meta: Record<string, string> = timezone !== undefined ? { 'x-timezone': timezone } : {}
     const response = await fetch(this.url, {
       ...this.request,
+      ...(signal !== undefined ? { signal } : {}),
       headers: {
         ...this.request.headers,
         'Content-Type': 'application/json',
@@ -787,13 +799,19 @@ class AccountClientImpl implements AccountClient {
     return await this.rpc(request)
   }
 
-  async workerHandshake (region: string, version: Data<Version>, operation: WorkspaceOperation): Promise<void> {
+  async workerHandshake (
+    region: string,
+    version: Data<Version>,
+    operation: WorkspaceOperation,
+    signal?: AbortSignal
+  ): Promise<void> {
     const request = {
       method: 'workerHandshake' as const,
       params: { region, version, operation }
     }
 
-    await this.rpc(request)
+    if (signal === undefined) await this.rpc(request)
+    else await this._rpc(request, signal)
   }
 
   async getPendingWorkspace (
@@ -847,6 +865,10 @@ class AccountClientImpl implements AccountClient {
     }
 
     await this.rpc(request)
+  }
+
+  async getWorkspaceAuditEvents (query: WorkspaceAuditQuery): Promise<WorkspaceAuditPage> {
+    return await this.rpc({ method: 'getWorkspaceAuditEvents', params: query })
   }
 
   async getWorkspaceMembers (): Promise<WorkspaceMemberInfo[]> {

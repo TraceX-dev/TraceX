@@ -19,9 +19,9 @@
   import type { AwarenessState, AwarenessStateMap } from '@hcengineering/text-editor'
   import { AnySvelteComponent, Button, DelayedCaller } from '@hcengineering/ui'
   import { Editor } from '@tiptap/core'
+  import { relativePositionToAbsolutePosition, ySyncPluginKey } from '@tiptap/y-tiptap'
   import { onMount } from 'svelte'
   import { createRelativePositionFromJSON } from 'yjs'
-  import { relativePositionToAbsolutePosition, ySyncPluginKey } from 'y-prosemirror'
   import { Provider } from '../provider/types'
 
   export let provider: Provider
@@ -46,14 +46,16 @@
     if (cursor?.head != null) {
       try {
         const ystate = ySyncPluginKey.getState(editor.state)
-        const abs = relativePositionToAbsolutePosition(
-          ystate.doc,
-          ystate.type,
-          createRelativePositionFromJSON(cursor.head),
-          ystate.binding.mapping
-        )
-        if (abs != null) {
-          editor.commands.focus(abs, { scrollIntoView: true })
+        if (ystate !== undefined) {
+          const abs = relativePositionToAbsolutePosition(
+            ystate.doc,
+            ystate.type,
+            createRelativePositionFromJSON(cursor.head),
+            ystate.binding.mapping
+          )
+          if (abs != null) {
+            editor.commands.focus(abs, { scrollIntoView: true })
+          }
         }
       } catch (err) {
         // relative to absolute position conversion sometimes fails

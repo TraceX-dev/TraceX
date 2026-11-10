@@ -15,9 +15,9 @@
 //
 
 import { getMetadata, translate } from '@hcengineering/platform'
-import { type ActionContext, copyTextToClipboard, type PrintContext } from '@hcengineering/presentation'
+import { copyTextToClipboard, type PrintContext } from '@hcengineering/presentation'
 import { EmbedNode as BaseEmbedNode } from '@hcengineering/text'
-import textEditor from '@hcengineering/text-editor'
+import textEditor, { type ActionContext } from '@hcengineering/text-editor'
 import { type Editor, type Range } from '@tiptap/core'
 import { Fragment, type Node, type ResolvedPos, Slice } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, Selection, type Transaction } from '@tiptap/pm/state'
@@ -55,7 +55,7 @@ export interface EmbedNodeProvider {
 export type EmbedNodeView = (
   editor: Editor,
   root: HTMLDivElement,
-  getPos: () => number,
+  getPos: () => number | undefined,
   context: Map<unknown, unknown>
 ) => EmbedNodeViewHandle | undefined
 export type EmbedNodeProviderConstructor<T> = (options: T) => EmbedNodeProvider
@@ -69,48 +69,8 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
     }
   },
 
-  addAttributes () {
-    return {
-      src: {
-        default: null
-      }
-    }
-  },
-
-  parseHTML () {
-    return [
-      {
-        priority: 60,
-        tag: `div[data-type="${this.name}"]`,
-        getAttrs (node) {
-          const src = node.dataset.embedSrc?.trim()
-          if (src === undefined) return false
-          return { src }
-        }
-      }
-    ]
-  },
-
-  renderHTML ({ HTMLAttributes, node }) {
-    return [
-      'div',
-      {
-        'data-type': this.name,
-        'data-embed-src': node.attrs.src,
-        class: 'embed-node'
-      },
-      [
-        'a',
-        {
-          href: node.attrs.src
-        },
-        node.attrs.src
-      ]
-    ]
-  },
-
   addNodeView () {
-    return ({ node, HTMLAttributes, editor, getPos }) => {
+    return ({ node, editor, getPos }) => {
       const printContext = this.options.printContext
       const resolved = matchUrl(this.options.providers, node.attrs.src)
       const providerPromise = printContext?.waitFor(resolved, 15000) ?? resolved
@@ -121,12 +81,23 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
       root.setAttribute('data-embed-src', node.attrs.src)
       root.classList.add('embed-node')
 
-      const pos = typeof getPos === 'function' ? getPos() : 0
-      setLoadingState(editor.view, pos, true)
+      let isLoading = false
+      let destroyed = false
+      const updateLoadingState = (loading: boolean): void => {
+        if (destroyed) return
+        const pos = getPos()
+        if (pos === undefined || isLoading === loading) return
+
+        isLoading = loading
+        setLoadingState(editor.view, pos, loading)
+      }
+
+      queueMicrotask(() => {
+        updateLoadingState(true)
+      })
       root.setAttribute('block-editor-blur', 'true')
 
       let handle: EmbedNodeViewHandle | undefined
-      let destroyed = false
 
       void providerPromise
         .then(async (view) => {
@@ -145,8 +116,7 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
         })
         .finally(() => {
           finish()
-          const pos = typeof getPos === 'function' ? getPos() : 0
-          setLoadingState(editor.view, pos, false)
+          updateLoadingState(false)
         })
 
       return {
@@ -525,7 +495,7 @@ export function replacePreviewContent (
   return tr
 }
 
-const StubEmbedNodeView: EmbedNodeView = (editor: Editor, root: HTMLDivElement, getPos: () => number) => {
+const StubEmbedNodeView: EmbedNodeView = (editor: Editor, root: HTMLDivElement, getPos: () => number | undefined) => {
   const hint = document.createElement('p')
   const hintIcon = hint.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'svg'))
   const hintSpan = hint.appendChild(document.createElement('span'))
