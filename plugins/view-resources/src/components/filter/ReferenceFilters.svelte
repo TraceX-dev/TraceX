@@ -35,8 +35,19 @@
   let filters: Filter[] = []
   let invalid = false
   let revision = 0
+  // Modes such as "is not set" are complete without selected values.
+  const valuelessModes = new Set(
+    getClient()
+      .getModel()
+      .findAllSync(view.class.FilterMode, { disableValueSelector: true })
+      .map((mode) => mode._id)
+  )
 
-  async function validate (source: string | undefined): Promise<void> {
+  function isComplete (filter: Filter): boolean {
+    return filter.value.length > 0 || valuelessModes.has(filter.mode)
+  }
+
+  async function validate (source: string | undefined, hydrate = false): Promise<void> {
     const current = ++revision
     invalid = false
     dispatch('change', { value: source, valid: source === undefined })
@@ -44,7 +55,8 @@
       const next = source === undefined ? [] : parseReferenceFilters(_class, source)
       if (source !== undefined) await referenceFilterQuery(_class, source)
       if (current !== revision) return
-      filters = next
+      // Keep the edited chips (including empty ones) on screen; only the stored value is reloaded.
+      if (hydrate) filters = next
       dispatch('change', { value: source, valid: true })
     } catch {
       if (current !== revision) return
@@ -54,11 +66,12 @@
   }
 
   onMount(() => {
-    void validate(value)
+    void validate(value, true)
   })
 
   function changed (): void {
-    value = serializeReferenceFilters(filters)
+    // A condition with nothing selected yet is not stored, so it cannot make the attribute invalid.
+    value = serializeReferenceFilters(filters.filter(isComplete))
     void validate(value)
   }
 
@@ -81,7 +94,12 @@
         additionalFilters: [preset],
         excludedKeys: filters.map((filter) => filter.key._class + '.' + filter.key.key),
         onChange: (filter: Filter): void => {
-          filters = [...filters, filter]
+          // Multi-select popups report every toggle; update the same condition instead of appending a duplicate.
+          const identity = filter.key._class + '.' + filter.key.key
+          const existing = filters.findIndex(
+            (item) => item === filter || item.key._class + '.' + item.key.key === identity
+          )
+          filters = existing === -1 ? [...filters, filter] : filters.map((item, i) => (i === existing ? filter : item))
           changed()
         }
       },

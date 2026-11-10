@@ -41,8 +41,9 @@ export function supportsReferenceFilters (hierarchy: Hierarchy, target: Ref<Clas
 
 /** Restores stored conditions against the current model; stale definitions remain errors. */
 export function parseReferenceFilters (target: Ref<Class<Doc>>, source: string): Filter[] {
-  if (!supportsReferenceFilters(getClient().getHierarchy(), target))
-    {throw new Error('Unsupported reference filter target')}
+  if (!supportsReferenceFilters(getClient().getHierarchy(), target)) {
+    throw new Error('Unsupported reference filter target')
+  }
   const value: unknown = JSON.parse(source)
   if (!Array.isArray(value)) throw new Error('Expected a filter array')
   const hierarchy = getClient().getHierarchy()
