@@ -18,11 +18,13 @@ import {
   AUDIT_ATTRIBUTE_LABELS,
   AUDIT_EVENT_ITEMS,
   AUDIT_EVENT_LABELS,
+  getAuditClassLabel,
   getAuditDirectionLabel,
   getAuditEventLabel,
   getAuditTarget
 } from '../audit'
 import setting from '../plugin'
+import { getEmbeddedLabel } from '@hcengineering/platform'
 import type { WorkspaceAuditEvent } from '@hcengineering/account-client'
 
 jest.mock('@hcengineering/ui', () => ({
@@ -97,4 +99,15 @@ test('a transfer targets a workspace, not an employee identity', () => {
     attributes: { direction: 'outgoing', targetWorkspaceUuid: 'workspace-b' }
   }
   expect(getAuditTarget(event)).toBeUndefined()
+})
+
+test('shows the class label for an exported object type and keeps unknown refs readable', () => {
+  const label = getEmbeddedLabel('Issue')
+  expect(getAuditClassLabel('tracker:class:Issue', () => ({ label }))).toBe(label)
+  expect(getAuditClassLabel('removed:class:Thing', () => undefined)).toBe(getEmbeddedLabel('removed:class:Thing'))
+  expect(
+    getAuditClassLabel('broken', () => {
+      throw new Error('not found')
+    })
+  ).toBe(getEmbeddedLabel('broken'))
 })

@@ -14,7 +14,15 @@
 //
 
 import contact from '@hcengineering/contact'
-import { AccountRole, OWNER_AUDIT_EVENTS, isOwnerAuditEventName, type OwnerAuditEventName } from '@hcengineering/core'
+import {
+  AccountRole,
+  OWNER_AUDIT_EVENTS,
+  isOwnerAuditEventName,
+  type Class,
+  type Doc,
+  type OwnerAuditEventName,
+  type Ref
+} from '@hcengineering/core'
 import type { WorkspaceAuditEvent } from '@hcengineering/account-client'
 import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
 import { StateType, type DropdownIntlItem } from '@hcengineering/ui'
@@ -106,6 +114,18 @@ export function getAuditTarget (event: WorkspaceAuditEvent): string | undefined 
   const identity = event.targetType === 'account' || event.targetType === 'person' ? event.targetId : undefined
   const target = targetAccountUuid ?? targetPersonUuid ?? subjectAccountUuid ?? identity
   return typeof target === 'string' ? target : undefined
+}
+
+/** Class label for an exported object type; the stored ref is kept when the class is not in this model. */
+export function getAuditClassLabel (
+  objectClass: string,
+  findClass: (_class: Ref<Class<Doc>>) => { label: IntlString } | undefined
+): IntlString {
+  try {
+    return findClass(objectClass as Ref<Class<Doc>>)?.label ?? getEmbeddedLabel(objectClass)
+  } catch {
+    return getEmbeddedLabel(objectClass)
+  }
 }
 
 /** Readable transfer direction; unknown future values are shown as stored. */

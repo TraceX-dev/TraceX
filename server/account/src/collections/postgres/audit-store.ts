@@ -31,7 +31,25 @@ interface AuditEventRow {
   targetType?: string
   targetId?: string
   operationId?: string
-  attributes: Record<string, AuditAttributeValue>
+  attributes: Record<string, AuditAttributeValue> | string | null
+}
+
+/**
+ * Rows written before the jsonb fix hold the attributes as a JSON string scalar
+ * (the value was serialized twice). Decode both shapes; never expose a non-object.
+ */
+export function decodeAuditAttributes (value: AuditEventRow['attributes']): Record<string, AuditAttributeValue> {
+  let decoded: unknown = value
+  if (typeof decoded === 'string') {
+    try {
+      decoded = JSON.parse(decoded)
+    } catch {
+      return {}
+    }
+  }
+  return decoded !== null && typeof decoded === 'object' && !Array.isArray(decoded)
+    ? (decoded as Record<string, AuditAttributeValue>)
+    : {}
 }
 
 /** Append-only PostgreSQL journal. Duplicate deliveries preserve the original record. */
@@ -78,7 +96,7 @@ export class PostgresAuditEventStore implements AuditEventStore {
     )
     return rows.map((row) => {
       const { attributes, ...envelope } = row
-      return { ...attributes, ...envelope, occurredAt: Number(row.occurredAt) }
+      return { ...decodeAuditAttributes(attributes), ...envelope, occurredAt: Number(row.occurredAt) }
     })
   }
 
@@ -121,7 +139,8 @@ export class PostgresAuditEventStore implements AuditEventStore {
         targetType ?? null,
         targetId ?? null,
         operationId ?? null,
-        JSON.stringify(attributes)
+        // postgres.js serializes jsonb parameters itself; a pre-stringified value would be stored as a JSON string.
+        this.client.json(attributes as Parameters<Sql['json']>[0])
       ]
     )
   }

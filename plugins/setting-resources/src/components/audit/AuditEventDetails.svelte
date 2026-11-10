@@ -16,11 +16,13 @@
 -->
 <script lang="ts">
   import type { WorkspaceAuditEvent } from '@hcengineering/account-client'
+  import { getClient } from '@hcengineering/presentation'
   import { BooleanIcon, DateTimePresenter, Expandable, Label, Modal, StateTag } from '@hcengineering/ui'
   import {
     AUDIT_ATTRIBUTE_LABELS,
     AUDIT_OUTCOME_LABELS,
     AUDIT_OUTCOME_TYPES,
+    getAuditClassLabel,
     getAuditDirectionLabel,
     getAuditEventLabel,
     getAuditRoleLabel,
@@ -32,6 +34,8 @@
 
   export let event: WorkspaceAuditEvent
   export let noTopIndent: boolean = false
+
+  const hierarchy = getClient().getHierarchy()
 
   $: target = getAuditTarget(event)
   $: attributes = Object.entries(event.attributes).filter(([key]) => AUDIT_ATTRIBUTE_LABELS[key] !== undefined)
@@ -70,6 +74,9 @@
           {#if typeof value === 'boolean'}<BooleanIcon {value} />
           {:else if key === 'role' || key === 'targetRole'}<Label label={getAuditRoleLabel(String(value))} />
           {:else if key === 'direction'}<Label label={getAuditDirectionLabel(String(value))} />
+          {:else if key === 'objectClass'}<Label
+              label={getAuditClassLabel(String(value), (_class) => hierarchy.findClass(_class))}
+            />
           {:else}{value === null ? '—' : Array.isArray(value) ? value.join(', ') : String(value)}{/if}
         </dd>
       {/each}
