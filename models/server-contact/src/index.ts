@@ -119,7 +119,9 @@ export function createModel (builder: Builder): void {
     }
   })
 
-  // Space.members = unique(directMembers ∪ members of groups). Synchronous: access changes in the same operation.
+  // Space.members = unique(directMembers ∪ members of groups). Client writes get the members change in the same
+  // update from SpaceMembershipMiddleware, which also checks spaces after a group change; this recompute covers
+  // writes that do not pass the middleware (server triggers) and removes roles of accounts that are not direct.
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverContact.trigger.OnSpaceMembershipChange,
     txMatch: {

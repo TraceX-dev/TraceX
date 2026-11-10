@@ -42,6 +42,13 @@ describe('getSpaceMembersUpdate', () => {
     expect(getSpaceMembersUpdate(space([A, B]), [A, B], [B, A])).toEqual({})
   })
 
+  it('writes groups that changed with the members', () => {
+    const stored = { members: [A, G], directMembers: [A], groups: ['g1'] } as unknown as Space
+    expect(getSpaceMembersUpdate(stored, [A], [A], [])).toEqual({ groups: [] })
+    expect(getSpaceMembersUpdate(stored, [A, B, G], [A, B], ['g1'] as any)).toEqual({ directMembers: [A, B] })
+    expect(getSpaceMembersUpdate(stored, [A, G], [A], undefined)).toEqual({})
+  })
+
   it('writes members when the form does not edit direct members', () => {
     expect(getSpaceMembersUpdate(space([A]), [A, B], undefined)).toEqual({ members: [A, B] })
     expect(getSpaceMembersUpdate(space([A, B]), [B, A], undefined)).toEqual({})

@@ -127,7 +127,11 @@
               {@const group = visibleGroups[index]}
               {@const bound = boundSpaces(group._id)}
               <div class="groupRow" data-id={`user-group-${group.name}`}>
-                <EditBox value={group.name} placeholder={core.string.Name} on:change={(event) => rename(group, event)} />
+                <EditBox
+                  value={group.name}
+                  placeholder={core.string.Name}
+                  on:change={(event) => rename(group, event)}
+                />
                 <AccountArrayEditor
                   value={group.members}
                   label={core.string.Members}

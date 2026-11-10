@@ -26,7 +26,8 @@
     generateId,
     getCurrentAccount,
     WithLookup,
-    AccountUuid
+    AccountUuid,
+    type UserGroup
   } from '@hcengineering/core'
   import document, { Teamspace, DocumentEvents } from '@hcengineering/document'
   import { Asset } from '@hcengineering/platform'
@@ -67,6 +68,7 @@
     teamspace?.members !== undefined ? hierarchy.clone(teamspace.members) : [getCurrentAccount().uuid]
   /** Set by SpaceSettingsForm when the edited space supports user groups. */
   let directMembers: AccountUuid[] | undefined = undefined
+  let groups: Array<Ref<UserGroup>> | undefined = undefined
   let owners: AccountUuid[] =
     teamspace?.owners !== undefined ? hierarchy.clone(teamspace.owners) : [getCurrentAccount().uuid]
   let rolesAssignment: RolesAssignment = {}
@@ -153,7 +155,7 @@
     if (teamspaceData.autoJoin !== teamspace?.autoJoin) {
       update.autoJoin = teamspaceData.autoJoin
     }
-    Object.assign(update, getSpaceMembersUpdate(teamspace, teamspaceData.members, directMembers))
+    Object.assign(update, getSpaceMembersUpdate(teamspace, teamspaceData.members, directMembers, groups))
     if (teamspaceData.owners?.length !== teamspace?.owners?.length) {
       update.owners = teamspaceData.owners
     } else {
@@ -267,6 +269,7 @@
     bind:owners
     bind:members
     bind:directMembers
+    bind:groups
     bind:isPrivate
     bind:autoJoin
     bind:rolesAssignment

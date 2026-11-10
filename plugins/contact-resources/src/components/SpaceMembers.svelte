@@ -42,6 +42,18 @@
   $: isSearch = search.trim().length
   let members: Set<Ref<Person>> = new Set<Ref<Person>>()
 
+  // Members only through user groups follow the groups: they can not be removed here, but can be made direct.
+  $: directMembers = space.directMembers ?? space.members
+
+  function accountOf (person: Ref<Employee>): AccountUuid | undefined {
+    return initialMembers[person] ?? $employeeByIdStore.get(person)?.personUuid
+  }
+
+  function isGroupOnly (person: Ref<Employee>, direct: AccountUuid[]): boolean {
+    const account = accountOf(person)
+    return account !== undefined && space.members.includes(account) && !direct.includes(account)
+  }
+
   async function getUsers (accounts: AccountUuid[], search: string): Promise<Employee[]> {
     const employeeRefs = accounts.map((acc) => $employeeRefByAccountUuidStore.get(acc)).filter(notEmpty)
     const query: DocumentQuery<Employee> =
@@ -82,7 +94,7 @@
     showPopup(AddMembersPopup, { value: space }, undefined, async (accounts: AccountUuid[]) => {
       if (accounts != null && canAddMembers) {
         for (const account of accounts) {
-          if (space.members.includes(account)) continue
+          if (directMembers.includes(account)) continue
 
           await client.update(space, { $push: { members: account } })
         }
@@ -126,7 +138,7 @@
     {#each current as person}
       <div class="flex-between">
         <div class="item fs-title"><UserInfo size={'medium'} value={person} /></div>
-        {#if canRemoveMembers}
+        {#if canRemoveMembers && !isGroupOnly(person._id, directMembers)}
           <ActionIcon
             icon={IconClose}
             size={'small'}

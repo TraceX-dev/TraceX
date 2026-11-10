@@ -19,9 +19,9 @@
   import core, {
     AccountRole,
     type AccountUuid,
-    type Class,
     type Ref,
     type Space,
+    supportsUserGroups,
     type UserGroup
   } from '@hcengineering/core'
   import presentation, { getClient } from '@hcengineering/presentation'
@@ -77,12 +77,10 @@
   let activeFilters: ActiveFilter[] = []
   let selectedSpaces = new Set<string>()
 
-  // Same rule as the server (SpaceMembershipMiddleware): typed spaces and channels.
-  const CHANNEL = 'chunter:class:Channel' as Ref<Class<Space>>
   const hierarchy = getClient().getHierarchy()
 
   function supportsGroups (space: Space): boolean {
-    return hierarchy.isDerived(space._class, core.class.TypedSpace) || hierarchy.isDerived(space._class, CHANNEL)
+    return supportsUserGroups(hierarchy, space._class)
   }
 
   $: groupItems = [...groups]

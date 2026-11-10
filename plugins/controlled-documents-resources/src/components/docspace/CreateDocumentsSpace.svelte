@@ -27,7 +27,8 @@
     getCurrentAccount,
     WithLookup,
     Class,
-    AccountUuid
+    AccountUuid,
+    type UserGroup
   } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { StyledTextBox } from '@hcengineering/text-editor-resources'
@@ -53,6 +54,7 @@
     docSpace?.members !== undefined ? hierarchy.clone(docSpace.members) : [getCurrentAccount().uuid]
   /** Set by SpaceSettingsForm when the edited space supports user groups. */
   let directMembers: AccountUuid[] | undefined = undefined
+  let groups: Array<Ref<UserGroup>> | undefined = undefined
   let owners: AccountUuid[] =
     docSpace?.owners !== undefined ? hierarchy.clone(docSpace.owners) : [getCurrentAccount().uuid]
   let rolesAssignment: RolesAssignment = {}
@@ -129,7 +131,7 @@
     if (docSpaceData.private !== docSpace?.private) {
       update.private = docSpaceData.private
     }
-    Object.assign(update, getSpaceMembersUpdate(docSpace, docSpaceData.members, directMembers))
+    Object.assign(update, getSpaceMembersUpdate(docSpace, docSpaceData.members, directMembers, groups))
     if (docSpaceData.owners?.length !== docSpace?.owners?.length) {
       update.owners = docSpaceData.owners
     } else {
@@ -203,6 +205,7 @@
     bind:owners
     bind:members
     bind:directMembers
+    bind:groups
     bind:isPrivate
     bind:rolesAssignment
     {roles}

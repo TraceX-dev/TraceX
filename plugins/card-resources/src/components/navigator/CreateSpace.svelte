@@ -15,7 +15,15 @@
 -->
 <script lang="ts">
   import { SpaceSettingsForm, getSpaceMembersUpdate } from '@hcengineering/contact-resources'
-  import core, { AccountRole, AccountUuid, Data, Ref, RolesAssignment, getCurrentAccount } from '@hcengineering/core'
+  import core, {
+    AccountRole,
+    AccountUuid,
+    Data,
+    Ref,
+    RolesAssignment,
+    getCurrentAccount,
+    type UserGroup
+  } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { EditBox, FormRow } from '@hcengineering/ui'
   import { permissions } from '@hcengineering/view-resources'
@@ -51,6 +59,7 @@
     space?.members !== undefined ? hierarchy.clone(space.members) : [getCurrentAccount().uuid]
   /** Set by SpaceSettingsForm when the edited space supports user groups. */
   let directMembers: AccountUuid[] | undefined = undefined
+  let groups: Array<Ref<UserGroup>> | undefined = undefined
   let owners: AccountUuid[] = space?.owners !== undefined ? hierarchy.clone(space.owners) : [getCurrentAccount().uuid]
 
   $: isNew = space === undefined
@@ -141,7 +150,7 @@
     }
 
     const { members: _members, ...data } = getData()
-    await client.diffUpdate(space, { ...data, ...getSpaceMembersUpdate(space, _members, directMembers) })
+    await client.diffUpdate(space, { ...data, ...getSpaceMembersUpdate(space, _members, directMembers, groups) })
 
     if (rolesAssignment && !deepEqual(rolesAssignment, getCurrentRolesAssignment())) {
       await client.updateMixin(space._id, space._class, core.space.Space, core.mixin.SpacesTypeData, rolesAssignment)
@@ -192,6 +201,7 @@
     bind:owners
     bind:members
     bind:directMembers
+    bind:groups
     bind:isPrivate
     bind:autoJoin
     bind:autoJoinForRoles

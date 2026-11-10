@@ -106,8 +106,8 @@ export class TSpace extends TDoc implements Space {
 @Model(core.class.UserGroup, core.class.Doc, DOMAIN_USER_GROUP)
 @UX(core.string.UserGroup, undefined, undefined, 'name')
 export class TUserGroup extends TDoc implements UserGroup {
+  // Not full-text indexed: groups are searched by name in Access control only, and guests must not find them.
   @Prop(TypeString(), core.string.Name)
-  @Index(IndexKind.FullText)
     name!: string
 
   @Prop(TypeString(), core.string.Description)

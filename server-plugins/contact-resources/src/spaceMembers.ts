@@ -182,8 +182,3 @@ export async function OnSpaceMembershipChange (txes: Tx[], control: TriggerContr
   }
   return result
 }
-
-/** Follows user group changes using the same batch recomputation as space changes. */
-export async function OnUserGroupChange (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
-  return await OnSpaceMembershipChange(txes, control)
-}

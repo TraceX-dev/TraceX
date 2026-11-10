@@ -49,6 +49,7 @@ export * from './time'
 export * from './benchmark'
 export * from './collaborators'
 export * from './objectAccess'
+export * from './userGroups'
 export type * from './versioning'
 
 export default core

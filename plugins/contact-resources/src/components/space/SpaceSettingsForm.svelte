@@ -26,9 +26,10 @@
     type AccountUuid,
     type Ref,
     type Role,
-    type Class,
     type RolesAssignment,
     type Space,
+    computeSpaceMembers,
+    supportsUserGroups,
     type UserGroup
   } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
@@ -59,7 +60,7 @@
   export let rolesAssignment: RolesAssignment | undefined = undefined
   /**
    * The edited space, undefined on create. Enables user groups: members given by groups are shown apart and kept,
-   * the members editor changes direct members only, and maintainers bind groups (saved at once).
+   * the members editor changes direct members only, and maintainers bind groups.
    */
   export let space: Space | undefined = undefined
   /**
@@ -67,6 +68,8 @@
    * `getSpaceMembersUpdate`: `members` alone can not make a member through a group a direct one.
    */
   export let directMembers: AccountUuid[] | undefined = undefined
+  /** Groups bound to the space, edited with the rest of the form: bind it and save it with `getSpaceMembersUpdate`. */
+  export let groups: Array<Ref<UserGroup>> | undefined = undefined
 
   export let readonly: boolean = false
   /** Overrides the default rule: a public space without members cannot be made private. */
@@ -108,14 +111,10 @@
 
   $: anonymousRefs = getAnonymousRefs($employeeRefByAccountUuidStore)
   $: ownersExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
-  // Same rule as the server (SpaceMembershipMiddleware): typed spaces and channels.
-  const CHANNEL = 'chunter:class:Channel' as Ref<Class<Space>>
   const client = getClient()
   const hierarchy = client.getHierarchy()
   const canManageGroups = hasAccountRole(currentAccount, AccountRole.Maintainer)
-  $: supportsGroups =
-    space !== undefined &&
-    (hierarchy.isDerived(space._class, core.class.TypedSpace) || hierarchy.isDerived(space._class, CHANNEL))
+  $: supportsGroups = space !== undefined && supportsUserGroups(hierarchy, space._class)
 
   // Guests can not read groups: the query is empty for them and members stay a plain list.
   let allGroups: UserGroup[] = []
@@ -128,21 +127,29 @@
     groupsQuery.unsubscribe()
     allGroups = []
   }
-  $: boundGroups = allGroups.filter((group) => space?.groups?.includes(group._id) === true)
-  $: groupItems = allGroups.map((group) => ({ id: group._id, label: group.name }))
   $: if (supportsGroups && directMembers === undefined) {
     directMembers = [...(space?.directMembers ?? space?.members ?? [])]
   }
+  $: if (supportsGroups && groups === undefined) {
+    groups = [...(space?.groups ?? [])]
+  }
+  $: boundGroups = allGroups.filter((group) => groups?.includes(group._id) === true)
+  $: groupItems = allGroups.map((group) => ({ id: group._id, label: group.name }))
   $: byGroups = new Set(boundGroups.flatMap((group) => group.members))
-  // Members only through groups: not editable here, they follow the groups.
+  // Members only through groups: not editable here, they follow the groups. `members` covers groups the user can
+  // not read (guests), `byGroups` the groups just bound in the form.
   $: groupOnlyMembers =
-    directMembers === undefined ? [] : members.filter((m) => byGroups.has(m) && directMembers?.includes(m) !== true)
+    directMembers === undefined
+      ? []
+      : Array.from(new Set([...members, ...byGroups])).filter(
+          (m) => m !== readOnlyGuestAccountUuid && directMembers?.includes(m) !== true
+        )
 
-  async function setGroups (groups: Array<Ref<UserGroup>>): Promise<void> {
-    if (space === undefined) return
-    await client.update(space, { groups }).catch((err) => {
-      Analytics.handleError(err as Error)
-    })
+  /** Changes the bound groups in the form; `members` shows the result, the dialog saves it. */
+  function setGroups (selected: Array<Ref<UserGroup>>): void {
+    groups = selected
+    const selectedGroups = allGroups.filter((group) => selected.includes(group._id))
+    setMembers(computeSpaceMembers(directMembers ?? [], selectedGroups))
   }
 
   $: visibleMembers = (directMembers ?? members).filter((m) => m !== readOnlyGuestAccountUuid)
@@ -195,7 +202,7 @@
     const next = new Set(newDirect)
     removeFromRoles(new Set((directMembers ?? []).filter((m) => !next.has(m))))
     directMembers = newDirect
-    setMembers(Array.from(new Set([...newDirect, ...members.filter((m) => byGroups.has(m))])))
+    setMembers(computeSpaceMembers(newDirect, boundGroups))
   }
 
   function handleMembersChanged (newVisibleMembers: AccountUuid[]): void {
@@ -262,13 +269,15 @@
         justify={'left'}
         items={groupItems}
         multiselect
-        selected={space?.groups ?? []}
+        selected={groups ?? []}
         label={core.string.UserGroups}
         kind={'regular'}
         size={'large'}
         disabled={readonly || !canManageGroups}
         dataId={'space-settings-groups'}
-        on:selected={(event) => setGroups(event.detail ?? [])}
+        on:selected={(event) => {
+          setGroups(event.detail ?? [])
+        }}
       >
         <svelte:fragment slot="content" let:selected>
           {@const count = Array.isArray(selected) ? selected.length : 0}

@@ -121,6 +121,7 @@ import { dirname } from 'path'
 import { restoreMarkupRefs } from './markup'
 import { disableMeetingRoomDefaults } from './meeting-rooms'
 import { recomputeSpaceMembers } from './space-members'
+import { cleanupSpaceCollaborators } from './space-collaborators'
 
 const colorConstants = {
   colorRed: '\u001b[31m',
@@ -1383,6 +1384,42 @@ export function devTool (
             dryRun
               ? `recompute-space-members dry-run: spaces with drift=${result.drift.length}`
               : `recompute-space-members: spaces fixed=${result.fixed}`
+          )
+        } finally {
+          await connection.close()
+        }
+      })
+    })
+
+  program
+    .command('cleanup-space-collaborators <workspace>')
+    .description(
+      'Find collaborators of spaces that are not members of the space (guests by default) ' +
+        'and with --apply remove them with their notification contexts'
+    )
+    .option('--apply', 'Remove the stale collaborators; without this option the command only reports them', false)
+    .option('--include-users', 'Also remove stale collaborators that are not guests', false)
+    .action(async (workspace: string, cmd: { apply: boolean, includeUsers: boolean }) => {
+      const dryRun = !cmd.apply
+      await withAccountDatabase(async (db) => {
+        const info = await getWorkspace(db, workspace)
+        if (info === null) {
+          throw new Error(`Workspace ${workspace} not found`)
+        }
+
+        const endpoint = await getWorkspaceTransactorEndpoint(info.uuid)
+        const connection = await connect(endpoint, info.uuid, undefined, { model: 'upgrade' })
+        const ops = new TxOperations(connection, core.account.System)
+        try {
+          const result = await cleanupSpaceCollaborators(ops, { dryRun, includeUsers: cmd.includeUsers })
+          for (const it of result.stale) {
+            console.log(`${it.spaceClass} ${it.space} "${it.spaceName}": ${it.account} (${it.role ?? 'no role'})`)
+          }
+          console.log(
+            dryRun
+              ? `cleanup-space-collaborators dry-run: stale collaborators=${result.stale.length}`
+              : `cleanup-space-collaborators: removed collaborators=${result.removedCollaborators}, ` +
+                  `contexts=${result.removedContexts}`
           )
         } finally {
           await connection.close()

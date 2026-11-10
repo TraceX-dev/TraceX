@@ -13,28 +13,33 @@
 // limitations under the License.
 //
 
-import type { AccountUuid, Space } from '@hcengineering/core'
+import type { AccountUuid, Ref, Space, UserGroup } from '@hcengineering/core'
 
-function sameAccounts (left: AccountUuid[], right: AccountUuid[]): boolean {
+function sameItems<T> (left: T[], right: T[]): boolean {
   const set = new Set(left)
   return set.size === new Set(right).size && right.every((it) => set.has(it))
 }
 
 /**
- * The members part of a space update made by a settings dialog with `SpaceSettingsForm`.
+ * The membership part of a space update made by a settings dialog with `SpaceSettingsForm`.
  *
  * When the form edits direct members (`directMembers` bound, a space with user groups), only `directMembers` is
  * written: the server computes `members` from them and the groups. A full `members` list can not tell an account
  * that becomes a direct member from one that is already a member through a group.
- * Otherwise `members` is written as before. Empty when nothing changed.
+ * Otherwise `members` is written as before. Bound `groups` are written when they changed. Empty when nothing changed.
  */
 export function getSpaceMembersUpdate (
   space: Space,
   members: AccountUuid[],
-  directMembers: AccountUuid[] | undefined
-): { members?: AccountUuid[], directMembers?: AccountUuid[] } {
+  directMembers: AccountUuid[] | undefined,
+  groups?: Array<Ref<UserGroup>>
+): { members?: AccountUuid[], directMembers?: AccountUuid[], groups?: Array<Ref<UserGroup>> } {
+  const result: { members?: AccountUuid[], directMembers?: AccountUuid[], groups?: Array<Ref<UserGroup>> } = {}
   if (directMembers !== undefined) {
-    return sameAccounts(space.directMembers ?? space.members, directMembers) ? {} : { directMembers }
+    if (!sameItems(space.directMembers ?? space.members, directMembers)) result.directMembers = directMembers
+  } else if (!sameItems(space.members, members)) {
+    result.members = members
   }
-  return sameAccounts(space.members, members) ? {} : { members }
+  if (groups !== undefined && !sameItems(space.groups ?? [], groups)) result.groups = groups
+  return result
 }

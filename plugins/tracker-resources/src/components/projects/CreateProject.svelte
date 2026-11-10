@@ -28,7 +28,8 @@
     SortingOrder,
     SpaceType,
     generateId,
-    getCurrentAccount
+    getCurrentAccount,
+    type UserGroup
   } from '@hcengineering/core'
   import { Asset } from '@hcengineering/platform'
   import presentation, { IconWithEmoji, Card, createQuery, getClient } from '@hcengineering/presentation'
@@ -75,6 +76,7 @@
     project?.members !== undefined ? hierarchy.clone(project.members) : [getCurrentAccount().uuid]
   /** Set by SpaceSettingsForm when the edited space supports user groups. */
   let directMembers: AccountUuid[] | undefined = undefined
+  let groups: Array<Ref<UserGroup>> | undefined = undefined
   let owners: AccountUuid[] =
     project?.owners !== undefined ? hierarchy.clone(project.owners) : [getCurrentAccount().uuid]
   let projectsIdentifiers = new Set<string>()
@@ -184,7 +186,7 @@
     if (!autoJoinRolesEqual(projectData.autoJoinForRoles, project?.autoJoinForRoles)) {
       update.autoJoinForRoles = projectData.autoJoinForRoles
     }
-    Object.assign(update, getSpaceMembersUpdate(project, projectData.members, directMembers))
+    Object.assign(update, getSpaceMembersUpdate(project, projectData.members, directMembers, groups))
     if (projectData.owners?.length !== project?.owners?.length) {
       update.owners = projectData.owners
     } else {
@@ -346,6 +348,7 @@
     bind:owners
     bind:members
     bind:directMembers
+    bind:groups
     bind:isPrivate
     bind:autoJoin
     bind:autoJoinForRoles

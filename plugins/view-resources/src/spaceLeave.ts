@@ -41,7 +41,12 @@ export async function confirmLeaveSpace (space: Space): Promise<boolean> {
     showPopup(
       MessageBox,
       direct
-        ? { label: view.string.Leave, message: plugin.string.LeaveSpaceGroupsRemain, params, okLabel: view.string.Leave }
+        ? {
+            label: view.string.Leave,
+            message: plugin.string.LeaveSpaceGroupsRemain,
+            params,
+            okLabel: view.string.Leave
+          }
         : // Through groups only: leaving changes nothing, so the dialog only informs and never goes on.
           { label: view.string.Leave, message: plugin.string.LeaveSpaceGroupsOnly, params, canSubmit: false },
       undefined,

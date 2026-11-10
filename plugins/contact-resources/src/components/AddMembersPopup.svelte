@@ -14,7 +14,8 @@
   const client = getClient()
 
   let membersToAdd: Ref<Employee>[] = []
-  const channelMembers: Ref<Person>[] = value.members
+  // Members only through user groups can still be added as direct members.
+  const channelMembers: Ref<Person>[] = (value.directMembers ?? value.members)
     .map((acc) => {
       const employeeRef = $employeeRefByAccountUuidStore.get(acc)
 

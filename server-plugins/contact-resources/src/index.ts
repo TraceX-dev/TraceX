@@ -60,7 +60,7 @@ import { makeRank } from '@hcengineering/rank'
 import { getAccountBySocialId, getCurrentPerson } from '@hcengineering/server-contact'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
 import { workbenchId } from '@hcengineering/workbench'
-import { OnSpaceMembershipChange, OnUserGroupChange } from './spaceMembers'
+import { OnSpaceMembershipChange } from './spaceMembers'
 
 import {
   CreateOrganization,
@@ -530,8 +530,7 @@ export default async () => ({
     OnContactDelete,
     OnChannelUpdate,
     OnSpaceTypeMembers,
-    OnSpaceMembershipChange,
-    OnUserGroupChange
+    OnSpaceMembershipChange
   },
   function: {
     PersonHTMLPresenter: personHTMLPresenter,

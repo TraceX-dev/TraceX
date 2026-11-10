@@ -15,10 +15,12 @@
 
 import contact from '@hcengineering/contact'
 import core, {
+  type AccountRole,
   type AccountUuid,
   type Class,
   type Collaborator,
   type Doc,
+  isGuestRole,
   type Ref,
   type Space,
   type TxOperations
@@ -32,7 +34,6 @@ interface NotifyContextDoc extends Doc {
   user: AccountUuid
 }
 
-const GUEST_ROLES = ['GUEST', 'READONLYGUEST']
 const CHUNK = 500
 
 export interface StaleSpaceCollaborator {
@@ -113,7 +114,7 @@ export async function cleanupSpaceCollaborators (
   for (const { collaborator, space } of candidates) {
     const account = collaborator.collaborator
     const role = roles.get(account)
-    if (!options.includeUsers && (role === undefined || !GUEST_ROLES.includes(role))) continue
+    if (!options.includeUsers && (role === undefined || !isGuestRole(role as AccountRole))) continue
 
     const stale: StaleSpaceCollaborator = {
       space: space._id,
