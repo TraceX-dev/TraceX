@@ -25,6 +25,7 @@
   export let onChange: (value: string) => void
   export let kind: ButtonKind = 'link'
   export let size: ButtonSize = 'large'
+  // svelte-ignore unused-export-let
   export let allowDeselect: boolean = false
   export let readonly: boolean = false
   export let width: string | undefined = undefined

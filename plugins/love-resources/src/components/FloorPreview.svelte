@@ -49,6 +49,7 @@
   export let size: 'small' | 'medium' | 'large' = 'large'
   export let background: string | undefined = undefined
   export let kind: 'default' | 'second' | 'no-border' = 'default'
+  // svelte-ignore unused-export-let
   export let configure: boolean = false
 
   const me = getCurrentAccount()

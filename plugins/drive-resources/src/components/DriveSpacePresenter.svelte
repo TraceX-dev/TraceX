@@ -26,6 +26,7 @@
 
   export let space: Drive
   export let currentSpace: Ref<Space> | undefined
+  // svelte-ignore unused-export-let
   export let currentSpecial: string | undefined
   export let currentFragment: string | undefined
   export let getActions: (space: Space) => Promise<Action[]> = async () => []

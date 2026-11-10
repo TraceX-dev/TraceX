@@ -21,6 +21,7 @@
   import plugin from '../../plugin'
 
   export let readonly: boolean
+  // svelte-ignore unused-export-let
   export let process: Process
   export let params: Record<string, any>
 

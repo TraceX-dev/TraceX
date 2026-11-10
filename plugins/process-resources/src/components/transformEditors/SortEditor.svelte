@@ -20,6 +20,7 @@
   import FunctionSortEditor from './FunctionSortEditor.svelte'
 
   export let func: ProcessFunction
+  // svelte-ignore unused-export-let
   export let process: Process
   export let attribute: AnyAttribute
   export let props: Record<string, any> = {}

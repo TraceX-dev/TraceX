@@ -27,7 +27,9 @@
   export let node: NodeViewProps['node']
   export let getPos: NodeViewProps['getPos']
   export let editor: NodeViewProps['editor']
+  // svelte-ignore unused-export-let
   export let selected: NodeViewProps['selected']
+  // svelte-ignore unused-export-let
   export let decorations: NodeViewProps['decorations']
   export let extension: NodeViewProps['extension']
 

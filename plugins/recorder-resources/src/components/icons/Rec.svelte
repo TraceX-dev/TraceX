@@ -14,6 +14,7 @@
 -->
 
 <script lang="ts">
+  // svelte-ignore unused-export-let
   export let size: 'small' | 'medium' | 'large'
   export let fill: string = 'currentColor'
 </script>
