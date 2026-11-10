@@ -114,7 +114,7 @@
       class:content-color={selectedItem === undefined}
     >
       {#if $$slots.content}
-        <slot name="content" />
+        <slot name="content" {selected} />
       {:else if Array.isArray(selectedItem)}
         {#if selectedItem.length > 0}
           {#each selectedItem as seleceted}

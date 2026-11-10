@@ -20,52 +20,29 @@
  * what a member / non-member can read afterwards) before user groups turn `members` into a
  * server-computed field. They must pass unchanged before and after that change.
  *
- * Probe space: a private chunter Channel with one ChatMessage. For a private space the server lets
- * only members read the space and the documents inside it, so "can read" == "is a member".
+ * Probe space and access helpers: `../spaceAccess.ts`.
  */
 
-import {
-  createRestClient,
-  createRestTxOperations,
-  getWorkspaceToken,
-  loadServerConfig,
-  type RestClient,
-  type ServerConfig,
-  type WorkspaceToken
-} from '@hcengineering/api-client'
-import core, {
-  type AccountUuid,
-  AccountRole,
-  generateId,
-  MeasureMetricsContext,
-  pickPrimarySocialId,
-  type Ref,
-  type SocialId,
-  type Space,
-  type TxOperations
-} from '@hcengineering/core'
+import { getWorkspaceToken, loadServerConfig, type ServerConfig } from '@hcengineering/api-client'
 import { type AccountClient, getClient as getAccountClient } from '@hcengineering/account-client'
 import chunter, { type Channel } from '@hcengineering/chunter'
-import { ensureEmployee } from '@hcengineering/contact'
-
-const SERVER_URL = 'http://tracex.local:8083'
-const WS_NAME = 'api-tests'
-const PASSWORD = '1234'
-const TIMEOUT = 60000
-/** user1 is a plain USER in api-tests: never-expiring invites (exp < 0) need Maintainer, so use a short TTL. */
-const INVITE_TTL_MS = 60 * 60 * 1000
-
-interface Actor {
-  account: AccountUuid
-  ws: WorkspaceToken
-  rest: RestClient
-  ops: TxOperations
-}
+import { type AccountUuid, AccountRole, MeasureMetricsContext, type Ref, type Space } from '@hcengineering/core'
+import {
+  type Actor,
+  joinNewAccount as joinAccount,
+  PASSWORD,
+  SERVER_URL,
+  SpaceProbe,
+  TIMEOUT,
+  toActor,
+  WS_NAME
+} from '../spaceAccess'
 
 describe('space-members', () => {
   const testCtx = new MeasureMetricsContext('space-members', {})
   let config: ServerConfig
   let ownerAccountClient: AccountClient
+  let probe: SpaceProbe
 
   let owner: Actor
   let member: Actor
@@ -80,6 +57,7 @@ describe('space-members', () => {
     )
     ownerAccountClient = getAccountClient(config.ACCOUNTS_URL, ownerWs.token)
     owner = await toActor(ownerWs)
+    probe = new SpaceProbe(owner)
 
     member = await joinNewAccount('member', AccountRole.User)
     guest = await joinNewAccount('guest', AccountRole.Guest)
@@ -87,118 +65,32 @@ describe('space-members', () => {
 
   // ---------------------------------------------------------------- helpers
 
-  async function toActor (ws: WorkspaceToken): Promise<Actor> {
-    const rest = createRestClient(ws.endpoint, ws.workspaceId, ws.token)
-    const ops = await createRestTxOperations(ws.endpoint, ws.workspaceId, ws.token)
-    return { account: ws.info.account, ws, rest, ops }
-  }
-
-  /** Same path as the workbench on first connect: creates the Person/Employee, which fires OnEmployeeCreate (auto-join). */
-  async function ensureEmployeeFor (ws: WorkspaceToken): Promise<void> {
-    const accountClient = getAccountClient(config.ACCOUNTS_URL, ws.token)
-    const person = await accountClient.getPerson()
-    const socialIds: SocialId[] = await accountClient.getSocialIds(true)
-    await ensureEmployee(
-      testCtx,
-      {
-        uuid: ws.info.account,
-        role: ws.info.role,
-        primarySocialId: pickPrimarySocialId(socialIds)._id,
-        socialIds: socialIds.map((si) => si._id),
-        fullSocialIds: socialIds
-      },
-      createRestClient(ws.endpoint, ws.workspaceId, ws.token),
-      socialIds,
-      async () => person
-    )
-  }
-
-  /** Signs up a fresh account, joins it to the workspace by invite with the given role and creates its Employee. */
   async function joinNewAccount (prefix: string, role: AccountRole): Promise<Actor> {
-    const email = `${prefix}-${generateId()}@members.test`
-    const anonymous = getAccountClient(config.ACCOUNTS_URL)
-    await anonymous.signUp(email, PASSWORD, prefix, 'Tester')
-    const inviteId = await ownerAccountClient.createInvite(INVITE_TTL_MS, '', 1, role)
-    await anonymous.join(email, PASSWORD, inviteId, WS_NAME)
-
-    const ws = await getWorkspaceToken(SERVER_URL, { email, password: PASSWORD, workspace: WS_NAME }, config)
-    expect(ws.info.role).toBe(role)
-    await ensureEmployeeFor(ws)
-    return await toActor(ws)
+    return await joinAccount(testCtx, config, ownerAccountClient, prefix, role)
   }
 
   async function createChannel (members: AccountUuid[], extra: Partial<Channel> = {}): Promise<Ref<Channel>> {
-    const id = await owner.ops.createDoc(chunter.class.Channel, core.space.Space, {
-      name: `members-${generateId()}`,
-      description: '',
-      topic: '',
-      private: true,
-      archived: false,
-      members,
-      ...extra
-    })
-    await owner.ops.addCollection(chunter.class.ChatMessage, id, id, chunter.class.Channel, 'messages', {
-      message: 'members probe'
-    })
-    return id
+    return await probe.createChannel(members, extra)
   }
 
   async function storedMembers (space: Ref<Space>): Promise<AccountUuid[]> {
-    const doc = await owner.rest.findOne(core.class.Space, { _id: space })
-    expect(doc).toBeDefined()
-    return [...(doc?.members ?? [])].sort()
+    return await probe.storedMembers(space)
   }
 
   async function expectMembers (space: Ref<Space>, expected: AccountUuid[]): Promise<void> {
-    expect(await storedMembers(space)).toEqual([...new Set(expected)].sort())
+    await probe.expectMembers(space, expected)
   }
 
-  /**
-   * Whether the actor can read the space and the documents inside it; both must agree.
-   * On disagreement fails with the actor role, the space as the actor sees it and the space collaborators.
-   */
   async function canRead (actor: Actor, space: Ref<Space>): Promise<boolean> {
-    const doc = await actor.rest.findOne(core.class.Space, { _id: space })
-    const messages = await actor.rest.findAll(chunter.class.ChatMessage, { space })
-    const seesSpace = doc != null
-    const seesContent = messages.length > 0
-    if (seesSpace !== seesContent) {
-      const collaborators = await owner.rest.findAll(core.class.Collaborator, { attachedTo: space })
-      const details = {
-        actor: actor.account,
-        role: actor.ws.info.role,
-        seesSpace,
-        seesContent,
-        spaceAsSeen:
-          doc == null ? null : { _class: doc._class, private: doc.private, members: doc.members, owners: doc.owners },
-        storedMembers: await storedMembers(space),
-        collaborators: collaborators.map((it) => it.collaborator)
-      }
-      throw new Error(`Space and content access disagree: ${JSON.stringify(details, null, 2)}`)
-    }
-    return seesSpace
-  }
-
-  /**
-   * Collaborators of a space follow `members` in an async trigger (ActivityMessagesHandler), and a guest reads
-   * the space messages while being a collaborator. Waits until no collaborator is left outside `members`.
-   */
-  async function waitCollaboratorsSynced (space: Ref<Space>, timeoutMs = 10000): Promise<void> {
-    const deadline = Date.now() + timeoutMs
-    let extra: AccountUuid[] = []
-    while (Date.now() < deadline) {
-      const members = new Set(await storedMembers(space))
-      const collaborators = await owner.rest.findAll(core.class.Collaborator, { attachedTo: space })
-      extra = collaborators.map((it) => it.collaborator).filter((it) => !members.has(it))
-      if (extra.length === 0) return
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
-    throw new Error(`Collaborators outside members after ${timeoutMs}ms: ${JSON.stringify(extra)}`)
+    return await probe.canRead(actor, space)
   }
 
   async function expectAccess (space: Ref<Space>, access: { member: boolean, guest: boolean }): Promise<void> {
-    await waitCollaboratorsSynced(space)
-    expect({ member: await canRead(member, space), guest: await canRead(guest, space) }).toEqual(access)
+    await probe.expectAccess(space, { member, guest }, access)
+  }
+
+  async function getChannel (space: Ref<Channel>): Promise<Channel> {
+    return await probe.getChannel(space)
   }
 
   // ---------------------------------------------------------------- writes by an admin
@@ -364,10 +256,4 @@ describe('space-members', () => {
     },
     TIMEOUT * 2
   )
-
-  async function getChannel (space: Ref<Channel>): Promise<Channel> {
-    const doc = await owner.ops.findOne(chunter.class.Channel, { _id: space })
-    if (doc === undefined) throw new Error(`Channel ${space} not found`)
-    return doc
-  }
 })

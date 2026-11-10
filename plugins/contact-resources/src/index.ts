@@ -164,6 +164,7 @@ export { employeeByIdStore } from './utils'
 export type * from './assignee'
 export * from './translation'
 export { default as SpaceSettingsForm } from './components/space/SpaceSettingsForm.svelte'
+export { getSpaceMembersUpdate } from './spaceMembers'
 export {
   PersonIdArrayEditor,
   AccountArrayEditor,

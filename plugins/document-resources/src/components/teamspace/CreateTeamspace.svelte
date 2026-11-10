@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import { deepEqual } from 'fast-equals'
-  import { SpaceSettingsForm } from '@hcengineering/contact-resources'
+  import { SpaceSettingsForm, getSpaceMembersUpdate } from '@hcengineering/contact-resources'
   import core, {
     Data,
     DocumentUpdate,
@@ -26,7 +26,8 @@
     generateId,
     getCurrentAccount,
     WithLookup,
-    AccountUuid
+    AccountUuid,
+    type UserGroup
   } from '@hcengineering/core'
   import document, { Teamspace, DocumentEvents } from '@hcengineering/document'
   import { Asset } from '@hcengineering/platform'
@@ -65,6 +66,9 @@
   let isColorSelected = false
   let members: AccountUuid[] =
     teamspace?.members !== undefined ? hierarchy.clone(teamspace.members) : [getCurrentAccount().uuid]
+  /** Set by SpaceSettingsForm when the edited space supports user groups. */
+  let directMembers: AccountUuid[] | undefined = undefined
+  let groups: Array<Ref<UserGroup>> | undefined = undefined
   let owners: AccountUuid[] =
     teamspace?.owners !== undefined ? hierarchy.clone(teamspace.owners) : [getCurrentAccount().uuid]
   let rolesAssignment: RolesAssignment = {}
@@ -151,16 +155,7 @@
     if (teamspaceData.autoJoin !== teamspace?.autoJoin) {
       update.autoJoin = teamspaceData.autoJoin
     }
-    if (teamspaceData.members.length !== teamspace?.members.length) {
-      update.members = teamspaceData.members
-    } else {
-      for (const member of teamspaceData.members) {
-        if (teamspace.members.findIndex((p) => p === member) === -1) {
-          update.members = teamspaceData.members
-          break
-        }
-      }
-    }
+    Object.assign(update, getSpaceMembersUpdate(teamspace, teamspaceData.members, directMembers, groups))
     if (teamspaceData.owners?.length !== teamspace?.owners?.length) {
       update.owners = teamspaceData.owners
     } else {
@@ -270,8 +265,11 @@
   on:changeContent
 >
   <SpaceSettingsForm
+    space={teamspace}
     bind:owners
     bind:members
+    bind:directMembers
+    bind:groups
     bind:isPrivate
     bind:autoJoin
     bind:rolesAssignment

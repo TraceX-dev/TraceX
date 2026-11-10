@@ -491,6 +491,11 @@ export const DOMAIN_COLLABORATOR = 'collaborator' as Domain
 /**
  * @public
  */
+export const DOMAIN_USER_GROUP = 'user_group' as Domain
+
+/**
+ * @public
+ */
 export interface TransientConfiguration extends Class<Doc> {
   // If set will not store transient objects into memdb
   broadcastOnly: boolean
@@ -522,6 +527,25 @@ export interface Space extends Doc {
   autoJoin?: boolean
   /** If it includes {@link AccountRole.Guest}, that guest is auto-added to members on activation (see OnEmployeeCreate). */
   autoJoinForRoles?: AccountRole[]
+  /**
+   * Members added to the space directly (not through a group). Together with {@link Space.groups} it is the source
+   * of `members`: the server keeps `members = unique(directMembers ∪ members of groups)`.
+   * Undefined until the space is migrated or created through the server.
+   */
+  directMembers?: AccountUuid[]
+  /** User groups whose members are members of the space. */
+  groups?: Ref<UserGroup>[]
+}
+
+/**
+ * A workspace-level group of accounts (users and guests) that can be bound to spaces as a whole.
+ * Managed by workspace maintainers and owners; not readable by guests.
+ * @public
+ */
+export interface UserGroup extends Doc {
+  name: string
+  description?: string
+  members: AccountUuid[]
 }
 
 /**

@@ -64,6 +64,7 @@ import {
   RankMiddleware,
   ReadOnlyMiddleware,
   SpacePermissionsMiddleware,
+  SpaceMembershipMiddleware,
   SpaceSecurityMiddleware,
   VersioningMiddleware,
   TriggersMiddleware,
@@ -169,6 +170,9 @@ export function createServerPipeline (
       ObjectProjectionMiddleware.create,
       PluginConfigurationMiddleware.create,
       PrivateMiddleware.create,
+      // Turns writes of Space.members into writes of directMembers: must stay above the space security and permission
+      // middlewares, so they see only the rewritten tx and the derived recompute of members.
+      SpaceMembershipMiddleware.create,
       (ctx: MeasureContext, context: PipelineContext, next?: Middleware) =>
         SpaceSecurityMiddleware.create(opt.adapterSecurity ?? false, ctx, context, next),
       ObjectSecurityMiddleware.create, // Object-level access policies for user requests

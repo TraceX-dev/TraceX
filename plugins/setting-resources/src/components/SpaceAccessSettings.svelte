@@ -19,6 +19,7 @@
     type AccountUuid,
     type Ref,
     type Space,
+    type UserGroup,
     type WorkspaceMemberInfo,
     AccountRole,
     isGuestRole,
@@ -47,12 +48,13 @@
   import setting from '../plugin'
   import { getSpaceOperationKey, type SpaceOperation } from '../spaceAccessUtils'
   import { getAccountClient } from '../utils'
+  import GroupsAccessSettings from './access/GroupsAccessSettings.svelte'
   import MembersAccessSettings from './access/MembersAccessSettings.svelte'
   import SpacesAccessSettings from './access/SpacesAccessSettings.svelte'
   import GuestPermissionsSettings from './GuestPermissionsSettings.svelte'
   import SpaceRolesSettings from './Spaces.svelte'
 
-  type Tab = 'spaces' | 'spaceRoles' | 'users' | 'guests' | 'anonymous'
+  type Tab = 'spaces' | 'groups' | 'spaceRoles' | 'users' | 'guests' | 'anonymous'
 
   const client = getClient()
   const hierarchy = client.getHierarchy()
@@ -73,6 +75,8 @@
   let spaces: Space[] = []
   let spacesLoading = true
   let employees: Employee[] = []
+  let groups: UserGroup[] = []
+  let groupsLoading = true
   let employeesLoading = true
   let workspaceMembers: WorkspaceMemberInfo[] = []
   let membersLoading = true
@@ -97,6 +101,12 @@
           !excludedSpaceIds.has(space._id)
       )
       .sort((left, right) => left.name.localeCompare(right.name))
+  })
+
+  const groupsQuery = createQuery()
+  groupsQuery.query(core.class.UserGroup, {}, (result) => {
+    groupsLoading = false
+    groups = [...result]
   })
 
   const employeesQuery = createQuery()
@@ -166,12 +176,19 @@
     }
   }
 
+  // The access table edits direct members; members given by groups follow the groups column.
   async function updateMembers (space: Space, members: AccountUuid[], owners?: AccountUuid[]): Promise<boolean> {
     return await runSpaceOperation(space, 'members', async () => {
       await client.updateDoc(space._class, space.space, space._id, {
-        members,
+        directMembers: members,
         ...(owners !== undefined ? { owners } : {})
       })
+    })
+  }
+
+  async function updateGroups (space: Space, value: Array<Ref<UserGroup>>): Promise<boolean> {
+    return await runSpaceOperation(space, 'groups', async () => {
+      await client.updateDoc(space._class, space.space, space._id, { groups: value })
     })
   }
 
@@ -205,6 +222,14 @@
           selected={activeTab === 'users'}
           on:click={() => {
             activeTab = 'users'
+          }}
+        />
+        <NavItem
+          icon={setting.icon.Members}
+          label={core.string.UserGroups}
+          selected={activeTab === 'groups'}
+          on:click={() => {
+            activeTab = 'groups'
           }}
         />
         <NavItem
@@ -277,11 +302,15 @@
           {spacesLoading}
           {employeesLoading}
           {pendingSpaceOperations}
+          {groups}
           {updateMembers}
+          {updateGroups}
           {setAutoJoin}
           {setGuestAutoJoin}
           handleError={handleOperationError}
         />
+      {:else if activeTab === 'groups'}
+        <GroupsAccessSettings {spaces} {groups} {groupsLoading} handleError={handleOperationError} />
       {:else if activeTab === 'spaceRoles'}
         <div class="spaceRolesPanel">
           <SpaceRolesSettings embedded />

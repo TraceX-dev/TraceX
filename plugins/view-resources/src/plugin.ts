@@ -38,6 +38,8 @@ export default mergeIds(viewId, view, {
     IdPresenter: '' as AnyComponent
   },
   string: {
+    LeaveSpaceGroupsRemain: '' as IntlString,
+    LeaveSpaceGroupsOnly: '' as IntlString,
     Contains: '' as IntlString,
     NotContains: '' as IntlString,
     ValueIsSet: '' as IntlString,
