@@ -15,9 +15,12 @@
 
 // Keep the svelte-heavy `@hcengineering/ui` and the live-query presentation layer out of the
 // unit under test; only `getClient` and `getResource` are exercised by `filtersToQuery`.
+import type { Class, Doc, Ref } from '@hcengineering/core'
+import type { FilterMode } from '@hcengineering/view'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
 
+import view from '../plugin'
 import { filtersToQuery } from '../filter'
 
 jest.mock('@hcengineering/presentation', () => ({
@@ -191,5 +194,52 @@ describe('filtersToQuery', () => {
       findOne: jest.fn(async () => undefined)
     })
     await expect(filtersToQuery([makeFilter('status')], {}, true)).rejects.toThrow('Missing filter mode')
+  })
+
+  it('expands an inclusive class filter to subclasses without fetching candidates', async () => {
+    const hierarchy = makeHierarchy()
+    hierarchy.hasClass = () => true
+    hierarchy.getDescendants = () => ['test:class:Root', 'test:class:Child']
+    mockClient(hierarchy)
+    ;(getResource as jest.Mock).mockResolvedValue(async () => ({ $in: [] }))
+    const filter = makeFilter('_class', ['test:class:Root'])
+    filter.mode = view.filter.FilterObjectIn
+    expect(await filtersToQuery([filter], { active: true }, true)).toEqual({
+      active: true,
+      _class: { $in: ['test:class:Root', 'test:class:Child'] }
+    })
+  })
+
+  it('unions independent mixins before picker result limits', async () => {
+    const hierarchy = makeHierarchy()
+    hierarchy.hasClass = () => true
+    hierarchy.getDescendants = (id: string) => [id]
+    hierarchy.isMixin = () => true
+    hierarchy.getBaseClass = () => 'test:class:Root'
+    hierarchy.hasMixin = (doc: Record<string, unknown>, id: string) => doc[id] !== undefined
+    const documents: Array<Partial<Doc> & Record<string, unknown>> = [
+      { _id: 'a' as Ref<Doc>, _class: 'test:class:Root' as Ref<Class<Doc>>, 'test:mixin:A': {} },
+      { _id: 'b' as Ref<Doc>, _class: 'test:class:Root' as Ref<Class<Doc>>, 'test:mixin:B': {} },
+      { _id: 'other' as Ref<Doc>, _class: 'test:class:Root' as Ref<Class<Doc>> }
+    ]
+    const findAll = jest.fn().mockResolvedValue(documents)
+    const mode: Partial<FilterMode> = { result: 'test:resource:Is' as FilterMode['result'] }
+    const client: Partial<ReturnType<typeof getClient>> = {
+      getHierarchy: () => hierarchy,
+      findAll,
+      findOne: jest.fn().mockResolvedValue(mode)
+    }
+    ;(getClient as jest.Mock).mockReturnValue(client)
+    ;(getResource as jest.Mock).mockResolvedValue(async () => ({ $in: [] }))
+    const filter = makeFilter('_class', ['test:mixin:A', 'test:mixin:B'])
+    filter.mode = view.filter.FilterObjectIn
+    expect(await filtersToQuery([filter], {}, true)).toEqual({ _id: { $in: ['a', 'b'] } })
+    expect(findAll).toHaveBeenCalledWith(
+      filter.key._class,
+      {},
+      {
+        projection: { _id: 1, _class: 1, 'test:mixin:A': 1, 'test:mixin:B': 1 }
+      }
+    )
   })
 })

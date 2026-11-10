@@ -187,6 +187,7 @@
         "RoleLabel": "역할: {role}",
         "ForbidAttributeChanges": "변경 금지: ",
         "AllowAttributeChanges": "변경 허용: ",
-        "RelationshipTable": "추적 매트릭스"
+        "RelationshipTable": "추적 매트릭스",
+        "InvalidReferenceFilter": "참조 필터가 잘못되었거나 사용할 수 없습니다. 저장하기 전에 수정하거나 제거하세요."
     }
 }

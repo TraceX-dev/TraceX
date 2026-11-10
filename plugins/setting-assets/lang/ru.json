@@ -1,6 +1,5 @@
 {
   "string": {
-    "ExcludedClassesAndMixins": "Исключённые классы и миксины",
     "AuditLog": "Журнал аудита",
     "Succeeded": "Успешно",
     "Denied": "Отказано",

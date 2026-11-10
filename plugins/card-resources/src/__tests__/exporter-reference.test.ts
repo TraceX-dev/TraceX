@@ -55,7 +55,7 @@ it.each([false, true])('exports card classes used only in exclusions (array: %s)
     _class: core.class.RefTo,
     label: core.string.Ref,
     to: card.class.Card,
-    excludedClasses: [excludedId]
+    filters: JSON.stringify([{ key: { _class: card.class.Card, key: '_class' }, value: [excludedId] }])
   }
   const array: ArrOf<Doc> = { _class: core.class.ArrOf, label: core.string.Array, of: reference }
   const attribute: Partial<AnyAttribute> = {

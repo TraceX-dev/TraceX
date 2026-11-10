@@ -1,6 +1,5 @@
 {
   "string": {
-    "ExcludedClassesAndMixins": "Ausgeschlossene Klassen und Mixins",
     "AuditLog": "Audit-Protokoll",
     "Succeeded": "Erfolgreich",
     "Denied": "Verweigert",

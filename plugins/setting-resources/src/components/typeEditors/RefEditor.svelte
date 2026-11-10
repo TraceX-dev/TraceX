@@ -16,14 +16,13 @@
 <script lang="ts">
   import core, { AnyAttribute, Class, Doc, DOMAIN_STATUS, Ref, RefTo } from '@hcengineering/core'
   import { TypeRef } from '@hcengineering/model'
-  import { getEmbeddedLabel } from '@hcengineering/platform'
+  import { ReferenceFilters, supportsReferenceFilters } from '@hcengineering/view-resources'
   import { getClient } from '@hcengineering/presentation'
   import { Component, DropdownLabelsIntl, Label } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import card from '@hcengineering/card'
-  import contact from '@hcengineering/contact'
-  import setting from '../../plugin'
   import { createEventDispatcher } from 'svelte'
+  import setting from '../../plugin'
   import type { ButtonKind, ButtonSize, DropdownIntlItem } from '@hcengineering/ui'
 
   export let type: RefTo<Doc> | undefined
@@ -38,7 +37,7 @@
 
   const _classes = [core.class.Doc]
 
-  const dispatch = createEventDispatcher<{ change: { type: RefTo<Doc>, preserveOptions: boolean } }>()
+  const dispatch = createEventDispatcher<{ change: { type: RefTo<Doc>, preserveOptions: boolean, valid: boolean } }>()
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
@@ -69,57 +68,23 @@
 
   $: selected = classes.find((p) => p.id === refClass)
 
-  let excludedClasses: Ref<Class<Doc>>[] = type?._class === core.class.RefTo ? (type.excludedClasses ?? []) : []
+  let filters = type?._class === core.class.RefTo ? type.filters : undefined
+  let filtersValid = true
 
-  // Candidate exclusions are applied only by the Person and Card reference editors.
-  function supportsExclusions (clazz: Ref<Class<Doc>> | undefined): boolean {
-    return clazz !== undefined && (clazz === contact.class.Person || hierarchy.isDerived(clazz, card.class.Card))
+  $: filtersSupported = refClass !== undefined && supportsReferenceFilters(hierarchy, refClass)
+  $: if (!filtersSupported) {
+    filters = undefined
+    filtersValid = true
   }
 
-  function getExclusionItems (
-    clazz: Ref<Class<Doc>> | undefined,
-    selected: Ref<Class<Doc>>[]
-  ): Array<DropdownIntlItem<Ref<Class<Doc>>>> {
-    const items = new Map<Ref<Class<Doc>>, DropdownIntlItem<Ref<Class<Doc>>>>()
-    if (clazz !== undefined && supportsExclusions(clazz)) {
-      for (const descendant of hierarchy.getDescendants(clazz)) {
-        if (descendant === clazz || removedClasses.has(descendant)) continue
-        const label = hierarchy.getClass(descendant).label
-        if (label === undefined) continue
-        const item: DropdownIntlItem<Ref<Class<Doc>>> = { id: descendant, label }
-        items.set(descendant, item)
-      }
-    }
-    // Keep stale selections visible and removable until the user explicitly deselects them.
-    for (const excluded of selected) {
-      if (items.has(excluded)) continue
-      const item: DropdownIntlItem<Ref<Class<Doc>>> = {
-        id: excluded,
-        label: hierarchy.findClass(excluded)?.label ?? getEmbeddedLabel(excluded)
-      }
-      items.set(excluded, item)
-    }
-    return Array.from(items.values())
-  }
-
-  $: exclusionItems = getExclusionItems(refClass, excludedClasses)
-
-  function updateType (clazz: Ref<Class<Doc>>, exclusions: Ref<Class<Doc>>[]): void {
-    const compatible =
-      clazz === type?.to
-        ? exclusions
-        : supportsExclusions(clazz)
-          ? exclusions.filter(
-              (excluded) => hierarchy.hasClass(excluded) && excluded !== clazz && hierarchy.isDerived(excluded, clazz)
-            )
-          : []
+  function updateType (clazz: Ref<Class<Doc>>, filters: string | undefined, valid: boolean): void {
     const nextType: RefTo<Doc> = type?._class === core.class.RefTo ? { ...type, ...TypeRef(clazz) } : TypeRef(clazz)
-    if (compatible.length > 0) nextType.excludedClasses = compatible
-    else delete nextType.excludedClasses
-    dispatch('change', { type: nextType, preserveOptions: clazz === type?.to })
+    if (filters !== undefined) nextType.filters = filters
+    else delete nextType.filters
+    dispatch('change', { type: nextType, preserveOptions: clazz === type?.to, valid })
   }
 
-  $: if (refClass !== undefined) updateType(refClass, excludedClasses)
+  $: if (refClass !== undefined) updateType(refClass, filters, filtersValid)
 
   $: editor = refClass !== undefined && hierarchy.classHierarchyMixin(refClass, view.mixin.TypeEditor)?.editor
 </script>
@@ -133,15 +98,6 @@
     items={classes}
     {width}
     bind:selected={refClass}
-    on:selected={() => {
-      excludedClasses = excludedClasses.filter(
-        (excluded) =>
-          refClass !== undefined &&
-          hierarchy.hasClass(excluded) &&
-          excluded !== refClass &&
-          hierarchy.isDerived(excluded, refClass)
-      )
-    }}
     {kind}
     {size}
     withSearch
@@ -149,22 +105,30 @@
 {:else if selected}
   <Label label={selected.label} />
 {/if}
-{#if exclusionItems.length > 0}
-  <span class="label"><Label label={setting.string.ExcludedClassesAndMixins} /></span>
-  <DropdownLabelsIntl
-    label={setting.string.ExcludedClassesAndMixins}
-    items={exclusionItems}
-    bind:selected={excludedClasses}
-    multiselect
-    withSearch
-    {disabled}
-    shouldUpdateUndefined={false}
-    dataId="reference-excluded-classes"
-    {width}
-    {kind}
-    {size}
-  />
+{#if refClass !== undefined && filtersSupported}
+  <span class="label">
+    <Label label={setting.string.RelationFilter} />
+  </span>
+  <div class="reference-filters">
+    {#key refClass}
+      <ReferenceFilters
+        _class={refClass}
+        value={filters}
+        {disabled}
+        on:change={(event) => {
+          filters = event.detail.value
+          filtersValid = event.detail.valid
+        }}
+      />
+    {/key}
+  </div>
 {/if}
 {#if editor}
   <Component is={editor} props={{ attribute, type, editable, attributeOf, isCard }} on:change />
 {/if}
+
+<style lang="scss">
+  .reference-filters {
+    min-width: 0;
+  }
+</style>

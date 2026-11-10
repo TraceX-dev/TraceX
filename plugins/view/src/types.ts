@@ -64,6 +64,7 @@ export interface KeyFilterPreset {
   label?: IntlString
   group?: 'top' | 'bottom'
   showNested?: boolean
+  options?: Array<{ id: string, label: IntlString }>
 }
 
 /**

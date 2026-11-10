@@ -1,6 +1,5 @@
 {
   "string": {
-    "ExcludedClassesAndMixins": "Excluded classes and mixins",
     "AuditLog": "Audit log",
     "Succeeded": "Succeeded",
     "Denied": "Denied",

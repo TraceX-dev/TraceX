@@ -24,7 +24,7 @@
     PropertyType,
     Ref,
     Type,
-    updateReferenceExclusions
+    updateReferenceFilters
   } from '@hcengineering/core'
   import { Asset, getEmbeddedLabel, getResource, translateCB } from '@hcengineering/platform'
   import presentation, { getClient, MessageBox } from '@hcengineering/presentation'
@@ -79,7 +79,7 @@
   })
 
   async function save (): Promise<void> {
-    if (disabled) {
+    if (disabled || !typeValid) {
       return
     }
 
@@ -107,7 +107,7 @@
       }
     }
     if (exist && type !== undefined) {
-      const updatedType = updateReferenceExclusions(attribute.type, type)
+      const updatedType = updateReferenceFilters(attribute.type, type)
       if (updatedType !== attribute.type) update.type = updatedType
     }
     if (automationOnly !== attribute.automationOnly) {
@@ -161,7 +161,9 @@
   const handleSelect = (e: any) => {
     selectType(e.detail)
   }
+  let typeValid = true
   const handleChange = (e: any) => {
+    typeValid = e.detail.valid ?? (e.detail.type?._class !== type?._class ? true : typeValid)
     if (e.detail.type !== undefined && e.detail.type !== type && !disabled) {
       type = e.detail?.type
       if (e.detail.preserveOptions !== true) {
@@ -269,7 +271,7 @@
   type="type-aside"
   okLabel={presentation.string.Save}
   okAction={save}
-  canSave={!(name === undefined || name.trim().length === 0) && !disabled}
+  canSave={typeValid && !(name === undefined || name.trim().length === 0) && !disabled}
   onCancel={clearSettingsStore}
   {noTopIndent}
 >

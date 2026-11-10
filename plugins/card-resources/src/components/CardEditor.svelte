@@ -15,9 +15,9 @@
 -->
 <script lang="ts">
   import { Card } from '@hcengineering/card'
-  import { AnyAttribute, Ref, RefTo, Type, getReferenceQuery } from '@hcengineering/core'
+  import { AnyAttribute, Ref, RefTo, Type } from '@hcengineering/core'
   import type { DocumentQuery } from '@hcengineering/core'
-  import { getClient } from '@hcengineering/presentation'
+  import { createReferenceQuery } from '@hcengineering/view-resources'
   import { IntlString } from '@hcengineering/platform'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
@@ -47,9 +47,10 @@
     onChange(val)
   }
 
-  const client = getClient()
   $: referenceType = (attribute?.type ?? type) as RefTo<Card> | undefined
-  $: candidatesQuery = getReferenceQuery(client.getHierarchy(), referenceType, docQuery)
+
+  const candidates = createReferenceQuery<Card>()
+  $: candidates.update(referenceType, docQuery)
 
   const _class = (attribute?.type as RefTo<Card>)?.to ?? (type as RefTo<Card>)?.to ?? card.class.Card
 </script>
@@ -63,7 +64,7 @@
     {showNavigate}
     {label}
     {_class}
-    docQuery={candidatesQuery}
+    docQuery={$candidates}
     {focusIndex}
     {kind}
     {size}

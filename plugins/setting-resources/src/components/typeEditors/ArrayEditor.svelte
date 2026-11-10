@@ -57,8 +57,12 @@
 
   const handleChange = (e: any): void => {
     if (e.detail?.type !== undefined) {
-      const type = e.detail?.type
-      const res = { type: createArrOf(type), preserveOptions: e.detail.preserveOptions }
+      const type: Type<Doc> = e.detail.type
+      const res: { type: ArrOf<Doc>, preserveOptions?: boolean, valid: boolean } = {
+        type: createArrOf(type),
+        preserveOptions: e.detail.preserveOptions,
+        valid: e.detail.valid ?? true
+      }
       dispatch('change', res)
     } else {
       dispatch('change', e.detail)

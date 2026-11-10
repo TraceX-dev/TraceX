@@ -12,6 +12,7 @@
 
 import core, {
   type AnyAttribute,
+  getReferenceFilterClasses,
   type ArrOf,
   type AttachedData,
   type AttachedDoc,
@@ -173,7 +174,7 @@ async function exportAttribute (
   }
   if (attr.type._class === core.class.RefTo) {
     const type = attr.type as RefTo<Doc>
-    for (const clazz of [type.to, ...(type.excludedClasses ?? [])]) {
+    for (const clazz of [type.to, ...getReferenceFilterClasses(type)]) {
       if (h.isDerived(clazz, card.class.Card)) required.push(clazz)
     }
   }
@@ -181,7 +182,7 @@ async function exportAttribute (
     const of = (attr.type as ArrOf<Doc>).of
     if (of._class === core.class.RefTo) {
       const type = of as RefTo<Doc>
-      for (const clazz of [type.to, ...(type.excludedClasses ?? [])]) {
+      for (const clazz of [type.to, ...getReferenceFilterClasses(type)]) {
         if (h.isDerived(clazz, card.class.Card)) required.push(clazz)
       }
     }

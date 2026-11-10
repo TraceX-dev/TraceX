@@ -253,7 +253,7 @@ export default plugin(settingId, {
     AuthenticationSettings: '' as AnyComponent
   },
   string: {
-    ExcludedClassesAndMixins: '' as IntlString,
+    User: '' as IntlString,
     Settings: '' as IntlString,
     Setting: '' as IntlString,
     Spaces: '' as IntlString,

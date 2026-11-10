@@ -187,6 +187,7 @@
     "RoleLabel": "Rol: {role}",
     "ForbidAttributeChanges": "Özellik yasakla: ",
     "AllowAttributeChanges": "Özellik izin ver: ",
-    "RelationshipTable": "İlişki tablosu"
+    "RelationshipTable": "İlişki tablosu",
+    "InvalidReferenceFilter": "Referans filtresi geçersiz veya kullanılamıyor. Kaydetmeden önce düzeltin veya kaldırın."
   }
 }

@@ -17,7 +17,7 @@ import type { ArrOf, Class, Data, Doc, Ref, RefTo } from '../classes'
 import { ClassifierKind } from '../classes'
 import core from '../component'
 import { Hierarchy } from '../hierarchy'
-import { getReferenceQuery, updateReferenceExclusions } from '../reference'
+import { getClassExclusionQuery, updateReferenceFilters } from '../reference'
 import type { DocumentQuery } from '../storage'
 import { TxFactory } from '../tx'
 import { genMinModel, test } from './minmodel'
@@ -51,20 +51,19 @@ function prepare (): Hierarchy {
   return hierarchy
 }
 
-function reference (...excludedClasses: Ref<Class<Doc>>[]): RefTo<Doc> {
-  const type: RefTo<Doc> = { _class: core.class.RefTo, label: core.string.Ref, to: core.class.Doc, excludedClasses }
-  return type
+function reference (...classes: Ref<Class<Doc>>[]): Ref<Class<Doc>>[] {
+  return classes
 }
 
 describe('reference candidate exclusions', () => {
   it('preserves unrestricted references and existing query constraints', () => {
     const query: DocumentQuery<Doc> = { space: core.space.Model, active: true }
-    expect(getReferenceQuery(prepare(), undefined, query)).toEqual(query)
-    expect(getReferenceQuery(prepare(), reference(), query)).toEqual(query)
+    expect(getClassExclusionQuery(prepare(), [], query)).toEqual(query)
+    expect(getClassExclusionQuery(prepare(), reference(), query)).toEqual(query)
   })
 
   it('excludes a mixin and its descendants without requiring employee activity', () => {
-    const query = getReferenceQuery(prepare(), reference(test.mixin.TestMixin))
+    const query = getClassExclusionQuery(prepare(), reference(test.mixin.TestMixin))
     expect(query).toEqual({
       [test.mixin.TestMixin]: { $exists: false },
       [childMixin]: { $exists: false }
@@ -78,7 +77,7 @@ describe('reference candidate exclusions', () => {
       _id: { $nin: [core.space.Model] }
     }
     const before = JSON.stringify(query)
-    const result = getReferenceQuery(prepare(), reference(test.class.Task), query)
+    const result = getClassExclusionQuery(prepare(), reference(test.class.Task), query)
     expect(result._class).toEqual({ $in: [core.class.Space] })
     expect(result.space).toBe(core.space.Model)
     expect(result._id).toEqual(query._id)
@@ -89,14 +88,14 @@ describe('reference candidate exclusions', () => {
   })
 
   it('combines multiple exclusions and deduplicates descendants', () => {
-    const result = getReferenceQuery(prepare(), reference(test.mixin.TestMixin, childMixin, core.class.Space))
+    const result = getClassExclusionQuery(prepare(), reference(test.mixin.TestMixin, childMixin, core.class.Space))
     expect(result[test.mixin.TestMixin]).toEqual({ $exists: false })
     expect(result[childMixin]).toEqual({ $exists: false })
     expect(result._class).toEqual({ $nin: [core.class.Space] })
   })
 
   it('keeps independent mixin exclusions while omitting mixins covered by a class exclusion', () => {
-    const result = getReferenceQuery(prepare(), reference(test.class.Task, test.mixin.TestMixin))
+    const result = getClassExclusionQuery(prepare(), reference(test.class.Task, test.mixin.TestMixin))
     expect(result[test.mixin.TestMixin]).toEqual({ $exists: false })
     expect(result[childMixin]).toEqual({ $exists: false })
     expect(result[test.mixin.TaskMixinTodos]).toBeUndefined()
@@ -105,76 +104,58 @@ describe('reference candidate exclusions', () => {
   })
 
   it('keeps a mixin condition when its base class is not excluded', () => {
-    expect(getReferenceQuery(prepare(), reference(childClassMixin))).toEqual({
+    expect(getClassExclusionQuery(prepare(), reference(childClassMixin))).toEqual({
       [childClassMixin]: { $exists: false }
     })
   })
 
   it('returns no candidates when an existing filter requires an excluded mixin', () => {
     const query: DocumentQuery<Doc> = { [test.mixin.TestMixin]: { $exists: true }, active: true }
-    const result = getReferenceQuery(prepare(), reference(test.mixin.TestMixin), query)
+    const result = getClassExclusionQuery(prepare(), reference(test.mixin.TestMixin), query)
     expect(result._id).toEqual({ $in: [] })
     expect(result.active).toBe(true)
   })
 
   it('preserves matching mixin absence constraints', () => {
     const query: DocumentQuery<Doc> = { [test.mixin.TestMixin]: { $exists: false } }
-    expect(getReferenceQuery(prepare(), reference(test.mixin.TestMixin), query)[test.mixin.TestMixin]).toEqual({
+    expect(getClassExclusionQuery(prepare(), reference(test.mixin.TestMixin), query)[test.mixin.TestMixin]).toEqual({
       $exists: false
     })
   })
 
   it('does not broaden selection when an excluded class is unavailable', () => {
     const missing = 'test:class:Missing' as Ref<Class<Doc>>
-    expect(getReferenceQuery(prepare(), reference(missing))._id).toEqual({ $in: [] })
+    expect(getClassExclusionQuery(prepare(), reference(missing))._id).toEqual({ $in: [] })
   })
 })
 
-describe('updating existing reference field constraints', () => {
-  it('keeps unchanged field types without producing schema updates', () => {
-    const original = reference(test.mixin.TestMixin)
-    expect(updateReferenceExclusions(original, reference(test.mixin.TestMixin))).toBe(original)
-    const array: ArrOf<Ref<Doc>> = { _class: core.class.ArrOf, label: core.string.Array, of: original }
-    expect(updateReferenceExclusions(array, array)).toBe(array)
+describe('updating existing reference filters', () => {
+  const first = '[{"key":{"_class":"test:class:Task","key":"name"},"value":["first"]}]'
+  const second = '[{"key":{"_class":"test:class:Task","key":"name"},"value":["second"]}]'
+  function type (filters?: string): RefTo<Doc> {
+    const reference: RefTo<Doc> = { _class: core.class.RefTo, label: core.string.Ref, to: core.class.Doc, filters }
+    return reference
+  }
+  it('preserves unchanged filters and their enclosing array type', () => {
+    const original = type(first)
+    expect(updateReferenceFilters(original, type(first))).toBe(original)
+    const array: ArrOf<Doc> = { _class: core.class.ArrOf, label: core.string.Array, of: original }
+    expect(updateReferenceFilters(array, array)).toBe(array)
   })
-
-  it('treats reordered and repeated exclusions as the same selection constraint', () => {
-    const original = reference(test.mixin.TestMixin, childMixin)
-    expect(updateReferenceExclusions(original, reference(childMixin, test.mixin.TestMixin))).toBe(original)
-    expect(updateReferenceExclusions(original, reference(childMixin, test.mixin.TestMixin, childMixin))).toBe(original)
+  it('updates and clears conditions without changing other type properties', () => {
+    const original = type(first)
+    expect(updateReferenceFilters(original, type(second))).toEqual(type(second))
+    expect(original.filters).toBe(first)
+    const cleared = updateReferenceFilters(original, type())
+    expect(cleared).not.toHaveProperty('filters')
+    expect(cleared).toMatchObject({ _class: core.class.RefTo, to: core.class.Doc })
   })
-
-  it('updates and clears exclusions without changing the reference target or other type properties', () => {
-    const original: RefTo<Doc> = { ...reference(), label: core.string.Ref }
-    const updated = updateReferenceExclusions(original, reference(test.mixin.TestMixin))
-    expect(updated).toEqual({ ...original, excludedClasses: [test.mixin.TestMixin] })
-    expect(original.excludedClasses).toEqual([])
-    expect(updateReferenceExclusions(updated, reference())).toEqual({
-      _class: core.class.RefTo,
-      to: core.class.Doc,
-      label: core.string.Ref
-    })
-  })
-
-  it('updates array element exclusions while keeping the existing array type', () => {
-    const original: ArrOf<Ref<Doc>> = { _class: core.class.ArrOf, label: core.string.Array, of: reference() }
-    const source: ArrOf<Ref<Doc>> = {
-      _class: core.class.ArrOf,
-      label: core.string.Array,
-      of: reference(test.mixin.TestMixin)
-    }
-    expect(updateReferenceExclusions(original, source)).toEqual({
-      ...original,
-      of: reference(test.mixin.TestMixin)
-    })
-  })
-
-  it('rejects reference target and array shape changes for existing fields', () => {
-    const original = reference()
-    const source: RefTo<Doc> = { ...reference(test.mixin.TestMixin), to: core.class.Space }
-    const array: ArrOf<Ref<Doc>> = { _class: core.class.ArrOf, label: core.string.Array, of: original }
-    expect(updateReferenceExclusions(original, source)).toBe(original)
-    expect(updateReferenceExclusions(original, array)).toBe(original)
-    expect(updateReferenceExclusions(array, original)).toBe(array)
+  it('updates array elements and rejects reference target changes', () => {
+    const original: ArrOf<Doc> = { _class: core.class.ArrOf, label: core.string.Array, of: type(first) }
+    const source: ArrOf<Doc> = { ...original, of: type(second) }
+    expect(updateReferenceFilters(original, source)).toEqual(source)
+    const other: RefTo<Doc> = { ...type(second), to: core.class.Space }
+    expect(updateReferenceFilters(type(first), other)).toEqual(type(first))
+    expect(updateReferenceFilters(original, type(first))).toBe(original)
   })
 })

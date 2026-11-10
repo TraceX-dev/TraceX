@@ -17,10 +17,10 @@
 -->
 <script lang="ts">
   import { Contact } from '@hcengineering/contact'
-  import { ArrOf, Ref, RefTo, getReferenceQuery } from '@hcengineering/core'
-  import { getClient } from '@hcengineering/presentation'
+  import { ArrOf, Ref, RefTo } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { ButtonKind } from '@hcengineering/ui'
+  import { createReferenceQuery } from '@hcengineering/view-resources'
   import ContactList from './ContactList.svelte'
 
   export let label: IntlString
@@ -30,9 +30,9 @@
   export let readonly = false
   export let kind: ButtonKind = 'link'
 
-  const client = getClient()
   $: referenceType = type?.of as RefTo<Contact> | undefined
-  $: candidatesQuery = getReferenceQuery(client.getHierarchy(), referenceType)
+  const candidates = createReferenceQuery<Contact>()
+  $: candidates.update(referenceType)
   $: _clazz = referenceType?.to
   let timer: any
 
@@ -48,7 +48,7 @@
   items={value}
   {label}
   _class={_clazz}
-  docQuery={candidatesQuery}
+  docQuery={$candidates}
   on:update={onUpdate}
   {kind}
   size="medium"

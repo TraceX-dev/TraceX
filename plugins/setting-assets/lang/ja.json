@@ -1,6 +1,5 @@
 {
   "string": {
-    "ExcludedClassesAndMixins": "除外するクラスとミックスイン",
     "AuditLog": "監査ログ",
     "Succeeded": "成功",
     "Denied": "拒否",

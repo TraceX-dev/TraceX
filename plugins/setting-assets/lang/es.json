@@ -1,6 +1,5 @@
 {
   "string": {
-    "ExcludedClassesAndMixins": "Clases y mixins excluidos",
     "AuditLog": "Registro de auditoría",
     "Succeeded": "Correcto",
     "Denied": "Denegado",

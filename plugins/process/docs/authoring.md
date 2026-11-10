@@ -109,20 +109,13 @@ The section implies the document class and each block name is its reference iden
 
 Write ordinary localized display labels as text: `label: Estimator`. In v2, slot labels and the labels of card types, tags, fields and permissions are converted to native `embedded:embedded:Estimator` on import and shortened back to text on export. Existing resource ids such as `plugin:string:Label` and explicit embedded ids remain valid. Embedded text that itself resembles a resource id retains its explicit prefix to avoid ambiguity. Native escapes and earlier `model` lists preserve their exact values. Process/state names and action output/result labels are ordinary strings and are not converted.
 
-#### Reference candidate exclusions
+#### Reference candidate filters
 
-`excludedClasses` hides classes, mixins and their descendants in Person and Card reference pickers. Set it on the field's `RefTo` type, or on the element type for arrays. Existing values remain visible. This limits UI candidates; permissions and server-side validation are separate.
+`filters` applies to Person and Card reference fields and their descendants, including Employee. It uses the existing view `Filter[]` format. YAML accepts the filter array; native JSON stores it as a serialized array, as relation filters do. Array fields keep the setting on their element type. Import/export preserves the conditions and rebinds local class identities when cloning a module.
 
-An unavailable exclusion blocks selection. The field settings show its stored id and preserve it until explicitly removed and saved.
+The field settings reuse the normal filter controls. Conditions are combined with AND and with access/space restrictions before search and result limits. The `_class` condition supports “is” (the default) and “is not”, including selected classes, mixins and their descendants. Multiple selected types mean any of those types. `Employee.role` offers User and Guest categories; it is informational contact data, not the authoritative account role. Nested/current-card expressions are unsupported.
 
-```yaml
-type:
-  class: core.RefTo
-  to: contact.Person
-  excludedClasses: [contact.mixin.Employee]
-```
-
-For arrays, wrap this type in `type: {array: ...}`. Exclusions use the same class-reference syntax as `to`; import/export preserves them and rebinds local ids when cloning a module.
+Invalid or stale conditions block selection and saving until explicitly removed or corrected. Existing stored field values remain visible. Other reference types, ad-hoc pickers and process inputs do not apply these filters. These settings control UI candidates; permissions and server-side validation are separate.
 
 #### Named outputs and references
 

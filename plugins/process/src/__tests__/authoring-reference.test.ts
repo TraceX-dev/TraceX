@@ -13,7 +13,7 @@
 
 import { compileProcessYaml } from '../authoring'
 import { exportAuthoringModel, remapAuthoringReferences } from '../authoring-model'
-import { decodeAuthoringType, encodeAuthoringType } from '../authoring-results'
+import { decodeAuthoringType } from '../authoring-results'
 import { expectEquivalentModel } from './authoring-test-utils'
 
 const source = `version: 2
@@ -29,14 +29,24 @@ cardTypes:
         type:
           class: core.RefTo
           to: contact.Person
-          excludedClasses: [contact.mixin.Employee]
+          filters:
+            - key: {_class: 'contact:class:Person', key: _class, component: 'view:component:ClassFilter'}
+              mode: 'view:filter:FilterObjectNin'
+              modes: ['view:filter:FilterObjectNin']
+              value: ['contact:mixin:Employee']
+              index: 0
       related_records:
         name: relatedRecords
         type:
           array:
             class: core.RefTo
             to: record
-            excludedClasses: [internal_record]
+            filters:
+              - key: {_class: record, key: _class, component: 'view:component:ClassFilter'}
+                mode: 'view:filter:FilterObjectNin'
+                modes: ['view:filter:FilterObjectNin']
+                value: [internal_record]
+                index: 0
   internal_record:
     label: Internal record
     extends: record
@@ -78,19 +88,19 @@ const nativeArrayTypes: Array<Record<string, unknown>> = [
 ]
 
 describe('reference selection constraints in authoring', () => {
-  it('expands class and mixin names and preserves exclusions in YAML and native JSON round trips', () => {
+  it('expands class and mixin names and preserves filters in YAML and native JSON round trips', () => {
     const compiled = compileProcessYaml(source)
     expect(compiled.docs.find((doc) => doc._id === 'key_contact')?.type).toEqual({
       _class: 'core:class:RefTo',
       to: 'contact:class:Person',
-      excludedClasses: ['contact:mixin:Employee']
+      filters: expect.any(String)
     })
     expectEquivalentModel(compileProcessYaml(exportAuthoringModel(compiled.docs, 'card')).docs, compiled.docs)
     const native = JSON.parse(JSON.stringify(compiled.docs)) as unknown[]
     expectEquivalentModel(compileProcessYaml(exportAuthoringModel(native, 'card')).docs, compiled.docs)
   })
 
-  it('rebinds exclusions referencing local classes when a module is cloned', () => {
+  it('rebinds filters referencing local classes when a module is cloned', () => {
     const compiled = compileProcessYaml(source)
     const mapping = new Map([
       ['record', 'new_record'],
@@ -100,12 +110,12 @@ describe('reference selection constraints in authoring', () => {
     expect(docs.find((doc) => doc._id === 'related_records')?.type).toEqual({
       _class: 'core:class:ArrOf',
       label: 'core:string:Array',
-      of: { _class: 'core:class:RefTo', to: 'new_record', excludedClasses: ['new_internal_record'] }
+      of: { _class: 'core:class:RefTo', to: 'new_record', filters: expect.stringContaining('new_internal_record') }
     })
     expectEquivalentModel(compileProcessYaml(exportAuthoringModel(docs, 'card')).docs, docs)
   })
 
-  it.each(nativeArrayTypes)('preserves arrays without exclusions and their native extensions: %j', (type) => {
+  it.each(nativeArrayTypes)('preserves arrays without filters and their native extensions: %j', (type) => {
     const compiled = compileProcessYaml(source)
     const field = compiled.docs.find((doc) => doc._id === 'related_records')
     if (field === undefined) throw new Error('The reference field fixture is missing')
@@ -115,19 +125,8 @@ describe('reference selection constraints in authoring', () => {
     expect(JSON.stringify(compiled.docs)).toBe(before)
   })
 
-  it('rejects malformed exclusions at their type property path', () => {
-    const type: Record<string, unknown> = { class: 'core.RefTo', to: 'contact.Person', excludedClasses: 'Employee' }
-    expect(() => decodeAuthoringType(type, 'type')).toThrow('type.excludedClasses')
-    type.excludedClasses = [42]
-    expect(() => decodeAuthoringType(type, 'type')).toThrow('type.excludedClasses[0]')
-  })
-
-  it('retains explicit dotted class identities in exclusions', () => {
-    const type: Record<string, unknown> = {
-      _class: 'core:class:RefTo',
-      to: 'contact:class:Person',
-      excludedClasses: ['custom.Employee']
-    }
-    expect(decodeAuthoringType(encodeAuthoringType(type), 'type')).toEqual(type)
+  it('rejects malformed condition lists', () => {
+    const type: Record<string, unknown> = { class: 'core.RefTo', to: 'contact.Person', filters: '{}' }
+    expect(() => decodeAuthoringType(type, 'type')).toThrow('type.filters')
   })
 })

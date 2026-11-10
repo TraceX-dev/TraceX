@@ -1,6 +1,5 @@
 {
   "string": {
-    "ExcludedClassesAndMixins": "Hariç tutulan sınıflar ve mixin’ler",
     "AuditLog": "Denetim günlüğü",
     "Succeeded": "Başarılı",
     "Denied": "Reddedildi",

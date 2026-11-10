@@ -20,13 +20,13 @@ import { mergeQueries } from './utils'
 import core from './component'
 
 /** Intersects reference candidate exclusions with existing selection constraints. */
-export function getReferenceQuery<T extends Doc> (
+export function getClassExclusionQuery<T extends Doc> (
   hierarchy: Hierarchy,
-  type: RefTo<T> | undefined,
+  excludedClasses: Ref<Class<Doc>>[],
   query: DocumentQuery<T> = {}
 ): DocumentQuery<T> {
   const excluded = new Set<Ref<Class<Doc>>>()
-  for (const clazz of type?.excludedClasses ?? []) {
+  for (const clazz of excludedClasses) {
     // A removed or unavailable exclusion must not silently broaden the selection.
     if (!hierarchy.hasClass(clazz)) return mergeQueries(query, { _id: { $in: [] } })
     for (const descendant of hierarchy.getDescendants(clazz)) excluded.add(descendant)
@@ -50,12 +50,12 @@ export function getReferenceQuery<T extends Doc> (
   return mergeQueries(query, constraints)
 }
 
-/** Updates candidate exclusions without changing an existing field's stored value type. */
-export function updateReferenceExclusions (type: Type<PropertyType>, source: Type<PropertyType>): Type<PropertyType> {
+/** Updates candidate filters without changing an existing field's stored value type. */
+export function updateReferenceFilters (type: Type<PropertyType>, source: Type<PropertyType>): Type<PropertyType> {
   if (type._class !== source._class) return type
   if (type._class === core.class.ArrOf) {
     const array = type as ArrOf<PropertyType>
-    const of = updateReferenceExclusions(array.of, (source as ArrOf<PropertyType>).of)
+    const of = updateReferenceFilters(array.of, (source as ArrOf<PropertyType>).of)
     if (of === array.of) return type
     const updated: ArrOf<PropertyType> = { ...array, of }
     return updated
@@ -64,14 +64,26 @@ export function updateReferenceExclusions (type: Type<PropertyType>, source: Typ
   const reference = type as RefTo<Doc>
   const updatedReference = source as RefTo<Doc>
   if (reference.to !== updatedReference.to) return type
-  const exclusions = Array.from(new Set(updatedReference.excludedClasses ?? []))
-  const previous = new Set(reference.excludedClasses ?? [])
-  if (exclusions.length === previous.size && exclusions.every((clazz) => previous.has(clazz))) return type
+  if (reference.filters === updatedReference.filters) return type
   const updated: RefTo<Doc> = { ...reference }
-  if (exclusions.length > 0) {
-    updated.excludedClasses = exclusions
-  } else {
-    delete updated.excludedClasses
-  }
+  if (updatedReference.filters !== undefined) updated.filters = updatedReference.filters
+  else delete updated.filters
   return updated
+}
+
+/** Class dependencies used by serialized reference conditions, for portable card modules. */
+export function getReferenceFilterClasses (type: RefTo<Doc>): Ref<Class<Doc>>[] {
+  if (type.filters === undefined) return []
+  const parsed: unknown = JSON.parse(type.filters)
+  if (!Array.isArray(parsed)) throw new Error('Invalid reference filters')
+  const classes = new Set<Ref<Class<Doc>>>()
+  for (const entry of parsed) {
+    if (entry === null || typeof entry !== 'object') throw new Error('Invalid reference filter')
+    const filter = entry as { key?: { _class?: unknown, key?: unknown }, value?: unknown }
+    if (typeof filter.key?._class === 'string') classes.add(filter.key._class as Ref<Class<Doc>>)
+    if (filter.key?.key === '_class' && Array.isArray(filter.value)) {
+      for (const id of filter.value) if (typeof id === 'string') classes.add(id as Ref<Class<Doc>>)
+    }
+  }
+  return [...classes]
 }

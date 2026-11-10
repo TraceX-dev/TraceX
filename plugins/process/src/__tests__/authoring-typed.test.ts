@@ -120,8 +120,8 @@ describe('typed results and declarative pipelines', () => {
     'markup',
     { array: 'number' },
     { ref: 'contact.mixin.Employee' },
-    { class: 'core.RefTo', to: 'contact.Person', excludedClasses: ['contact.mixin.Employee'] },
-    { array: { class: 'core.RefTo', to: 'contact.Person', excludedClasses: ['contact.mixin.Employee'] } },
+    { class: 'core.RefTo', to: 'contact.Person', filters: [] },
+    { array: { class: 'core.RefTo', to: 'contact.Person', filters: [] } },
     { enum: 'decision_enum' },
     { array: { ref: 'contact.mixin.Employee' } },
     { class: 'extension.NewType', label: 'extension:string:Type', futureOptions: { input: [true, 3] } }

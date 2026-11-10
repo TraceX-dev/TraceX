@@ -272,11 +272,12 @@
             "class": {
               "$ref": "#/$defs/class"
             },
-            "excludedClasses": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/class" },
-              "uniqueItems": true,
-              "description": "Classes and mixins excluded from reference candidates, including descendants. Applies to RefTo targets of contact.Person and card types, including array elements. This controls candidate selection, not server-side write validation."
+            "filters": {
+              "description": "Static view Filter[] restricting Person/Card attribute candidates (including descendants); other reference editors ignore this setting; arrays are serialized as JSON in the native RefTo type.",
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "object" } }
+              ]
             },
             "label": {
               "type": "string"

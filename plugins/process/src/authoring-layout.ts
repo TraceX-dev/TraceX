@@ -165,7 +165,7 @@ function documentMetadata (
     const expanded = metadata(value, decode) as Record<string, unknown>
     if (
       expanded[decode ? '_class' : 'class'] === (decode ? 'core:class:RefTo' : 'core.RefTo') &&
-      expanded.excludedClasses !== undefined
+      expanded.filters !== undefined
     ) {
       // Encoding already produced portable class names; decoding first restores native metadata keys.
       return decode ? decodeAuthoringType(expanded, at) : candidate

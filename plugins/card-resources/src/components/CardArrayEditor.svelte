@@ -15,13 +15,13 @@
 -->
 <script lang="ts">
   import { Card, MasterTag } from '@hcengineering/card'
-  import { AnyAttribute, ArrOf, Class, Ref, RefTo, Type, getReferenceQuery } from '@hcengineering/core'
+  import { AnyAttribute, ArrOf, Class, Ref, RefTo, Type } from '@hcengineering/core'
   import type { DocumentQuery } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
   import { IconWithEmoji, createQuery, getClient } from '@hcengineering/presentation'
   import { Button, ButtonKind, ButtonSize, eventToHTMLElement, Label, showPopup } from '@hcengineering/ui'
   import view from '@hcengineering/view'
-  import { ObjectsTooltipWrapper } from '@hcengineering/view-resources'
+  import { ObjectsTooltipWrapper, createReferenceQuery } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
   import card from '../plugin'
   import CardsPopup from './CardsPopup.svelte'
@@ -53,7 +53,10 @@
   }
 
   $: referenceType = (attribute?.type ?? type) as ArrOf<Card> | undefined
-  $: candidatesQuery = getReferenceQuery(hierarchy, referenceType?.of as RefTo<Card> | undefined, docQuery)
+  $: elementType = referenceType?.of as RefTo<Card> | undefined
+
+  const candidates = createReferenceQuery<Card>()
+  $: candidates.update(elementType, docQuery)
 
   const handleOpen = (event: MouseEvent): void => {
     if (onChange === undefined) {
@@ -67,7 +70,7 @@
 
     showPopup(
       CardsPopup,
-      { selectedObjects: toArray(value), _class, multiSelect: true, docQuery: candidatesQuery },
+      { selectedObjects: toArray(value), _class, multiSelect: true, docQuery: $candidates },
       eventToHTMLElement(event),
       undefined,
       change

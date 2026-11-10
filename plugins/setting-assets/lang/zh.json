@@ -1,6 +1,5 @@
 {
   "string": {
-    "ExcludedClassesAndMixins": "排除的类和混入",
     "AuditLog": "审计日志",
     "Succeeded": "成功",
     "Denied": "已拒绝",

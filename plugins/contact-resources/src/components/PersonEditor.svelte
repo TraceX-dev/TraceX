@@ -15,7 +15,8 @@
 -->
 <script lang="ts">
   import { Contact, Person } from '@hcengineering/contact'
-  import { DocumentQuery, Ref, RefTo, Space, getReferenceQuery } from '@hcengineering/core'
+  import { DocumentQuery, Ref, RefTo, Space } from '@hcengineering/core'
+  import { createReferenceQuery } from '@hcengineering/view-resources'
   import { getClient } from '@hcengineering/presentation'
   import { getGuestScopedPersonQuery } from '../utils'
   import { IntlString } from '@hcengineering/platform'
@@ -45,8 +46,10 @@
     docQuery = Object.keys(query).length > 0 ? (query as DocumentQuery<Contact>) : undefined
   }
 
+  const candidates = createReferenceQuery<Person>()
+  $: candidates.update(type, docQuery)
+
   $: _class = type?.to ?? contact.class.Person
-  $: candidatesQuery = getReferenceQuery(client.getHierarchy(), type, docQuery)
 </script>
 
 <UserBox
@@ -56,7 +59,7 @@
   {size}
   {justify}
   {width}
-  docQuery={candidatesQuery}
+  docQuery={$candidates}
   bind:value
   on:change={(e) => {
     onChange(e.detail)
