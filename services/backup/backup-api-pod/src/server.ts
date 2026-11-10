@@ -36,6 +36,7 @@ import { createStorageFromConfig, storageConfigFromEnv } from '@hcengineering/se
 import { gunzipSync } from 'zlib'
 import { Config } from './config'
 import { ApiError } from './error'
+import { auditBackupEvent, onResponseSettled } from './audit'
 
 import { clearInterval } from 'timers'
 
@@ -137,7 +138,9 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
 
   app.use(morgan('short', { stream: new LogStream() }))
 
-  const wsInfoCache = new Map<WorkspaceUuid, WorkspaceIds>()
+  // Keyed by account and workspace: a cached entry proves that this account passed the owner check.
+  // Keying by workspace alone would let any member reuse the owner's successful lookup.
+  const wsInfoCache = new Map<string, WorkspaceIds>()
 
   const wsInfoCacheInterval = setInterval(
     () => {
@@ -168,8 +171,14 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
 
     const workspaceId = decodedToken.workspace
     const isAdmin = decodedToken.extra?.admin === 'true'
+    const authToken = decodedToken
+    const fileName = file ?? ''
+    const auditDenied = async (errorCode: string): Promise<void> => {
+      await auditBackupEvent(ctx, authToken, { outcome: 'denied', errorCode, fileName })
+    }
 
-    let wsInfo: WorkspaceIds | undefined = wsInfoCache.get(workspaceId)
+    const cacheKey = `${decodedToken.account}:${workspaceId}`
+    let wsInfo: WorkspaceIds | undefined = wsInfoCache.get(cacheKey)
     const accountClient = getClient(config.AccountsUrl, token)
 
     if (wsInfo === undefined) {
@@ -178,10 +187,12 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
         const winfo = info.workspaces[workspaceId]
         if (!isAdmin) {
           if (winfo === undefined) {
+            await auditDenied('not_workspace_member')
             res.status(401).end('Invalid workspace')
             return
           } else {
             if (winfo.role !== AccountRole.Owner) {
+              await auditDenied('not_workspace_owner')
               res.status(401).end('Not an owner of workspace')
               return
             }
@@ -193,8 +204,9 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
           dataId: wssInfo.dataId,
           uuid: workspaceId
         }
-        wsInfoCache.set(workspaceId, wsInfo)
+        wsInfoCache.set(cacheKey, wsInfo)
       } catch (err: any) {
+        await auditDenied('invalid_workspace')
         res.status(401).end('Invalid workspace')
         return
       }
@@ -337,8 +349,26 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
       // return new Response(fileInfo.body, {
       //   headers: responseHeaders
       // })
+      let stream: Awaited<ReturnType<typeof storage.load>>
+      try {
+        stream = await storage.load(file)
+      } catch (err: any) {
+        await auditBackupEvent(ctx, authToken, {
+          outcome: 'failed',
+          errorCode: err instanceof Error ? err.name : 'UnknownError',
+          fileName: file,
+          fileSize: fileInfo.size
+        })
+        throw err
+      }
+      onResponseSettled(res, stream, (outcome, errorCode) => {
+        if (errorCode !== undefined && outcome === 'failed' && !res.writableEnded) {
+          res.destroy()
+        }
+        void auditBackupEvent(ctx, authToken, { outcome, errorCode, fileName: file, fileSize: fileInfo.size })
+      })
       res.status(200).set(responseHeaders)
-      ;(await storage.load(file)).pipe(res)
+      stream.pipe(res)
       return
     }
     res.status(404).end('Not found')

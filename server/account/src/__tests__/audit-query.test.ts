@@ -199,3 +199,64 @@ test('keeps allowlisted technical attributes in the projection without exposing 
   })
   expect(JSON.stringify(page)).not.toContain('futurePrivateAttribute')
 })
+
+test('exposes data egress details for export, transfer and backup download events', async () => {
+  const transfer: AuditRecord = {
+    schemaVersion: 1,
+    eventId: '00000000-0000-4000-8000-000000000003',
+    occurredAt: 1000,
+    sourceService: 'export',
+    event: 'workspace.data.transfer',
+    outcome: 'succeeded',
+    workspaceUuid: workspace,
+    actorAccountUuid: account,
+    targetType: 'workspace',
+    targetId: 'workspace-b',
+    direction: 'outgoing',
+    sourceWorkspaceUuid: workspace,
+    targetWorkspaceUuid: 'workspace-b',
+    objectClass: 'tracker:class:Issue',
+    conflictStrategy: 'skip',
+    includeAttachments: true,
+    includeChildren: false,
+    exportedCount: 12,
+    skippedCount: 1,
+    errorCount: 0,
+    actorIsAdmin: false
+  }
+  const backup: AuditRecord = {
+    ...transfer,
+    eventId: '00000000-0000-4000-8000-000000000004',
+    sourceService: 'backup-api',
+    event: 'workspace.backup.download',
+    targetType: 'backup',
+    targetId: undefined,
+    fileName: 'backup-1.tar.gz',
+    fileSize: 1024
+  }
+  findWorkspace.mockResolvedValueOnce([transfer])
+  const page = await getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token', query)
+  expect(page.events[0].attributes).toEqual({
+    direction: 'outgoing',
+    sourceWorkspaceUuid: workspace,
+    targetWorkspaceUuid: 'workspace-b',
+    objectClass: 'tracker:class:Issue',
+    conflictStrategy: 'skip',
+    includeAttachments: true,
+    includeChildren: false,
+    exportedCount: 12,
+    skippedCount: 1,
+    errorCount: 0
+  })
+  findWorkspace.mockResolvedValueOnce([backup])
+  const backupPage = await getWorkspaceAuditEvents(ctx, db as AccountDB, null, 'token', query)
+  expect(backupPage.events[0].attributes).toMatchObject({ fileName: 'backup-1.tar.gz', fileSize: 1024 })
+  expect(OWNER_AUDIT_EVENTS).toEqual(
+    expect.arrayContaining([
+      'workspace.data.export',
+      'workspace.data.transfer',
+      'workspace.backup.download',
+      'document.export'
+    ])
+  )
+})

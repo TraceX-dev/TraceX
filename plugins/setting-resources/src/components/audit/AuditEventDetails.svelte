@@ -21,6 +21,7 @@
     AUDIT_ATTRIBUTE_LABELS,
     AUDIT_OUTCOME_LABELS,
     AUDIT_OUTCOME_TYPES,
+    getAuditDirectionLabel,
     getAuditEventLabel,
     getAuditRoleLabel,
     getAuditTarget
@@ -68,6 +69,7 @@
         <dd class="field-value">
           {#if typeof value === 'boolean'}<BooleanIcon {value} />
           {:else if key === 'role' || key === 'targetRole'}<Label label={getAuditRoleLabel(String(value))} />
+          {:else if key === 'direction'}<Label label={getAuditDirectionLabel(String(value))} />
           {:else}{value === null ? '—' : Array.isArray(value) ? value.join(', ') : String(value)}{/if}
         </dd>
       {/each}

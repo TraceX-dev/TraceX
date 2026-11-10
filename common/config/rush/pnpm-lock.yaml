@@ -38067,6 +38067,9 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../../foundations/core/packages/core
+      '@hcengineering/kafka':
+        specifier: workspace:^0.7.20
+        version: link:../../../foundations/server/packages/kafka
       '@hcengineering/platform':
         specifier: workspace:^0.7.20
         version: link:../../../foundations/core/packages/platform
@@ -38714,6 +38717,9 @@ importers:
       '@hcengineering/export':
         specifier: workspace:^0.7.0
         version: link:../../../plugins/export
+      '@hcengineering/kafka':
+        specifier: workspace:^0.7.20
+        version: link:../../../foundations/server/packages/kafka
       '@hcengineering/middleware':
         specifier: workspace:^0.7.21
         version: link:../../../foundations/server/packages/middleware

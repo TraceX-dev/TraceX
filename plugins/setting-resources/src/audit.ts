@@ -48,7 +48,11 @@ export const AUDIT_EVENT_LABELS: Record<OwnerAuditEventName, IntlString> = {
   'integration.secret.read': setting.string.IntegrationSecretAccessed,
   'account.api-key.create': setting.string.ApiKeyCreated,
   'account.api-key.revoke': setting.string.ApiKeyRevoked,
-  'account.guest.login': setting.string.GuestLoggedIn
+  'account.guest.login': setting.string.GuestLoggedIn,
+  'workspace.data.export': setting.string.DataExported,
+  'workspace.data.transfer': setting.string.DataTransferred,
+  'workspace.backup.download': setting.string.BackupDownloaded,
+  'document.export': setting.string.DocumentExported
 }
 
 export const AUDIT_EVENT_ITEMS: DropdownIntlItem[] = OWNER_AUDIT_EVENTS.map((id) => ({
@@ -82,7 +86,15 @@ export const AUDIT_ATTRIBUTE_LABELS: Record<string, IntlString> = {
   readOnlyGuestsAllowed: setting.string.ReadOnlyGuestsAllowed,
   guestSignUpAllowed: setting.string.GuestSignUpAllowed,
   days: setting.string.PasswordAgeDays,
-  kind: setting.string.IntegrationKind
+  kind: setting.string.IntegrationKind,
+  format: setting.string.ExportFormat,
+  objectClass: setting.string.ObjectType,
+  direction: setting.string.TransferDirection,
+  sourceWorkspaceUuid: setting.string.SourceWorkspace,
+  targetWorkspaceUuid: setting.string.TargetWorkspace,
+  exportedCount: setting.string.ExportedDocuments,
+  includeAttachments: setting.string.AttachmentsIncluded,
+  fileName: setting.string.FileName
 }
 
 export function getAuditEventLabel (event: string): IntlString {
@@ -94,6 +106,18 @@ export function getAuditTarget (event: WorkspaceAuditEvent): string | undefined 
   const identity = event.targetType === 'account' || event.targetType === 'person' ? event.targetId : undefined
   const target = targetAccountUuid ?? targetPersonUuid ?? subjectAccountUuid ?? identity
   return typeof target === 'string' ? target : undefined
+}
+
+/** Readable transfer direction; unknown future values are shown as stored. */
+export function getAuditDirectionLabel (direction: string): IntlString {
+  switch (direction) {
+    case 'outgoing':
+      return setting.string.TransferOutgoing
+    case 'incoming':
+      return setting.string.TransferIncoming
+    default:
+      return getEmbeddedLabel(direction)
+  }
 }
 
 /** Keep stored role values readable without guessing a role for unknown future values. */

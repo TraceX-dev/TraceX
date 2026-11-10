@@ -79,5 +79,19 @@ export const AUDIT_STRINGS = {
   IntegrationSecretDeleted: '' as IntlString,
   IntegrationSecretAccessed: '' as IntlString,
   ApiKeyCreated: '' as IntlString,
-  ApiKeyRevoked: '' as IntlString
+  ApiKeyRevoked: '' as IntlString,
+  DataExported: '' as IntlString,
+  DataTransferred: '' as IntlString,
+  BackupDownloaded: '' as IntlString,
+  DocumentExported: '' as IntlString,
+  ExportFormat: '' as IntlString,
+  ObjectType: '' as IntlString,
+  TransferDirection: '' as IntlString,
+  TransferOutgoing: '' as IntlString,
+  TransferIncoming: '' as IntlString,
+  SourceWorkspace: '' as IntlString,
+  TargetWorkspace: '' as IntlString,
+  ExportedDocuments: '' as IntlString,
+  FileName: '' as IntlString,
+  AttachmentsIncluded: '' as IntlString
 }

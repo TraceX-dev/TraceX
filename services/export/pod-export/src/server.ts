@@ -89,6 +89,7 @@ import {
 } from '@hcengineering/doc-convert'
 import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
+import { auditExportEvent, auditFailure, hasQueryFilter } from './audit'
 import { createProductVersionHandler } from './handlers/product-version-handler'
 
 const extractCookieToken = (cookie?: string): string | null => {
@@ -318,8 +319,23 @@ export function createServer (
         throw new ApiError(400, 'Missing required parameters')
       }
 
+      const auditEvent = {
+        event: 'workspace.data.export',
+        workspaceUuid: wsIds.uuid,
+        operationId: uuid(),
+        mode: 'async',
+        format,
+        objectClass: _class,
+        attributesOnly: Boolean(attributesOnly),
+        hasQuery: hasQueryFilter(query)
+      } as const
+      const auditDenied = async (errorCode: string): Promise<void> => {
+        await auditExportEvent(measureCtx, token, { ...auditEvent, outcome: 'denied', errorCode })
+      }
+
       const decodedToken = decodeToken(token)
       if (decodedToken.extra?.readonly !== undefined) {
+        await auditDenied('readonly_token')
         throw new ApiError(403, 'Forbidden')
       }
       const isAdmin: boolean = decodedToken.extra?.admin === 'true'
@@ -331,16 +347,19 @@ export function createServer (
         const winfo = info.workspaces[decodedToken.workspace]
         if (!isAdmin) {
           if (winfo === undefined) {
+            await auditDenied('not_workspace_member')
             res.status(401).end('Invalid workspace')
             return
           } else {
             if (winfo.role !== AccountRole.Owner) {
+              await auditDenied('not_workspace_owner')
               res.status(401).end('Not an owner of workspace')
               return
             }
           }
         }
       } catch (err: any) {
+        await auditDenied('invalid_workspace')
         res.status(401).end('Invalid workspace')
         return
       }
@@ -358,6 +377,7 @@ export function createServer (
 
       void (async () => {
         const exportDir = await fs.mkdtemp(join(tmpdir(), 'export-'))
+        let audited = false
         try {
           const exporter = new WorkspaceExporter(measureCtx, txOperations, storageAdapter, wsIds)
 
@@ -373,9 +393,15 @@ export function createServer (
           await saveToArchive(exportDir, archivePath)
           const exportDrive = await saveToDrive(measureCtx, txOperations, storageAdapter, wsIds, archivePath, account)
 
+          audited = true
+          await auditExportEvent(measureCtx, token, { ...auditEvent, outcome: 'succeeded', fileName: archiveName })
+
           await sendSuccessNotification(txOperations, account, exportDrive, archiveName)
         } catch (err: any) {
           measureCtx.error('Export failed:', err)
+          if (!audited) {
+            await auditExportEvent(measureCtx, token, { ...auditEvent, ...auditFailure(err) })
+          }
           try {
             // Attach the failure notification to the export drive, otherwise
             // the user is never notified that the export has failed
@@ -418,11 +444,22 @@ export function createServer (
         throw new ApiError(400, 'Missing required parameters')
       }
 
+      const auditEvent = {
+        event: 'workspace.data.export',
+        workspaceUuid: wsIds.uuid,
+        mode: 'sync',
+        format,
+        objectClass: _class,
+        attributesOnly: attributesOnly === true,
+        hasQuery: hasQueryFilter(query)
+      } as const
+
       const platformClient = await createPlatformClient(token)
       const txOperations = new TxOperations(platformClient, socialId)
 
       const exportDir = await fs.mkdtemp(join(tmpdir(), 'export-'))
       let archiveDir: string | undefined
+      let audited = false
       try {
         const exporter = new WorkspaceExporter(measureCtx, txOperations, storageAdapter, wsIds, config)
         await exporter.export(_class, exportDir, { format, attributesOnly: attributesOnly ?? false, query })
@@ -445,17 +482,28 @@ export function createServer (
           await saveToArchive(exportDir, exportedFile)
         }
 
-        await new Promise<void>((resolve, reject) => {
+        const interrupted = await new Promise<boolean>((resolve, reject) => {
           res.download(exportedFile, basename(exportedFile), (err) => {
             if (err != null && !res.headersSent) {
               reject(err)
             } else {
-              resolve()
+              resolve(err != null)
             }
           })
         })
+        audited = true
+        await auditExportEvent(
+          measureCtx,
+          token,
+          interrupted
+            ? { ...auditEvent, outcome: 'failed', errorCode: 'download_interrupted', fileName: basename(exportedFile) }
+            : { ...auditEvent, outcome: 'succeeded', fileName: basename(exportedFile) }
+        )
       } catch (err: any) {
         measureCtx.error('Export failed:', err)
+        if (!audited) {
+          await auditExportEvent(measureCtx, token, { ...auditEvent, ...auditFailure(err) })
+        }
         throw err
       } finally {
         void fs.rm(exportDir, { recursive: true, force: true })
@@ -494,19 +542,15 @@ export function createServer (
     }
   }
 
-  const exportDocumentHandler: AsyncRequestHandler = async (req, res, wsIds, token, socialId) => {
-    const params: Record<string, unknown> = { ...req.query, ...(req.body ?? {}) }
-    const _class = params._class as Ref<Class<Doc>> | undefined
-    const _id = params._id as Ref<Doc> | undefined
-    const format = ((params.format as string | undefined) ?? 'docx').toLowerCase()
-
-    if (_class == null || _id == null) {
-      throw new ApiError(400, 'Missing required parameters: _class, _id')
-    }
-    if (!supportedDocumentFormats.includes(format)) {
-      throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
-    }
-
+  const renderDocument = async (
+    res: Response,
+    wsIds: WorkspaceIds,
+    token: string,
+    socialId: PersonId,
+    _class: Ref<Class<Doc>>,
+    _id: Ref<Doc>,
+    format: string
+  ): Promise<void> => {
     const platformClient = await createPlatformClient(token)
     const txOperations = new TxOperations(platformClient, socialId)
 
@@ -553,6 +597,36 @@ export function createServer (
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
     res.setHeader('Content-Length', rendered.buffer.length)
     res.end(rendered.buffer)
+  }
+
+  const exportDocumentHandler: AsyncRequestHandler = async (req, res, wsIds, token, socialId) => {
+    const params: Record<string, unknown> = { ...req.query, ...(req.body ?? {}) }
+    const _class = params._class as Ref<Class<Doc>> | undefined
+    const _id = params._id as Ref<Doc> | undefined
+    const format = ((params.format as string | undefined) ?? 'docx').toLowerCase()
+
+    if (_class == null || _id == null) {
+      throw new ApiError(400, 'Missing required parameters: _class, _id')
+    }
+    if (!supportedDocumentFormats.includes(format)) {
+      throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
+    }
+
+    const auditEvent = {
+      event: 'document.export',
+      workspaceUuid: wsIds.uuid,
+      targetType: 'document',
+      targetId: String(_id),
+      objectClass: _class,
+      format
+    } as const
+    try {
+      await renderDocument(res, wsIds, token, socialId, _class, _id, format)
+    } catch (err: unknown) {
+      await auditExportEvent(measureCtx, token, { ...auditEvent, ...auditFailure(err) })
+      throw err
+    }
+    await auditExportEvent(measureCtx, token, { ...auditEvent, outcome: 'succeeded' })
   }
 
   // Auth via Authorization header; body carries { _class, _id, format? }.
@@ -632,6 +706,42 @@ export function createServer (
     '/export-to-workspace',
     wrapRequest(async (req, res, wsIds, token, socialId) => {
       let decodedToken: Token | undefined
+      const operationId = uuid()
+      let auditDetails: Record<string, string | number | boolean | undefined> = {}
+      // The target journal is written only after the caller's membership there is verified,
+      // so a request parameter can never inject events into an arbitrary workspace.
+      let verifiedTarget: WorkspaceUuid | undefined
+      let audited = false
+      const auditTransfer = async (
+        outcome: 'succeeded' | 'denied' | 'failed',
+        extra: Record<string, string | number | boolean | undefined> = {}
+      ): Promise<void> => {
+        audited = true
+        const base = {
+          event: 'workspace.data.transfer',
+          operationId,
+          outcome,
+          sourceWorkspaceUuid: wsIds.uuid,
+          ...auditDetails,
+          ...extra
+        } as const
+        await auditExportEvent(measureCtx, token, {
+          ...base,
+          workspaceUuid: wsIds.uuid,
+          direction: 'outgoing',
+          targetType: 'workspace',
+          targetId: typeof auditDetails.targetWorkspaceUuid === 'string' ? auditDetails.targetWorkspaceUuid : undefined
+        })
+        if (verifiedTarget !== undefined && verifiedTarget !== wsIds.uuid) {
+          await auditExportEvent(measureCtx, token, {
+            ...base,
+            workspaceUuid: verifiedTarget,
+            direction: 'incoming',
+            targetType: 'workspace',
+            targetId: wsIds.uuid
+          })
+        }
+      }
 
       try {
         const {
@@ -678,8 +788,18 @@ export function createServer (
           throw new ApiError(400, 'Invalid includeAttachments. Must be boolean')
         }
 
+        auditDetails = {
+          targetWorkspaceUuid: targetWorkspace,
+          objectClass: _class,
+          hasQuery: hasQueryFilter(query),
+          conflictStrategy: conflictStrategy ?? 'duplicate',
+          includeAttachments: includeAttachments ?? true,
+          includeChildren: includeChildren ?? false
+        }
+
         decodedToken = decodeToken(token)
         if (decodedToken.extra?.readonly !== undefined) {
+          await auditTransfer('denied', { errorCode: 'readonly_token' })
           throw new ApiError(403, 'Forbidden: read-only token')
         }
 
@@ -690,8 +810,10 @@ export function createServer (
         const targetWsInfo = targetWsLoginInfo.workspaces[targetWorkspace]
         if (targetWsInfo === undefined) {
           measureCtx.warn(`Target workspace not found or not accessible: ${targetWorkspace}`)
+          await auditTransfer('denied', { errorCode: 'target_not_accessible' })
           throw new ApiError(404, 'Target workspace not found or not accessible')
         }
+        verifiedTarget = targetWorkspace
 
         // Verify user has write access to target workspace
         const isAdmin: boolean = decodedToken.extra?.admin === 'true'
@@ -699,6 +821,7 @@ export function createServer (
           measureCtx.warn(
             `User does not have write access to target workspace: ${targetWorkspace}, role: ${targetWsInfo.role}`
           )
+          await auditTransfer('denied', { errorCode: 'not_target_owner' })
           throw new ApiError(403, 'You do not have write access to the target workspace. Owner role required.')
         }
 
@@ -779,10 +902,22 @@ export function createServer (
           }
 
           const exportResult: ExportResult = await exporter.export(options)
+          const resultDetails = {
+            exportedCount: exportResult.exportedCount,
+            skippedCount: exportResult.skippedCount,
+            errorCount: exportResult.errors.length
+          }
 
           if (exportResult.exportedCount === 0) {
+            await auditTransfer('failed', { ...resultDetails, errorCode: 'no_documents' })
             res.status(400).send({ message: 'No documents found to export' })
+            return
           }
+
+          await auditTransfer(
+            exportResult.success ? 'succeeded' : 'failed',
+            exportResult.success ? resultDetails : { ...resultDetails, errorCode: 'partial_failure' }
+          )
 
           if (exportResult.success) {
             await sendExportCompletionNotification(
@@ -799,13 +934,23 @@ export function createServer (
           res.status(200).send({ message: 'Export completed' })
         } catch (err: any) {
           measureCtx.error('Export failed:', err)
-          res.status(500).send({ message: 'Export failed', error: err.message ?? 'Unknown error' })
+          if (!audited) {
+            await auditTransfer('failed', { errorCode: err instanceof Error ? err.name : 'UnknownError' })
+          }
+          if (!res.headersSent) {
+            res.status(500).send({ message: 'Export failed', error: err.message ?? 'Unknown error' })
+          }
         } finally {
           await sourceClient.close()
           await targetClient.close()
         }
       } catch (err: any) {
         measureCtx.error('Export to workspace request failed:', err)
+        // Malformed requests (400) never reached the data; everything else is part of the trail.
+        if (!audited && !(err instanceof ApiError && err.code === 400)) {
+          const failure = auditFailure(err)
+          await auditTransfer(failure.outcome, { errorCode: failure.errorCode })
+        }
         const errorMessage = err instanceof ApiError ? err.message : 'Export to workspace request failed'
         res.status(err instanceof ApiError ? err.code : 500).send({ message: errorMessage })
       }

@@ -18,6 +18,7 @@ import {
   AUDIT_ATTRIBUTE_LABELS,
   AUDIT_EVENT_ITEMS,
   AUDIT_EVENT_LABELS,
+  getAuditDirectionLabel,
   getAuditEventLabel,
   getAuditTarget
 } from '../audit'
@@ -68,4 +69,32 @@ test('resource targets are not treated as employee identities', () => {
   expect(getAuditTarget(accountTarget)).toBe('account-id')
   const personTarget: WorkspaceAuditEvent = { ...event, attributes: { targetPersonUuid: 'person-id' } }
   expect(getAuditTarget(personTarget)).toBe('person-id')
+})
+
+test('data egress events and their human-readable details are labelled', () => {
+  expect(getAuditEventLabel('workspace.data.export')).toBe(setting.string.DataExported)
+  expect(getAuditEventLabel('workspace.data.transfer')).toBe(setting.string.DataTransferred)
+  expect(getAuditEventLabel('workspace.backup.download')).toBe(setting.string.BackupDownloaded)
+  expect(getAuditEventLabel('document.export')).toBe(setting.string.DocumentExported)
+  expect(AUDIT_ATTRIBUTE_LABELS.targetWorkspaceUuid).toBe(setting.string.TargetWorkspace)
+  expect(AUDIT_ATTRIBUTE_LABELS.fileName).toBe(setting.string.FileName)
+  for (const key of ['skippedCount', 'errorCount', 'hasQuery', 'conflictStrategy']) {
+    expect(AUDIT_ATTRIBUTE_LABELS[key]).toBeUndefined()
+  }
+  expect(getAuditDirectionLabel('outgoing')).toBe(setting.string.TransferOutgoing)
+  expect(getAuditDirectionLabel('incoming')).toBe(setting.string.TransferIncoming)
+})
+
+test('a transfer targets a workspace, not an employee identity', () => {
+  const event: WorkspaceAuditEvent = {
+    eventId: 'event-id',
+    occurredAt: 1000,
+    sourceService: 'export',
+    event: 'workspace.data.transfer',
+    outcome: 'succeeded',
+    targetType: 'workspace',
+    targetId: 'workspace-b',
+    attributes: { direction: 'outgoing', targetWorkspaceUuid: 'workspace-b' }
+  }
+  expect(getAuditTarget(event)).toBeUndefined()
 })
