@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,9 +15,9 @@
 //
 
 import { getMetadata, translate } from '@hcengineering/platform'
-import { type ActionContext, copyTextToClipboard } from '@hcengineering/presentation'
+import { copyTextToClipboard, type PrintContext } from '@hcengineering/presentation'
 import { EmbedNode as BaseEmbedNode } from '@hcengineering/text'
-import textEditor from '@hcengineering/text-editor'
+import textEditor, { type ActionContext } from '@hcengineering/text-editor'
 import { type Editor, type Range } from '@tiptap/core'
 import { Fragment, type Node, type ResolvedPos, Slice } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, Selection, type Transaction } from '@tiptap/pm/state'
@@ -36,11 +37,14 @@ import EmbedToolbarHead from './EmbedToolbarHead.svelte'
 
 export interface EmbedNodeOptions {
   providers: EmbedNodeProvider[]
+  printContext?: PrintContext
+  getSvelteContext?: () => Map<unknown, unknown>
 }
 
 export interface EmbedNodeViewHandle {
   name: string
   destroy?: () => void
+  ready?: Promise<void>
 }
 
 export interface EmbedNodeProvider {
@@ -51,7 +55,8 @@ export interface EmbedNodeProvider {
 export type EmbedNodeView = (
   editor: Editor,
   root: HTMLDivElement,
-  getPos: () => number
+  getPos: () => number | undefined,
+  context: Map<unknown, unknown>
 ) => EmbedNodeViewHandle | undefined
 export type EmbedNodeProviderConstructor<T> = (options: T) => EmbedNodeProvider
 
@@ -64,77 +69,61 @@ export const EmbedNode = BaseEmbedNode.extend<EmbedNodeOptions>({
     }
   },
 
-  addAttributes () {
-    return {
-      src: {
-        default: null
-      }
-    }
-  },
-
-  parseHTML () {
-    return [
-      {
-        priority: 60,
-        tag: `div[data-type="${this.name}"]`,
-        getAttrs (node) {
-          const src = node.dataset.embedSrc?.trim()
-          if (src === undefined) return false
-          return { src }
-        }
-      }
-    ]
-  },
-
-  renderHTML ({ HTMLAttributes, node }) {
-    return [
-      'div',
-      {
-        'data-type': this.name,
-        'data-embed-src': node.attrs.src,
-        class: 'embed-node'
-      },
-      [
-        'a',
-        {
-          href: node.attrs.src
-        },
-        node.attrs.src
-      ]
-    ]
-  },
-
   addNodeView () {
-    return ({ node, HTMLAttributes, editor, getPos }) => {
-      const providerPromise = matchUrl(this.options.providers, node.attrs.src)
+    return ({ node, editor, getPos }) => {
+      const printContext = this.options.printContext
+      const resolved = matchUrl(this.options.providers, node.attrs.src)
+      const providerPromise = printContext?.waitFor(resolved, 15000) ?? resolved
+      const finish = printContext?.registerResource() ?? (() => {})
 
       const root = document.createElement('div')
       root.setAttribute('data-type', this.name)
       root.setAttribute('data-embed-src', node.attrs.src)
       root.classList.add('embed-node')
 
-      const pos = typeof getPos === 'function' ? getPos() : 0
-      setLoadingState(editor.view, pos, true)
+      let isLoading = false
+      let destroyed = false
+      const updateLoadingState = (loading: boolean): void => {
+        if (destroyed) return
+        const pos = getPos()
+        if (pos === undefined || isLoading === loading) return
+
+        isLoading = loading
+        setLoadingState(editor.view, pos, loading)
+      }
+
+      queueMicrotask(() => {
+        updateLoadingState(true)
+      })
       root.setAttribute('block-editor-blur', 'true')
 
       let handle: EmbedNodeViewHandle | undefined
 
       void providerPromise
-        .then((view) => {
+        .then(async (view) => {
+          if (destroyed) return
           view = view ?? StubEmbedNodeView
-          handle = view(editor, root, getPos)
+          handle = view(editor, root, getPos, this.options.getSvelteContext?.() ?? new Map())
           if (handle !== undefined) {
             root.classList.add(`embed-${handle.name}`)
+            await handle.ready
           }
         })
+        .catch(async () => {
+          if (destroyed) return
+          handle = StubEmbedNodeView(editor, root, getPos, this.options.getSvelteContext?.() ?? new Map())
+          await handle?.ready
+        })
         .finally(() => {
-          const pos = typeof getPos === 'function' ? getPos() : 0
-          setLoadingState(editor.view, pos, false)
+          finish()
+          updateLoadingState(false)
         })
 
       return {
         dom: root,
         destroy: () => {
+          destroyed = true
+          finish()
           handle?.destroy?.()
         }
       }
@@ -506,7 +495,7 @@ export function replacePreviewContent (
   return tr
 }
 
-const StubEmbedNodeView: EmbedNodeView = (editor: Editor, root: HTMLDivElement, getPos: () => number) => {
+const StubEmbedNodeView: EmbedNodeView = (editor: Editor, root: HTMLDivElement, getPos: () => number | undefined) => {
   const hint = document.createElement('p')
   const hintIcon = hint.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'svg'))
   const hintSpan = hint.appendChild(document.createElement('span'))
@@ -525,11 +514,12 @@ const StubEmbedNodeView: EmbedNodeView = (editor: Editor, root: HTMLDivElement, 
     }
   }
 
-  void embed()
+  const ready = embed()
   root.appendChild(hint)
 
   return {
-    name: 'stub'
+    name: 'stub',
+    ready
   }
 }
 

@@ -78,7 +78,6 @@ import Table from './components/Table.svelte'
 import TableBrowser from './components/TableBrowser.svelte'
 import TimestampPresenter from './components/TimestampPresenter.svelte'
 import TreeView from './components/TreeView.svelte'
-import UpDownNavigator from './components/UpDownNavigator.svelte'
 import ValueSelector from './components/ValueSelector.svelte'
 import ViewletContentView from './components/ViewletContentView.svelte'
 import ViewletPanelHeader from './components/ViewletPanelHeader.svelte'
@@ -87,6 +86,7 @@ import ArrayFilter from './components/filter/ArrayFilter.svelte'
 import DateFilter from './components/filter/DateFilter.svelte'
 import DateFilterPresenter from './components/filter/DateFilterPresenter.svelte'
 import FilterBar from './components/filter/FilterBar.svelte'
+import FilterSummary from './components/filter/FilterSummary.svelte'
 import FilterTypePopup from './components/filter/FilterTypePopup.svelte'
 import ObjectFilter from './components/filter/ObjectFilter.svelte'
 import PersonIdFilter from './components/filter/PersonIdFilter.svelte'
@@ -103,7 +103,6 @@ import GrowPresenter from './components/list/GrowPresenter.svelte'
 import ListView from './components/list/ListView.svelte'
 import SortableDocList from './components/list/SortableDocList.svelte'
 import SortableList from './components/list/SortableList.svelte'
-import SortableListItem from './components/list/SortableListItem.svelte'
 import MasterDetailBrowser from './components/masterDetail/MasterDetailBrowser.svelte'
 import MasterDetailView from './components/masterDetail/MasterDetailView.svelte'
 import TreeElement from './components/navigator/TreeElement.svelte'
@@ -163,10 +162,8 @@ export { default as ActionHandler } from './components/ActionHandler.svelte'
 export { default as BaseDocPresenter } from './components/BaseDocPresenter.svelte'
 export { default as DocsNavigator } from './components/DocsNavigator.svelte'
 export { default as FixedColumn } from './components/FixedColumn.svelte'
-export { default as LinkPresenter } from './components/LinkPresenter.svelte'
 export { default as MarkupDiffPresenter } from './components/MarkupDiffPresenter.svelte'
 export { default as MarkupPresenter } from './components/MarkupPresenter.svelte'
-export { default as MarkupPreviewPopup } from './components/MarkupPreviewPopup.svelte'
 export { default as ContextMenu } from './components/Menu.svelte'
 export { default as ObjectBox } from './components/ObjectBox.svelte'
 export { default as ObjectBoxPopup } from './components/ObjectBoxPopup.svelte'
@@ -178,7 +175,6 @@ export { default as ObjectSearchBox } from './components/ObjectSearchBox.svelte'
 export { default as ParentsNavigator } from './components/ParentsNavigator.svelte'
 export { default as PersonIdPresenter } from './components/PersonIdPresenter.svelte'
 export { default as RelationsEditor } from './components/RelationsEditor.svelte'
-export { default as RelationsCreateEditor } from './components/RelationsCreateEditor.svelte'
 export { default as FilterTypePopup } from './components/filter/FilterTypePopup.svelte'
 export { default as SpaceTypeSelector } from './components/SpaceTypeSelector.svelte'
 export { default as TableBrowser } from './components/TableBrowser.svelte'
@@ -255,7 +251,6 @@ export {
   ObjectMention,
   SortableDocList,
   SortableList,
-  SortableListItem,
   SpaceHeader,
   SpacePresenter,
   StringEditor,
@@ -265,7 +260,6 @@ export {
   TreeElement,
   TreeItem,
   TreeNode,
-  UpDownNavigator,
   ViewletContentView,
   ViewletPanelHeader,
   ViewletSettingButton
@@ -278,6 +272,7 @@ function PositionElementAlignment (e?: Event): PopupAlignment | undefined {
 export default async (): Promise<Resources> => ({
   actionImpl,
   component: {
+    FilterSummary,
     AddRelationPopup,
     ArrayFilter,
     ArrayEditor,
@@ -404,3 +399,5 @@ export default async (): Promise<Resources> => ({
     GetLink: getLink
   }
 })
+
+export * from './tableSource'

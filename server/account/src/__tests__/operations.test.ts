@@ -32,7 +32,7 @@ import platform, { PlatformError, Status, Severity, getMetadata } from '@hcengin
 import { decodeToken, decodeTokenVerbose, TokenError } from '@hcengineering/server-token'
 
 import * as utils from '../utils'
-import { type AccountDB, type SocialId } from '../types'
+import { type AccountDB, type SocialId, type WorkspaceInvite } from '../types'
 import {
   createInvite,
   getActiveInviteLinks,
@@ -56,6 +56,7 @@ import {
   getPerson,
   getSocialIds,
   getAccountInfo,
+  resolveAccountByEmail,
   createAccessLink,
   getSubscriptions,
   leaveWorkspace,
@@ -370,7 +371,14 @@ describe('account operations', () => {
     })
 
     test('does not count uses of unlimited invites', async () => {
-      await utils.useInvite(mockDb, { id: 'unlimited', remainingUses: -1 } as any)
+      const invite: WorkspaceInvite = {
+        id: 'unlimited',
+        workspaceUuid: mockWorkspace.uuid,
+        expiresOn: -1,
+        remainingUses: -1,
+        role: AccountRole.User
+      }
+      await utils.useInvite(mockCtx, mockDb, invite, 'verified-token')
 
       expect(mockDb.consumeInviteUse).not.toHaveBeenCalled()
     })
@@ -378,7 +386,14 @@ describe('account operations', () => {
     test('rejects a limited invite when its last use was already taken', async () => {
       ;(mockDb.consumeInviteUse as jest.Mock).mockResolvedValue(false)
 
-      await expect(utils.useInvite(mockDb, { id: 'single', remainingUses: 1 } as any)).rejects.toThrow(PlatformError)
+      const invite: WorkspaceInvite = {
+        id: 'single',
+        workspaceUuid: mockWorkspace.uuid,
+        expiresOn: -1,
+        remainingUses: 1,
+        role: AccountRole.User
+      }
+      await expect(utils.useInvite(mockCtx, mockDb, invite, 'verified-token')).rejects.toThrow(PlatformError)
       expect(mockDb.consumeInviteUse).toHaveBeenCalledWith('single')
     })
   })
@@ -1563,10 +1578,12 @@ describe('account operations', () => {
   })
 
   describe('authentication operations', () => {
-    const mockCtx = {
+    const contextMethods: Pick<MeasureContext, 'error' | 'info' | 'warn'> = {
       error: jest.fn(),
-      info: jest.fn()
-    } as unknown as MeasureContext
+      info: jest.fn(),
+      warn: jest.fn()
+    }
+    const mockCtx = contextMethods as MeasureContext
 
     const mockBranding = null
     const mockToken = 'test-token'
@@ -3285,6 +3302,72 @@ describe('account operations', () => {
         await expect(getPerson(mockCtx, mockDb, mockBranding, mockToken)).rejects.toThrow(
           new PlatformError(new Status(Severity.ERROR, platform.status.PersonNotFound, { person: mockAccountId }))
         )
+      })
+    })
+
+    describe('resolveAccountByEmail', () => {
+      const accountStore: Partial<AccountDB['account']> = { findOne: jest.fn() }
+      const socialStore: Partial<AccountDB['socialId']> = { findOne: jest.fn() }
+      const recipientDb: Pick<AccountDB, 'account' | 'socialId'> = {
+        account: accountStore as AccountDB['account'],
+        socialId: socialStore as AccountDB['socialId']
+      }
+      const caller = '267c1923-5983-4ab0-ac89-82f481836724' as AccountUuid
+      const recipient = 'ac842ec2-bd9e-4f51-86ef-ce1393386348' as AccountUuid
+      const callerRecord: { uuid: AccountUuid } = { uuid: caller }
+      const recipientRecord: { uuid: AccountUuid } = { uuid: recipient }
+      const social: Partial<SocialId> = { personUuid: recipient, type: SocialIdType.EMAIL, verifiedOn: 1 }
+
+      beforeEach(() => {
+        ;(decodeTokenVerbose as jest.Mock).mockReturnValue({ account: caller })
+        ;(recipientDb.account.findOne as jest.Mock).mockReset().mockResolvedValue(callerRecord)
+        ;(recipientDb.socialId.findOne as jest.Mock).mockReset().mockResolvedValue(social)
+      })
+
+      test('resolves only verified email identities of registered accounts', async () => {
+        ;(recipientDb.account.findOne as jest.Mock)
+          .mockResolvedValueOnce(callerRecord)
+          .mockResolvedValueOnce(recipientRecord)
+        expect(
+          await resolveAccountByEmail(mockCtx, recipientDb as AccountDB, mockBranding, mockToken, {
+            email: ' Recipient@Example.com '
+          })
+        ).toBe(recipient)
+        expect(recipientDb.socialId.findOne).toHaveBeenCalledWith({
+          type: SocialIdType.EMAIL,
+          value: 'recipient@example.com',
+          verifiedOn: { $gt: 0 },
+          isDeleted: { $ne: true }
+        })
+        expect(recipientDb.account.findOne).toHaveBeenLastCalledWith({ uuid: recipient })
+      })
+
+      test('does not resolve missing, unverified or unregistered recipients', async () => {
+        ;(recipientDb.socialId.findOne as jest.Mock).mockResolvedValueOnce(null)
+        expect(
+          await resolveAccountByEmail(mockCtx, recipientDb as AccountDB, mockBranding, mockToken, {
+            email: 'missing@example.com'
+          })
+        ).toBeUndefined()
+        ;(recipientDb.account.findOne as jest.Mock).mockResolvedValueOnce(callerRecord).mockResolvedValueOnce(null)
+        expect(
+          await resolveAccountByEmail(mockCtx, recipientDb as AccountDB, mockBranding, mockToken, {
+            email: 'person@example.com'
+          })
+        ).toBeUndefined()
+      })
+
+      test('requires a registered caller and rejects invalid email input before lookup', async () => {
+        ;(recipientDb.account.findOne as jest.Mock).mockResolvedValueOnce(null)
+        await expect(
+          resolveAccountByEmail(mockCtx, recipientDb as AccountDB, mockBranding, mockToken, {
+            email: 'recipient@example.com'
+          })
+        ).rejects.toBeInstanceOf(PlatformError)
+        await expect(
+          resolveAccountByEmail(mockCtx, recipientDb as AccountDB, mockBranding, mockToken, { email: 'invalid' })
+        ).rejects.toBeInstanceOf(PlatformError)
+        expect(recipientDb.socialId.findOne).not.toHaveBeenCalled()
       })
     })
 

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,15 +14,16 @@
 // limitations under the License.
 //
 
-import { type CommandProps, type Editor, Mark, getMarkRange, mergeAttributes } from '@tiptap/core'
+import { QMSInlineCommentMark as SharedQMSInlineCommentMark, qmsInlineCommentMarkName } from '@hcengineering/text'
+import type { QMSInlineCommentMarkOptions as SharedQMSInlineCommentMarkOptions } from '@hcengineering/text'
+import { type CommandProps, type Editor, getMarkRange } from '@tiptap/core'
 import { type Node, type Mark as ProseMirrorMark, Fragment, Slice } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 
-export const qmsInlineCommentMarkName = 'node-uuid'
+export { qmsInlineCommentMarkName }
 export const nodeElementQuerySelector = (nodeUuid: string): string => `span[${qmsInlineCommentMarkName}='${nodeUuid}']`
 
-export interface QMSInlineCommentMarkOptions {
-  HTMLAttributes: Record<string, any>
+export interface QMSInlineCommentMarkOptions extends SharedQMSInlineCommentMarkOptions {
   onNodeClicked?: (uuid: string | string[]) => void
 }
 
@@ -88,48 +90,7 @@ export function selectNode (editor: Editor, uuid: string): boolean {
   return foundNode
 }
 
-export const QMSInlineCommentMark = Mark.create<QMSInlineCommentMarkOptions>({
-  name: qmsInlineCommentMarkName,
-  exitable: true,
-  inclusive: false,
-  // set to empty string to allow multiple marks of the same type
-  // https://prosemirror.net/docs/ref/#model.MarkSpec.excludes
-  excludes: '',
-  addOptions () {
-    return {
-      HTMLAttributes: {}
-    }
-  },
-
-  addAttributes () {
-    return {
-      [qmsInlineCommentMarkName]: {
-        default: null,
-        parseHTML: (el) => el.getAttribute(qmsInlineCommentMarkName)
-      }
-    }
-  },
-
-  parseHTML () {
-    return [
-      {
-        tag: `span[${qmsInlineCommentMarkName}]`,
-        getAttrs: (el) => {
-          const value = el.getAttribute(qmsInlineCommentMarkName)?.trim()
-          if (value === null || value === undefined || value.length === 0) {
-            return false
-          }
-
-          return null
-        }
-      }
-    ]
-  },
-
-  renderHTML ({ HTMLAttributes }) {
-    return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
-  },
-
+export const QMSInlineCommentMark = SharedQMSInlineCommentMark.extend<QMSInlineCommentMarkOptions>({
   addProseMirrorPlugins () {
     const options = this.options
 

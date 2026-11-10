@@ -62,6 +62,7 @@ import {
   QueryJoinMiddleware,
   QueueMiddleware,
   RankMiddleware,
+  ReadOnlyMiddleware,
   SpacePermissionsMiddleware,
   SpaceMembershipMiddleware,
   SpaceSecurityMiddleware,
@@ -159,6 +160,7 @@ export function createServerPipeline (
     const conf = getConfig(metrics, dbUrl, wsMetrics, opt, extensions)
 
     const middlewares: MiddlewareCreator[] = [
+      ReadOnlyMiddleware.create,
       LookupMiddleware.create,
       NormalizeTxMiddleware.create,
       IdentityMiddleware.create,

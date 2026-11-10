@@ -35,6 +35,8 @@
     fetchMetadataLocalStorage,
     getCurrentLocation,
     getWorkspaceLastVisitDays,
+    matchWorkspaceSearch,
+    WORKSPACE_SEARCH_THRESHOLD,
     Icon,
     IconCheck,
     isSameSegments,
@@ -56,7 +58,7 @@
   import type { PersonRating } from '@hcengineering/rating'
   import ratingPlugin from '@hcengineering/rating'
   import workbench from '../plugin'
-  import { workspacesStore } from '../utils'
+  import { currentWorkspaceHasInboxUnread, workspacesStore } from '../utils'
   // import Drag from './icons/Drag.svelte'
 
   type LoadState = 'pending' | 'loaded' | 'error'
@@ -187,7 +189,7 @@
   // While loading, the count isn't known yet, so treat it like "few
   // workspaces" (hidden) unless admin — it only pops in once loaded if the
   // list actually turns out to be long, rather than flashing on then off.
-  $: showSearch = isAdmin || $workspacesStore.length > 10
+  $: showSearch = isAdmin || $workspacesStore.length > WORKSPACE_SEARCH_THRESHOLD
 
   const _endpoint: string = fetchMetadataLocalStorage(login.metadata.LoginEndpoint) ?? ''
   const token: string = getMetadata(presentation.metadata.Token) ?? ''
@@ -224,9 +226,7 @@
   // The currently open workspace is always shown first, regardless of its
   // position in the last-visit sort order.
   $: sortedWorkspaces = (() => {
-    const filtered = $workspacesStore.filter(
-      (it) => search === '' || (it.name?.includes(search) ?? false) || it.url.includes(search)
-    )
+    const filtered = $workspacesStore.filter((it) => matchWorkspaceSearch(it, search))
     const current = filtered.filter((it) => it.url === currentWsUrl)
     const rest = filtered.filter((it) => it.url !== currentWsUrl)
     return [...current, ...rest].slice(0, 500)
@@ -317,7 +317,7 @@
                     displayName={wsName}
                     avatarUrl={getAvatarUrl(ws, isCurrentWs, currentWsSetting)}
                     size={'small'}
-                    hasUnread={ws.hasUnread === true && !isCurrentWs}
+                    hasUnread={isCurrentWs ? $currentWorkspaceHasInboxUnread : ws.hasUnread === true}
                     ringColor={'var(--theme-popup-color)'}
                   />
                 </div>

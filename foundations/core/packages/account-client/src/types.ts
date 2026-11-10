@@ -87,6 +87,7 @@ export interface WorkspaceLoginInfo extends LoginInfo {
 export interface LoginInfoRequestData {
   firstName?: string
   lastName?: string
+  kind?: 'external' | 'internal'
 }
 
 export type LoginInfoRequest = {
@@ -285,3 +286,5 @@ export interface Subscription {
  * Used by billing service to upsert subscription data
  */
 export type SubscriptionData = Omit<Subscription, 'createdOn' | 'updatedOn'>
+
+export type { WorkspaceAuditQuery, WorkspaceAuditEvent, WorkspaceAuditPage } from '@hcengineering/core'

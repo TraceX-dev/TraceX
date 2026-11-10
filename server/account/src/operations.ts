@@ -53,6 +53,14 @@ import {
 } from '@hcengineering/server-token'
 
 import { isAdminEmail } from './admin'
+import { getWorkspaceAuditEvents } from './audit-operations'
+import {
+  auditAccountBatchEvent,
+  auditAccountEvent,
+  auditEmailHash,
+  auditValueHash,
+  isAccountAuditDenial
+} from './audit'
 import { renderAccountEmail } from './emails'
 import { accountPlugin } from './plugin'
 import { type AccountServiceMethods, getServiceMethods } from './serviceOperations'
@@ -86,7 +94,7 @@ import {
 } from './types'
 import {
   addSocialIdBase,
-  checkInvite,
+  checkInviteForAccount,
   cleanEmail,
   confirmEmail,
   confirmHulyIds,
@@ -183,10 +191,16 @@ export async function loginAsGuest (
   if (guestPerson == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
   }
-  return {
+  const result: LoginInfo = {
     account: guestPerson.uuid as AccountUuid,
     token: generateToken(guestPerson.uuid, undefined)
   }
+  await auditAccountEvent(ctx, {
+    event: 'account.guest.login',
+    subjectAccountUuid: result.account,
+    authenticationComplete: result.token != null
+  })
+  return result
 }
 
 /**
@@ -260,7 +274,7 @@ export async function login (
       : { authMethod: 'password' }
     ctx.info('Login succeeded', { email, normalizedEmail, isConfirmed, emailSocialId, ...extraToken })
 
-    return {
+    const result: LoginInfo = {
       account: existingAccount.uuid,
       token: isConfirmed
         ? generateToken(
@@ -273,9 +287,21 @@ export async function login (
       socialId: emailSocialId._id,
       tfaRequired: isConfirmed && existingAccount.tfaSecret != null
     }
+    await auditAccountEvent(ctx, {
+      event: 'account.login',
+      subjectAccountUuid: result.account,
+      subjectEmailHash: auditEmailHash(normalizedEmail),
+      authenticationComplete: result.token != null && result.tfaRequired !== true,
+      tfaRequired: result.tfaRequired
+    })
+    return result
   } catch (err: any) {
-    Analytics.handleError(err)
-    ctx.error('Login failed', { email, normalizedEmail, err })
+    if (err instanceof PlatformError && isAccountAuditDenial('login', err.status.code)) {
+      ctx.warn('Login denied', { errorCode: err.status.code })
+    } else {
+      Analytics.handleError(err)
+      ctx.error('Login failed', { email, normalizedEmail, err })
+    }
     throw err
   }
 }
@@ -310,7 +336,12 @@ export async function loginOtp (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
   }
 
-  return await sendOtp(ctx, db, branding, emailSocialId)
+  const otpInfo = await sendOtp(ctx, db, branding, emailSocialId)
+  await auditAccountEvent(ctx, {
+    event: 'account.otp.request',
+    subjectEmailHash: auditEmailHash(normalizedEmail)
+  })
+  return otpInfo
 }
 
 /**
@@ -406,7 +437,12 @@ export async function signUpOtp (
     emailSocialId = { ...newSocialId, _id: emailSocialIdId, key: buildSocialIdString(newSocialId) }
   }
 
-  return await sendOtp(ctx, db, branding, emailSocialId)
+  const otpInfo = await sendOtp(ctx, db, branding, emailSocialId)
+  await auditAccountEvent(ctx, {
+    event: 'account.otp.signup.request',
+    subjectEmailHash: auditEmailHash(normalizedEmail)
+  })
+  return otpInfo
 }
 
 /**
@@ -485,6 +521,11 @@ export async function validateOtp (
       if (targetAccount == null) {
         // This is a signup
         await createAccount(db, emailSocialId.personUuid, true)
+        await auditAccountEvent(ctx, {
+          event: 'account.signup',
+          subjectAccountUuid: emailSocialId.personUuid,
+          subjectEmailHash: auditEmailHash(normalizedEmail)
+        })
         if (password != null) {
           await setPassword(ctx, db, branding, emailSocialId.personUuid as AccountUuid, password)
         }
@@ -500,6 +541,7 @@ export async function validateOtp (
         throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, {}))
       }
 
+      const needsVerification = emailSocialId.verifiedOn == null
       if (targetAccount == null) {
         // only person exists means there's no verified social id associated with it -> merge it to the current account
         // doMergePersons will fail if there's a verified social id
@@ -542,6 +584,20 @@ export async function validateOtp (
         }
       }
 
+      if (needsVerification) {
+        await auditAccountEvent(
+          ctx,
+          {
+            event: 'account.social.add',
+            targetPersonUuid: callerAccountUuid,
+            socialId: emailSocialId._id,
+            type: SocialIdType.EMAIL,
+            targetEmailHash: auditEmailHash(normalizedEmail)
+          },
+          token
+        )
+      }
+
       emailSocialId = await db.socialId.findOne({ _id: emailSocialId._id })
       if (emailSocialId == null) {
         throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
@@ -575,16 +631,28 @@ export async function validateOtp (
         )
       : undefined
 
-    return {
+    const result: LoginInfo = {
       account: emailSocialId.personUuid as AccountUuid,
       name: getPersonName(person),
       socialId: emailSocialId._id,
       token: _token,
       tfaRequired: targetAccount?.tfaSecret != null
     }
+    await auditAccountEvent(ctx, {
+      event: 'account.otp.validate',
+      subjectAccountUuid: result.account,
+      subjectEmailHash: auditEmailHash(normalizedEmail),
+      authenticationComplete: result.token != null && result.tfaRequired !== true,
+      tfaRequired: result.tfaRequired
+    })
+    return result
   } catch (err: any) {
-    Analytics.handleError(err)
-    ctx.error(action === 'verify' ? 'OTP verification error' : 'OTP login/sign up error', { email, err })
+    if (err instanceof PlatformError && isAccountAuditDenial('validateOtp', err.status.code)) {
+      ctx.warn('OTP validation denied', { errorCode: err.status.code })
+    } else {
+      Analytics.handleError(err)
+      ctx.error(action === 'verify' ? 'OTP verification error' : 'OTP login/sign up error', { email, err })
+    }
     throw err
   }
 }
@@ -657,6 +725,7 @@ export async function createWorkspace (
   )
 
   await db.assignWorkspace(account, workspaceUuid, AccountRole.Owner)
+  await auditAccountEvent(ctx, { event: 'workspace.create', workspaceUuid, region }, token)
 
   ctx.info('Creating workspace record done', { workspaceName, region, account: socialId.personUuid })
 
@@ -719,7 +788,7 @@ export async function createInvite (
   ctx.info('Creating invite', { workspace, workspaceName: workspace.name, email, emailMask, limit, autoJoin })
   const shareLink = isShareLink === true || (email == null && autoJoin !== true)
 
-  return await db.invite.insertOne({
+  const inviteId = await db.invite.insertOne({
     workspaceUuid,
     expiresOn: exp < 0 ? -1 : Date.now() + exp,
     email,
@@ -729,6 +798,18 @@ export async function createInvite (
     autoJoin,
     ...(shareLink ? { isShareLink: true, createdBy: account, createdOn: Date.now() } : {})
   })
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'workspace.invite.create',
+      workspaceUuid,
+      role,
+      autoJoin,
+      isShareLink: shareLink
+    },
+    token
+  )
+  return inviteId
 }
 
 /** Lists active share links for workspace maintainers and owners. */
@@ -784,6 +865,15 @@ export async function revokeInviteLink (
   verifyAllowedRole(callerRole, invite.role, extra)
 
   await db.invite.update({ id: invite.id, workspaceUuid, revokedOn: null }, { revokedOn: Date.now() })
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'workspace.invite.revoke',
+      workspaceUuid,
+      inviteIdHash: auditValueHash(invite.id, 'invite')
+    },
+    token
+  )
 }
 
 async function getInviteLinkCaller (
@@ -846,6 +936,16 @@ export async function sendInvite (
   await sendEmail(inviteEmail, ctx)
 
   ctx.info('Invite has been sent', { to: inviteEmail.to, workspaceUuid: workspace.uuid, workspaceName: workspace.name })
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'workspace.invite.send',
+      workspaceUuid,
+      targetEmailHash: auditEmailHash(email),
+      role
+    },
+    token
+  )
 }
 
 export async function createAccessLink (
@@ -889,7 +989,7 @@ export async function createAccessLink (
     try {
       extraObj = JSON.parse(params.extra)
     } catch (e) {
-      ctx.error("Invalid extra parameter, couldn't parse JSON", { extra: params.extra })
+      ctx.error("Invalid extra parameter, couldn't parse JSON")
       throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
     }
   }
@@ -942,6 +1042,7 @@ export async function createAccessLink (
     const front = getFrontUrl(branding)
     const link = concatLink(front, path)
 
+    await auditAccountEvent(ctx, { event: 'workspace.access.link.create', workspaceUuid, role }, token)
     return link
   } catch (err: any) {
     ctx.error('Failed to create access link', { err })
@@ -1018,7 +1119,7 @@ export async function createInviteLink (
 
   const front = getFrontUrl(branding)
   const link = concatLink(front, path)
-  ctx.info(`Created invite link: ${link}`)
+  ctx.info('Invite link created', { workspaceUuid: workspace.uuid, role })
 
   return link
 }
@@ -1106,6 +1207,16 @@ export async function resendInvite (
     workspaceUuid: workspace.uuid,
     workspaceName: workspace.name
   })
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'workspace.invite.resend',
+      workspaceUuid,
+      targetEmailHash: auditEmailHash(email),
+      role
+    },
+    token
+  )
 }
 
 /**
@@ -1221,7 +1332,7 @@ export async function checkJoin (
     verifiedOn: { $gt: 0 }
   })
   const email = emailSocialId?.value ?? ''
-  const workspaceUuid = await checkInvite(ctx, invite, email)
+  const workspaceUuid = await checkInviteForAccount(ctx, invite, email, token)
   const workspace = await getWorkspaceById(db, workspaceUuid)
 
   if (workspace === null) {
@@ -1276,7 +1387,7 @@ export async function joinByToken (
     verifiedOn: { $gt: 0 }
   })
   const email = emailSocialId?.value ?? ''
-  const workspaceUuid = await checkInvite(ctx, invite, email)
+  const workspaceUuid = await checkInviteForAccount(ctx, invite, email, token)
   const workspace = await getWorkspaceById(db, workspaceUuid)
 
   if (workspace === null) {
@@ -1368,8 +1479,28 @@ export async function checkAutoJoin (
 
       if (targetRole == null) {
         await db.assignWorkspace(targetAccount.uuid, workspace.uuid, invite.role)
+        await auditAccountEvent(
+          ctx,
+          {
+            event: 'workspace.member.join',
+            workspaceUuid: workspace.uuid,
+            targetAccountUuid: targetAccount.uuid,
+            role: invite.role
+          },
+          token
+        )
       } else if (getRolePower(targetRole) < getRolePower(invite.role)) {
         await db.updateWorkspaceRole(targetAccount.uuid, workspace.uuid, invite.role)
+        await auditAccountEvent(
+          ctx,
+          {
+            event: 'workspace.member.role.change',
+            workspaceUuid: workspace.uuid,
+            targetAccountUuid: targetAccount.uuid,
+            targetRole: invite.role
+          },
+          token
+        )
       }
 
       if (token === undefined || token === null) {
@@ -1614,6 +1745,7 @@ export async function changePassword (
   await setPassword(ctx, db, branding, accountUuid, newPassword)
 
   ctx.info('Password changed', { accountUuid })
+  await auditAccountEvent(ctx, { event: 'account.password.change', subjectAccountUuid: accountUuid }, token)
 }
 
 export async function requestPasswordReset (
@@ -1679,6 +1811,11 @@ export async function requestPasswordReset (
   })
   if (response.ok) {
     ctx.info('Password reset email sent', { email, normalizedEmail, account: account.uuid })
+    await auditAccountEvent(ctx, {
+      event: 'account.password.reset.request',
+      subjectAccountUuid: account.uuid,
+      subjectEmailHash: auditEmailHash(normalizedEmail)
+    })
   } else {
     ctx.error(`Failed to send reset password email: ${response.statusText}`, {
       email,
@@ -1749,6 +1886,7 @@ export async function requestPasswordSetup (
   })
   if (response.ok) {
     ctx.info('Password setup email sent', { accountUuid })
+    await auditAccountEvent(ctx, { event: 'account.password.setup.request', subjectAccountUuid: accountUuid }, token)
   } else {
     ctx.error(`Failed to send password setup email: ${response.statusText}`, { accountUuid })
   }
@@ -1786,6 +1924,7 @@ export async function restorePassword (
   }
 
   await setPassword(ctx, db, branding, account, password)
+  await auditAccountEvent(ctx, { event: 'account.password.restore', subjectAccountUuid: account }, token)
 
   if (emailSocialId.verifiedOn == null) {
     await db.socialId.update({ key: emailSocialId.key }, { verifiedOn: Date.now() })
@@ -1854,6 +1993,15 @@ export async function leaveWorkspace (
   }
 
   await db.unassignWorkspace(targetAccount, workspace)
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'workspace.member.remove',
+      workspaceUuid: workspace,
+      targetAccountUuid: targetAccount
+    },
+    token
+  )
   ctx.info('Account removed from workspace', { targetAccount, workspace })
 
   if (account === targetAccount) {
@@ -1893,6 +2041,7 @@ export async function changeUsername (
   await db.person.update({ uuid: account }, { firstName: first, lastName: last ?? '' })
 
   ctx.info('Person name changed', { account, first, last })
+  await auditAccountEvent(ctx, { event: 'account.profile.name.change', subjectAccountUuid: account }, token)
 }
 
 export async function updateWorkspaceName (
@@ -1922,6 +2071,7 @@ export async function updateWorkspaceName (
       name
     }
   )
+  await auditAccountEvent(ctx, { event: 'workspace.rename' }, token)
 }
 
 export async function deleteWorkspace (
@@ -1945,6 +2095,7 @@ export async function deleteWorkspace (
       mode: 'pending-deletion'
     }
   )
+  await auditAccountEvent(ctx, { event: 'workspace.deletion.schedule' }, token)
 }
 
 export async function generate2faSecret (
@@ -1968,6 +2119,7 @@ export async function generate2faSecret (
   const app = branding?.title ?? getMetadata(accountPlugin.metadata.ProductName) ?? 'Huly'
   const url = getTotpUrl(emailSocialId.value, app, secret)
 
+  await auditAccountEvent(ctx, { event: 'account.2fa.secret.generate', subjectAccountUuid: accountUuid }, token)
   return { secret, url }
 }
 
@@ -1987,6 +2139,7 @@ export async function enable2fa (
 
   await db.account.update({ uuid: accountUuid }, { tfaSecret: secret })
   ctx.info('2FA enabled', { accountUuid })
+  await auditAccountEvent(ctx, { event: 'account.2fa.enable', subjectAccountUuid: accountUuid }, token)
 }
 
 export async function disable2fa (
@@ -2010,6 +2163,7 @@ export async function disable2fa (
 
   await db.account.update({ uuid: accountUuid }, { tfaSecret: undefined })
   ctx.info('2FA disabled', { accountUuid })
+  await auditAccountEvent(ctx, { event: 'account.2fa.disable', subjectAccountUuid: accountUuid }, token)
 }
 
 export async function verify2fa (
@@ -2045,12 +2199,22 @@ export async function verify2fa (
 
   const { tfaAccount, ...filteredExtra } = extra ?? {}
 
-  return {
+  const result: LoginInfo = {
     account: accountUuid,
     token: generateToken(accountUuid, undefined, filteredExtra),
     name: getPersonName(person),
     socialId: socialId?._id
   }
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'account.2fa.verify',
+      subjectAccountUuid: result.account,
+      authenticationComplete: result.token != null
+    },
+    token
+  )
+  return result
 }
 
 /* =================================== */
@@ -2100,7 +2264,7 @@ export async function getWorkspacesInfo (
   const { account } = decodeTokenVerbose(ctx, token)
 
   if (account !== systemAccountUuid) {
-    ctx.error('getWorkspaceInfos with wrong user', { account, token })
+    ctx.error('getWorkspaceInfos with wrong user', { account })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
@@ -2129,7 +2293,7 @@ export async function updateLastVisit (
   const { account } = decodeTokenVerbose(ctx, token)
 
   if (account !== systemAccountUuid) {
-    ctx.error('updateLastVisit with wrong user', { account, token })
+    ctx.error('updateLastVisit with wrong user', { account })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
@@ -2156,7 +2320,7 @@ export async function updateAccountsLastVisit (
   const { account } = decodeTokenVerbose(ctx, token)
 
   if (account !== systemAccountUuid) {
-    ctx.error('updateAccountsLastVisit with wrong user', { account, token })
+    ctx.error('updateAccountsLastVisit with wrong user', { account })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
@@ -2259,7 +2423,7 @@ export async function getLoginInfoByToken (
     if (token !== undefined) {
       // do not spam errors as this is expected when we issue request with no token
       Analytics.handleError(err)
-      ctx.error('Invalid token', { token, errMsg: err.message })
+      ctx.error('Invalid token', { errorType: err.name })
     }
     switch (err.message) {
       case 'Token not yet active': {
@@ -2417,7 +2581,8 @@ export async function getLoginInfoByToken (
       throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUuid }))
     }
 
-    const endpointKind = meta?.clientNetworkPosition === 'internal' ? EndpointKind.Internal : EndpointKind.External
+    const endpointKind =
+      (params?.kind ?? meta?.clientNetworkPosition) === 'internal' ? EndpointKind.Internal : EndpointKind.External
     const endpoint = getEndpoint(workspace.uuid, workspace.region, endpointKind)
 
     if (isDocGuest) {
@@ -2470,7 +2635,7 @@ export async function getLoginWithWorkspaceInfo (
     ;({ account: accountUuid, extra, workspace } = decodeTokenVerbose(ctx, token))
   } catch (err: any) {
     Analytics.handleError(err)
-    ctx.error('Invalid token', { token })
+    ctx.error('Invalid token')
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
 
@@ -2695,6 +2860,32 @@ export async function findSocialIdBySocialKey (
   return socialIdObj._id
 }
 
+/** Resolves only verified email identities belonging to registered accounts. */
+export async function resolveAccountByEmail (
+  ctx: MeasureContext,
+  db: AccountDB,
+  branding: Branding | null,
+  token: string,
+  params: { email: string }
+): Promise<AccountUuid | undefined> {
+  const { account } = decodeTokenVerbose(ctx, token)
+  if ((await getAccount(db, account)) == null) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
+  if (typeof params.email !== 'string' || params.email.length > 254 || !isEmail(params.email.trim())) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+  const social = await db.socialId.findOne({
+    type: SocialIdType.EMAIL,
+    value: normalizeValue(params.email),
+    verifiedOn: { $gt: 0 },
+    isDeleted: { $ne: true }
+  })
+  if (social == null) return undefined
+  const recipient = await getAccount(db, social.personUuid as AccountUuid)
+  return recipient?.uuid
+}
+
 export async function getWorkspaceMembers (
   ctx: MeasureContext,
   db: AccountDB,
@@ -2852,6 +3043,7 @@ async function createApiKey (
     createdOn: Date.now()
   }
   await db.apiKey.insertOne(apiKey)
+  await auditAccountEvent(ctx, { event: 'account.api-key.create', workspaceUuid: workspace, apiKeyId: id }, token)
 
   return {
     apiKey: {
@@ -2909,6 +3101,15 @@ async function revokeApiKey (
   }
 
   await db.apiKey.update({ id: apiKey.id, revokedOn: null }, { revokedOn: Date.now() })
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'account.api-key.revoke',
+      workspaceUuid: workspace,
+      apiKeyId: apiKey.id
+    },
+    token
+  )
 }
 
 async function createMailbox (
@@ -2955,6 +3156,15 @@ async function createMailbox (
   await db.mailboxSecret.insertOne({ mailbox, secret: generatePassword() })
   const socialId = await addSocialIdBase(db, account, SocialIdType.EMAIL, mailbox, true)
   ctx.info('Mailbox created', { mailbox, account, socialId })
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'account.mailbox.create',
+      targetEmailHash: auditEmailHash(mailbox),
+      socialId
+    },
+    token
+  )
   return { mailbox, socialId }
 }
 
@@ -2979,7 +3189,16 @@ async function getMailboxSecret (
 ): Promise<MailboxSecret | null> {
   const { extra } = decodeTokenVerbose(ctx, token)
   verifyAllowedServices(['huly-mail'], extra)
-  return await db.mailboxSecret.findOne({ mailbox: params.mailbox })
+  const mailboxSecret = await db.mailboxSecret.findOne({ mailbox: params.mailbox })
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'account.mailbox.secret.read',
+      targetEmailHash: auditEmailHash(params.mailbox)
+    },
+    token
+  )
+  return mailboxSecret
 }
 
 async function deleteMailbox (
@@ -3009,6 +3228,7 @@ async function deleteMailbox (
   await db.mailbox.deleteMany({ mailbox })
   await doReleaseSocialId(db, account, SocialIdType.EMAIL, mailbox, `deleteMailbox@${account}`)
   ctx.info('Mailbox deleted', { mailbox, account })
+  await auditAccountEvent(ctx, { event: 'account.mailbox.delete', targetEmailHash: auditEmailHash(mailbox) }, token)
 }
 
 async function exchangeGuestToken (
@@ -3035,7 +3255,9 @@ async function exchangeGuestToken (
       )
     }
 
-    return generateToken(docGuestAccountUuid, workspace.uuid, { linkId, guest: 'true' })
+    const result = generateToken(docGuestAccountUuid, workspace.uuid, { linkId, guest: 'true' })
+    await auditAccountEvent(ctx, { event: 'account.guest.token.exchange', workspaceUuid: workspace.uuid }, token)
+    return result
   }
 
   return token
@@ -3089,7 +3311,16 @@ async function addEmailSocialId (
     targetSocialId = { ...newSocialId, _id, key: buildSocialIdString(newSocialId) }
   }
 
-  return await sendOtp(ctx, db, branding, targetSocialId)
+  const otpInfo = await sendOtp(ctx, db, branding, targetSocialId)
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'account.social.verification.request',
+      targetEmailHash: auditEmailHash(normalizedEmail)
+    },
+    token
+  )
+  return otpInfo
 }
 
 async function addHulyAssistantSocialId (
@@ -3100,7 +3331,9 @@ async function addHulyAssistantSocialId (
 ): Promise<PersonId> {
   const { account } = decodeTokenVerbose(ctx, token)
 
-  return await addSocialIdBase(db, account, SocialIdType.HULY_ASSISTANT, account, true)
+  const socialId = await addSocialIdBase(db, account, SocialIdType.HULY_ASSISTANT, account, true)
+  await auditAccountEvent(ctx, { event: 'account.assistant.add', socialId }, token)
+  return socialId
 }
 
 export async function refreshHulyAssistantToken (
@@ -3141,6 +3374,7 @@ export async function refreshHulyAssistantToken (
   } else {
     await db.integrationSecret.update(integrationSecretKey, { secret })
   }
+  await auditAccountEvent(ctx, { event: 'account.assistant.token.refresh', socialId: assistantSocialId._id }, token)
 }
 
 export async function releaseSocialId (
@@ -3187,7 +3421,26 @@ export async function releaseSocialId (
     }
   }
 
-  return await doReleaseSocialId(db, personUuid, type, value, extra?.service ?? account, deleteIntegrations)
+  const releasedSocialId = await doReleaseSocialId(
+    db,
+    personUuid,
+    type,
+    value,
+    extra?.service ?? account,
+    deleteIntegrations
+  )
+  await auditAccountEvent(
+    ctx,
+    {
+      event: 'account.social.release',
+      targetPersonUuid: personUuid,
+      socialId: releasedSocialId._id,
+      type,
+      deleteIntegrations
+    },
+    token
+  )
+  return releasedSocialId
 }
 
 export async function deleteAccount (
@@ -3212,6 +3465,7 @@ export async function deleteAccount (
   }
 
   await db.deleteAccount(uuid)
+  await auditAccountEvent(ctx, { event: 'account.delete', targetAccountUuid: uuid }, token)
   await db.accountEvent.insertOne({
     accountUuid: uuid,
     eventType: AccountEventType.ACCOUNT_DELETED,
@@ -3359,6 +3613,7 @@ export async function mergeSpecifiedPersons (
   await verifyMergePersonsAuthority(db, decodedToken, primaryPerson, secondaryPerson)
 
   await doMergePersons(db, primaryPerson, secondaryPerson)
+  await auditAccountEvent(ctx, { event: 'person.merge', primaryPerson, secondaryPerson }, token)
 }
 
 async function setMyProfile (
@@ -3613,6 +3868,7 @@ export async function batchAssignWorkspacePermission (
   }
 
   await db.batchAssignWorkspacePermission(workspace, accountIds, permission)
+  await auditAccountBatchEvent(ctx, token, { event: 'workspace.permission.assign', permission }, accountIds)
 }
 
 export async function batchRevokeWorkspacePermission (
@@ -3638,6 +3894,7 @@ export async function batchRevokeWorkspacePermission (
   }
 
   await db.batchRevokeWorkspacePermission(workspace, accountIds, permission)
+  await auditAccountBatchEvent(ctx, token, { event: 'workspace.permission.revoke', permission }, accountIds)
 }
 
 export async function hasWorkspacePermission (
@@ -3715,6 +3972,7 @@ export async function getWorkspaceUsersWithPermission (
 
 export type AccountMethods =
   | AccountServiceMethods
+  | 'resolveAccountByEmail'
   | 'login'
   | 'loginOtp'
   | 'loginAsGuest'
@@ -3760,6 +4018,7 @@ export type AccountMethods =
   | 'getLoginWithWorkspaceInfo'
   | 'getSocialIds'
   | 'getPerson'
+  | 'getWorkspaceAuditEvents'
   | 'getWorkspaceMembers'
   | 'updateWorkspaceRole'
   | 'setWorkspaceMemberUnread'
@@ -3802,7 +4061,7 @@ export type AccountMethods =
  * @public
  */
 export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMethods, AccountMethodHandler>> {
-  return {
+  const methods: Partial<Record<AccountMethods, AccountMethodHandler>> = {
     /* OPERATIONS */
     // These are public/unauthenticated entry points - they must succeed even if the caller's
     // browser attaches a stale/invalid token (e.g. via a leftover cookie), since none of them
@@ -3887,7 +4146,9 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     getSocialIds: wrap(getSocialIds, { guest: 'allGuests' }),
     getPerson: wrap(getPerson, { guest: 'readOnlyAndPersonal' }),
     findPersonBySocialId: wrap(findPersonBySocialId),
+    resolveAccountByEmail: wrap(resolveAccountByEmail),
     findSocialIdBySocialKey: wrap(findSocialIdBySocialKey),
+    getWorkspaceAuditEvents: wrap(getWorkspaceAuditEvents),
     getWorkspaceMembers: wrap(getWorkspaceMembers),
     getMailboxOptions: wrap(getMailboxOptions),
     getMailboxSecret: wrap(getMailboxSecret),
@@ -3897,6 +4158,7 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     /* SERVICE METHODS */
     ...getServiceMethods()
   }
+  return methods
 }
 
 export * from './plugin'
