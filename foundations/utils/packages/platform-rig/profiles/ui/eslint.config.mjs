@@ -21,8 +21,7 @@ export default defineConfig([
     languageOptions: {
       parserOptions: {
         projectService: true,
-        // Must match the .svelte block: the TypeScript project service is shared by all files,
-        // and without this .svelte files fall into slow inferred projects with default compiler options.
+        // Shared project service must know .svelte from the first file, otherwise linting is much slower
         extraFileExtensions: ['.svelte']
       }
     },

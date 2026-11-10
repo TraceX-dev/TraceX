@@ -99,9 +99,7 @@ async function loadEslintConfig() {
           ...love.languageOptions?.parserOptions,
           projectService: true,
           tsconfigRootDir: process.cwd(),
-          // The TypeScript project service is shared by all files in the process. It must know about
-          // .svelte from the very first parsed file, otherwise .svelte files become orphans in inferred
-          // projects (default compiler options, graph rebuilt per file) and formatting gets ~5-8x slower.
+          // Shared project service must know .svelte from the first file, otherwise linting is much slower
           extraFileExtensions: ['.svelte']
         }
       },
