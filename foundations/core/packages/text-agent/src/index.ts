@@ -16,3 +16,14 @@
 export type { Handle } from './handle'
 export { InvalidHandleError, encodeHandle, decodeHandle } from './handle'
 export { getHandle, findByHandle } from './ydoc'
+export type {
+  AttributeAwareness,
+  AttributeSchema,
+  SchemaAwareness,
+  NodeSchema,
+  MarkSchema,
+  EditorContext,
+  SchemaAwarenessContext,
+  AddSchemaAwareness
+} from './schema'
+export { Awareness, getEditorContext } from './schema'

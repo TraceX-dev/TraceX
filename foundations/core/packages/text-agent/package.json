@@ -24,10 +24,13 @@
     "_phase:validate": "compile validate"
   },
   "dependencies": {
+    "@tiptap/core": "^3.33.0",
+    "@tiptap/pm": "^3.33.0",
     "yjs": "^13.6.30"
   },
   "devDependencies": {
     "@hcengineering/platform-rig": "workspace:^0.7.21",
+    "@tiptap/starter-kit": "^3.33.0",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "eslint-plugin-promise": "^7.3.0",
     "eslint-plugin-secure-coding": "^5.4.4",
