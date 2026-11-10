@@ -200,23 +200,30 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     const pulledSet = new Set(pulled)
     direct = Array.from(new Set([...direct.filter((it) => !pulledSet.has(it)), ...pushed]))
 
-    if (writtenDirect === undefined && replaced === undefined && migrated) {
-      // Plain $push / $pull: kept as operators, so concurrent joins and leaves do not overwrite each other.
-      if (pushed.length > 0) addOp(ops, '$push', 'directMembers', pushed)
-      if (pulled.length > 0) addOp(ops, '$pull', 'directMembers', pulled)
-    } else if (touchesDirect || !migrated) {
-      // The whole list. Also for a space that is not migrated yet: a $push would start `directMembers` from the
-      // pushed accounts only.
-      ops.directMembers = direct
-    }
-
     const groups = applyArrayOps(space.groups ?? [], ops, 'groups')
     const target = computeSpaceMembers(direct, await this.findGroups(ctx, groups))
-    const added = target.filter((it) => !members.includes(it))
-    const targetSet = new Set(target)
-    const removed = Array.from(new Set(members.filter((it) => !targetSet.has(it))))
-    if (added.length > 0) addOp(ops, '$push', 'members', added)
-    if (removed.length > 0) addOp(ops, '$pull', 'members', removed)
+
+    // An update is applied either as operators or as plain field writes, never both (`isOperator`): the storage
+    // takes an update with a plain field as plain writes and drops its `$push` / `$pull`. So the membership change
+    // keeps the form of the update.
+    const asOperators =
+      writtenDirect === undefined && replaced === undefined && migrated && Object.keys(ops).every(isOperatorKey)
+    if (asOperators) {
+      // $push / $pull: concurrent joins and leaves do not overwrite each other.
+      if (pushed.length > 0) addOp(ops, '$push', 'directMembers', pushed)
+      if (pulled.length > 0) addOp(ops, '$pull', 'directMembers', pulled)
+      const added = target.filter((it) => !members.includes(it))
+      const targetSet = new Set(target)
+      const removed = Array.from(new Set(members.filter((it) => !targetSet.has(it))))
+      if (added.length > 0) addOp(ops, '$push', 'members', added)
+      if (removed.length > 0) addOp(ops, '$pull', 'members', removed)
+      return
+    }
+    // Whole lists: a full write, a space that is not migrated yet (a $push would start `directMembers` from the
+    // pushed accounts only), or an update with other plain fields.
+    if (touchesDirect || !migrated) ops.directMembers = direct
+    if (!sameItems(members, target)) ops.members = target
+    moveOperatorsToPlain(ops, space)
   }
 
   /**
@@ -250,15 +257,21 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
         bound.map((it) => groups.get(it) as UserGroup)
       )
       const ops: Record<string, any> = {}
-      if (space.directMembers === undefined) ops.directMembers = [...members]
-      const added = target.filter((it) => !members.includes(it))
-      const targetSet = new Set(target)
-      const removed = Array.from(new Set(members.filter((it) => !targetSet.has(it))))
       const missing = (space.groups ?? []).filter((it) => !groups.has(it))
-      if (added.length > 0) addOp(ops, '$push', 'members', added)
-      if (removed.length > 0) addOp(ops, '$pull', 'members', removed)
-      if (missing.length > 0) {
-        ops.$pull = { ...(ops.$pull ?? {}), groups: missing.length === 1 ? missing[0] : { $in: missing } }
+      if (space.directMembers === undefined) {
+        // Plain writes only (see `isOperator`): the whole lists.
+        ops.directMembers = [...members]
+        if (!sameItems(members, target)) ops.members = target
+        if (missing.length > 0) ops.groups = bound
+      } else {
+        const added = target.filter((it) => !members.includes(it))
+        const targetSet = new Set(target)
+        const removed = Array.from(new Set(members.filter((it) => !targetSet.has(it))))
+        if (added.length > 0) addOp(ops, '$push', 'members', added)
+        if (removed.length > 0) addOp(ops, '$pull', 'members', removed)
+        if (missing.length > 0) {
+          ops.$pull = { ...(ops.$pull ?? {}), groups: missing.length === 1 ? missing[0] : { $in: missing } }
+        }
       }
       if (Object.keys(ops).length === 0) continue
       result.push(factory.createTxUpdateDoc(space._class, space.space, space._id, ops))
@@ -510,4 +523,44 @@ function applyArrayOps<T extends string> (stored: T[], ops: Record<string, any>,
     if (!result.includes(it as T)) result.push(it as T)
   }
   return result
+}
+
+function isOperatorKey (key: string): boolean {
+  return key.startsWith('$')
+}
+
+function sameItems<T> (left: T[], right: T[]): boolean {
+  const set = new Set(left)
+  return set.size === new Set(right).size && right.every((it) => set.has(it))
+}
+
+/**
+ * An update that writes plain fields can not carry operators (see `isOperator`): `$push` / `$pull` of the update
+ * are applied to the stored value and written as the whole array.
+ */
+function moveOperatorsToPlain (ops: Record<string, any>, stored: Record<string, any>): void {
+  if (!Object.keys(ops).some((key) => !isOperatorKey(key))) return
+  for (const op of ['$push', '$pull'] as const) {
+    const fields = ops[op]
+    if (fields === undefined || typeof fields !== 'object') continue
+    for (const field of Object.keys(fields)) {
+      const value = fields[field]
+      const simple =
+        typeof value === 'string' ||
+        (typeof value === 'object' && value !== null && (Array.isArray(value.$each) || Array.isArray(value.$in)))
+      if (!simple) continue
+      const current: string[] = Array.isArray(ops[field])
+        ? [...ops[field]]
+        : Array.isArray(stored[field])
+          ? [...stored[field]]
+          : []
+      ops[field] = applyArrayOps(current, { [op]: { [field]: value } }, field)
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete fields[field]
+    }
+    if (Object.keys(fields).length === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete ops[op]
+    }
+  }
 }
