@@ -14,7 +14,17 @@
 //
 
 import type { MeasureContext } from '@hcengineering/core'
-import { hashAuditValue, recordAuditEvent, setAuditEventWriter, startAuditPublisher, withAuditEvent } from '../audit'
+import {
+  auditActorFromToken,
+  hashAuditValue,
+  recordAuditEvent,
+  setAuditEventWriter,
+  startAuditPublisher,
+  withAuditEvent
+} from '../audit'
+import { setMetadata } from '@hcengineering/platform'
+import serverToken, { generateToken } from '@hcengineering/server-token'
+import type { AccountUuid, WorkspaceUuid } from '@hcengineering/core'
 import type { AuditRecord } from '../audit'
 import type { PlatformQueue, PlatformQueueProducer } from '../queue/types'
 
@@ -158,4 +168,157 @@ test('hashes explicit identifiers with a key and scope, omitting values without 
   expect(hash).not.toBe(hashAuditValue('private@example.com', 'email', 'other-key'))
   expect(hash).not.toBe(hashAuditValue('private@example.com', 'other-scope', 'test-key'))
   expect(hashAuditValue('private@example.com', 'email', undefined)).toBeUndefined()
+})
+
+describe('withAuditEvent scope', () => {
+  const records = (): AuditRecord[] => write.mock.calls.map(([, record]) => record)
+  const flush = async (): Promise<void> => {
+    await new Promise((resolve) => setImmediate(resolve))
+  }
+
+  test('records the details the action set with its outcome', async () => {
+    await withAuditEvent(ctx, { event: 'workspace.data.export', workspaceUuid: 'ws' }, async (audit) => {
+      audit.set({ format: 'csv' })
+    })
+    expect(records()[0]).toMatchObject({ outcome: 'succeeded', format: 'csv', workspaceUuid: 'ws' })
+  })
+
+  test('uses the classifier for the outcome and skips errors it declines to audit', async () => {
+    const classifyError = (error: unknown): any =>
+      error instanceof RangeError ? undefined : { outcome: 'denied', errorCode: 'not_owner' }
+    await expect(
+      withAuditEvent(
+        ctx,
+        { event: 'workspace.data.export' },
+        async () => {
+          throw new RangeError('malformed')
+        },
+        { classifyError }
+      )
+    ).rejects.toBeInstanceOf(RangeError)
+    expect(write).not.toHaveBeenCalled()
+    const denial = new Error('private reason')
+    await expect(
+      withAuditEvent(
+        ctx,
+        { event: 'workspace.data.export' },
+        async (audit) => {
+          audit.set({ format: 'json' })
+          throw denial
+        },
+        { classifyError }
+      )
+    ).rejects.toBe(denial)
+    expect(records()[0]).toMatchObject({ outcome: 'denied', errorCode: 'not_owner', format: 'json' })
+    expect(JSON.stringify(records())).not.toContain('private reason')
+  })
+
+  test('a throwing classifier falls back to the error type and keeps the original error', async () => {
+    const error = new TypeError('x')
+    await expect(
+      withAuditEvent(
+        ctx,
+        { event: 'document.publish' },
+        async () => {
+          throw error
+        },
+        {
+          classifyError: () => {
+            throw new Error('bug')
+          }
+        }
+      )
+    ).rejects.toBe(error)
+    expect(records()[0]).toMatchObject({ outcome: 'failed', errorType: 'TypeError' })
+  })
+
+  test('lets the action report a partial failure without throwing', async () => {
+    await withAuditEvent(ctx, { event: 'workspace.data.transfer' }, async (audit) => {
+      audit.set({ exportedCount: 2, outcome: 'failed', errorCode: 'partial_failure' })
+    })
+    expect(records()[0]).toMatchObject({ outcome: 'failed', errorCode: 'partial_failure', exportedCount: 2 })
+  })
+
+  test('mirrors the settled event into another journal with the same operation', async () => {
+    await withAuditEvent(
+      ctx,
+      { event: 'workspace.data.transfer', workspaceUuid: 'source', operationId: 'op' },
+      async (audit) => {
+        audit.set({ direction: 'outgoing' })
+        audit.mirror('target', { direction: 'incoming' })
+        audit.mirror('source')
+      }
+    )
+    expect(records().map((r) => [r.workspaceUuid, r.direction, r.operationId])).toEqual([
+      ['source', 'outgoing', 'op'],
+      ['target', 'incoming', 'op']
+    ])
+  })
+
+  test('records deferred work when it settles, not when the action returns', async () => {
+    let finish: () => void = () => {}
+    await withAuditEvent(ctx, { event: 'workspace.data.export' }, async (audit) => {
+      audit.defer(
+        new Promise<void>((resolve) => {
+          finish = resolve
+        })
+      )
+    })
+    expect(write).not.toHaveBeenCalled()
+    finish()
+    await flush()
+    expect(records()[0].outcome).toBe('succeeded')
+
+    let fail: (error: Error) => void = () => {}
+    await withAuditEvent(ctx, { event: 'workspace.data.export' }, async (audit) => {
+      audit.defer(
+        new Promise<void>((_resolve, reject) => {
+          fail = reject
+        })
+      )
+    })
+    fail(new SyntaxError('broken archive'))
+    await flush()
+    expect(records()[1]).toMatchObject({ outcome: 'failed', errorType: 'SyntaxError' })
+  })
+
+  test('waits for every deferred job and records a single outcome', async () => {
+    let first: () => void = () => {}
+    let second: () => void = () => {}
+    await withAuditEvent(ctx, { event: 'workspace.data.export' }, async (audit) => {
+      audit.defer(
+        new Promise<void>((resolve) => {
+          first = resolve
+        })
+      )
+      audit.defer(
+        new Promise<void>((resolve) => {
+          second = resolve
+        })
+      )
+    })
+    first()
+    await flush()
+    expect(write).not.toHaveBeenCalled()
+    second()
+    await flush()
+    expect(records()).toHaveLength(1)
+    expect(records()[0].outcome).toBe('succeeded')
+  })
+})
+
+test('derives the actor only from a verified token', () => {
+  setMetadata(serverToken.metadata.Secret, 'secret')
+  const account = '00000000-0000-4000-8000-000000000001' as AccountUuid
+  const workspace = '00000000-0000-4000-8000-0000000000a1' as WorkspaceUuid
+  expect(auditActorFromToken(generateToken(account, workspace, { admin: 'true', service: 'export' }))).toEqual({
+    actorAccountUuid: account,
+    workspaceUuid: workspace,
+    actorService: 'export',
+    actorIsAdmin: true,
+    actorUsesApiKey: false
+  })
+  expect(auditActorFromToken(generateToken(account, workspace, {}, 'another-secret'))).toEqual({})
+  expect(auditActorFromToken('garbage')).toEqual({})
+  expect(auditActorFromToken(undefined)).toEqual({})
 })
