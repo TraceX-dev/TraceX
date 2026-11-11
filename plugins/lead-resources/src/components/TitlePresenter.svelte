@@ -19,6 +19,7 @@
   export let value: WithLookup<Lead>
   export let shouldUseMargin: boolean = false
   export let kind: 'list' | undefined = undefined
+  // svelte-ignore unused-export-let
   export let maxWidth = '100%'
 </script>
 

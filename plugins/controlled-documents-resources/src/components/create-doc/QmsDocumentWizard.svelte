@@ -15,7 +15,7 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy } from 'svelte'
   import { getCurrentEmployee } from '@hcengineering/contact'
-  import { generateId, type AttachedData, type Class, type Data, type Ref } from '@hcengineering/core'
+  import { generateId, type AttachedData, type Data, type Ref } from '@hcengineering/core'
   import { MessageBox, getClient } from '@hcengineering/presentation'
   import {
     AnySvelteComponent,
@@ -53,8 +53,6 @@
   } from '../../stores/wizards/create-document'
   import FailedToCreateDocument from '../FailedToCreateDocument.svelte'
   import { updateExternalApproversAccess } from '../../utils'
-
-  export let _class: Ref<Class<ControlledDocument>> = documents.class.ControlledDocument
 
   onDestroy(wizardClosed)
 

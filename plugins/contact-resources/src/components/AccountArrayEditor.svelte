@@ -36,6 +36,7 @@
   export let excludeItems: Ref<Person>[] = []
   export let emptyLabel: IntlString | undefined = undefined
   export let allowGuests: boolean = false
+  // svelte-ignore unused-export-let
   export let attributeKey: string | undefined = undefined
   export let dataId: string | undefined = undefined
 

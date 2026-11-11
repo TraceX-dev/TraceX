@@ -54,7 +54,7 @@
   }
 
   function newDocument (): void {
-    showPopup(documents.component.QmsDocumentWizard, { _class: documents.class.ControlledDocument })
+    showPopup(documents.component.QmsDocumentWizard, {})
   }
 
   function dropdownItemSelected (res?: SelectPopupValueType['id']): void {

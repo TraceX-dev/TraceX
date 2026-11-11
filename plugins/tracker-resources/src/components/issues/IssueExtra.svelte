@@ -22,8 +22,10 @@
 
   export let value: WithLookup<Issue>
   export let shouldUseMargin: boolean = false
+  // svelte-ignore unused-export-let
   export let showParent: boolean = true
   export let kind: 'list' | undefined = undefined
+  // svelte-ignore unused-export-let
   export let disabled: boolean = false
   export let maxWidth: string | undefined = undefined
 

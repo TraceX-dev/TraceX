@@ -32,6 +32,7 @@
   export let noSelect: boolean = true
   export let inline = false
   export let showParent: boolean = false
+  // svelte-ignore unused-export-let
   export let kind: 'list' | undefined = undefined
   export let type: ObjectPresenterType = 'link'
   export let icon: Asset | AnySvelteComponent | undefined = undefined

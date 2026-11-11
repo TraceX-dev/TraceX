@@ -24,6 +24,7 @@
 
   import ActivityMessagePreview from './ActivityMessagePreview.svelte'
 
+  // svelte-ignore unused-export-let
   export let context: DocNotifyContext
   export let object: ActivityMessage
 
