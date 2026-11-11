@@ -46,7 +46,6 @@
       }
     | undefined = undefined
   export let withoutHeader = false
-  export let useOfClassAttributes = true
 
   const canEdit = isOwnerOrMaintainer()
 

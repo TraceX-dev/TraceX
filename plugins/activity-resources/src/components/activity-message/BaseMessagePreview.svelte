@@ -26,6 +26,7 @@
   export let readonly = false
   export let type: ActivityMessagePreviewType = 'full'
   export let message: ActivityMessage
+  // svelte-ignore unused-export-let
   export let actions: Action[] = []
 
   let previewElement: BasePreview

@@ -87,10 +87,12 @@
   export let attribute: KeyedAttribute
 
   export let user: CollaborationUser
+  // svelte-ignore unused-export-let
   export let userComponent: AnySvelteComponent | undefined = undefined
 
   export let readonly = false
 
+  // svelte-ignore unused-export-let
   export let buttonSize: IconSize = 'small'
   export let actionsButtonSize: IconSize = 'medium'
   export let full: boolean = false

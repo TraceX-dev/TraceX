@@ -24,6 +24,7 @@
     Map<Ref<Organization>, { count: number, modifiedOn: number, vacancies: Ref<Vacancy>[] }> | undefined
   export let resultQuery: DocumentQuery<Doc>
 
+  // svelte-ignore unused-export-let
   export let label: IntlString
   export let component: AnySvelteComponent
   export let icon: Asset

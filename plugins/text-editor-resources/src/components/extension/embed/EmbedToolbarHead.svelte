@@ -20,6 +20,7 @@
   import { parseReferenceUrl } from '../reference'
   import { EmbedCursor, shouldShowLink } from './embed'
 
+  // svelte-ignore unused-export-let
   export let editor: NodeViewProps['editor']
   export let cursor: EmbedCursor | null = null
 

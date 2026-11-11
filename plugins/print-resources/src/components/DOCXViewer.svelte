@@ -25,7 +25,9 @@
 
   export let value: Ref<Blob>
   export let name: string
+  // svelte-ignore unused-export-let
   export let contentType: string
+  // svelte-ignore unused-export-let
   export let metadata: BlobMetadata | undefined
   export let sourceLink: string | undefined = undefined
   const printing = getPrintContext() !== undefined

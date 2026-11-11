@@ -41,6 +41,7 @@
 
   export let _id: string
   export let participant: Participant | undefined = undefined
+  // svelte-ignore unused-export-let
   export let isAgent: boolean = false
 
   let parent: HTMLDivElement | undefined

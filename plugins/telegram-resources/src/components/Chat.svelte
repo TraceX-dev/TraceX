@@ -46,6 +46,7 @@
   import TelegramIcon from './icons/Telegram.svelte'
 
   export let channel: Channel
+  // svelte-ignore unused-export-let
   export let embedded = false
 
   let object: Contact
