@@ -29,13 +29,18 @@ export interface I18nPlaceholderStorage {
   unsubscribe?: () => void
 }
 
+const I18N_PLACEHOLDER_NAME = 'i18n-placeholder'
+
 export const I18nPlaceholderExtension = Placeholder.extend<I18nPlaceholderOptions, I18nPlaceholderStorage>({
-  name: 'i18n-placeholder',
+  name: I18N_PLACEHOLDER_NAME,
 
   addOptions () {
     return {
       ...this.parent?.(),
-      placeholder: '',
+      // Tiptap 3 gives each hook a copy of `options`, so read the translation from per-editor storage
+      placeholder: ({ editor }) =>
+        (editor.storage as unknown as Record<string, I18nPlaceholderStorage | undefined>)[I18N_PLACEHOLDER_NAME]
+          ?.placeholder ?? '',
       placeholderIntl: '' as IntlString,
       placeholderIntlParams: {},
       emptyEditorClass: 'is-editor-empty',
@@ -61,9 +66,6 @@ export const I18nPlaceholderExtension = Placeholder.extend<I18nPlaceholderOption
 
     const placeholderIntl = options.placeholderIntl
     const placeholderIntlParams = options.placeholderIntlParams
-
-    // Set the placeholder function before any rendering happens
-    this.options.placeholder = (): string => storage.placeholder
 
     // Get initial translation
     const theme = get(options.themeStore)
