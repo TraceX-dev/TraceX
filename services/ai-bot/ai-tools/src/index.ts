@@ -16,12 +16,14 @@
 
 import { PlatformContext, Tool } from '@hcengineering/ai-core'
 import { cardTools } from './tools/card'
+import { collabTools } from './tools/collab'
 import { chatTools } from './tools/chat'
 import { fulltextTools } from './tools/fulltext'
 import { meTools } from './tools/me'
 import { objectTools } from './tools/object'
 
 export { cardTools } from './tools/card'
+export { collabTools } from './tools/collab'
 export { chatTools } from './tools/chat'
 export { fulltextTools } from './tools/fulltext'
 export { meTools } from './tools/me'
@@ -30,6 +32,7 @@ export { objectTools } from './tools/object'
 export const tools: Tool<any, any, PlatformContext, any>[] = [
   ...cardTools,
   ...chatTools,
+  ...collabTools,
   ...fulltextTools,
   ...objectTools,
   ...meTools
