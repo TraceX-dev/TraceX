@@ -29,13 +29,20 @@ export interface I18nPlaceholderStorage {
   unsubscribe?: () => void
 }
 
+const I18N_PLACEHOLDER_NAME = 'i18n-placeholder'
+
 export const I18nPlaceholderExtension = Placeholder.extend<I18nPlaceholderOptions, I18nPlaceholderStorage>({
-  name: 'i18n-placeholder',
+  name: I18N_PLACEHOLDER_NAME,
 
   addOptions () {
     return {
       ...this.parent?.(),
-      placeholder: '',
+      // Tiptap 3 hands every hook a fresh copy of `options`, so assigning `this.options.placeholder`
+      // in onCreate never reaches the placeholder plugin. Read the translated text from the
+      // per-editor storage instead, which is shared across all hooks of this editor instance.
+      placeholder: ({ editor }) =>
+        (editor.storage as unknown as Record<string, I18nPlaceholderStorage | undefined>)[I18N_PLACEHOLDER_NAME]
+          ?.placeholder ?? '',
       placeholderIntl: '' as IntlString,
       placeholderIntlParams: {},
       emptyEditorClass: 'is-editor-empty',
@@ -61,9 +68,6 @@ export const I18nPlaceholderExtension = Placeholder.extend<I18nPlaceholderOption
 
     const placeholderIntl = options.placeholderIntl
     const placeholderIntlParams = options.placeholderIntlParams
-
-    // Set the placeholder function before any rendering happens
-    this.options.placeholder = (): string => storage.placeholder
 
     // Get initial translation
     const theme = get(options.themeStore)
