@@ -224,7 +224,7 @@ export default function buildModel (): Builder {
       {
         label: calendar.string.ConfigLabel,
         description: calendar.string.ConfigDescription,
-        enabled: false,
+        enabled: true,
         beta: true,
         icon: calendar.icon.Calendar,
         classFilter: defaultFilter
@@ -236,7 +236,7 @@ export default function buildModel (): Builder {
       {
         label: recruit.string.ConfigLabel,
         description: recruit.string.ConfigDescription,
-        enabled: false,
+        enabled: true,
         beta: false,
         icon: recruit.icon.RecruitApplication,
         classFilter: defaultFilter
@@ -306,7 +306,7 @@ export default function buildModel (): Builder {
       {
         label: hr.string.ConfigLabel,
         description: hr.string.ConfigDescription,
-        enabled: false,
+        enabled: true,
         beta: true,
         icon: hr.icon.Structure,
         classFilter: defaultFilter
