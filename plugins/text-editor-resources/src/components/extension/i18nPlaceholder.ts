@@ -37,9 +37,7 @@ export const I18nPlaceholderExtension = Placeholder.extend<I18nPlaceholderOption
   addOptions () {
     return {
       ...this.parent?.(),
-      // Tiptap 3 hands every hook a fresh copy of `options`, so assigning `this.options.placeholder`
-      // in onCreate never reaches the placeholder plugin. Read the translated text from the
-      // per-editor storage instead, which is shared across all hooks of this editor instance.
+      // Tiptap 3 gives each hook a copy of `options`, so read the translation from per-editor storage
       placeholder: ({ editor }) =>
         (editor.storage as unknown as Record<string, I18nPlaceholderStorage | undefined>)[I18N_PLACEHOLDER_NAME]
           ?.placeholder ?? '',
