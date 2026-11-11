@@ -14,7 +14,8 @@
 // limitations under the License.
 //
 
-import { type PlatformContext, createTool, toolFail } from '@hcengineering/ai-core'
+import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
+import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
 import { Type, type Static } from 'typebox'
 import { collabOutlineToolId } from './tool-ids'
 import { DocNameSchema, NodePageSchema, PageFromSchema, PageLimitSchema } from './schema'
@@ -41,9 +42,19 @@ export const collabOutlineTool = createTool({
     'collab.find to locate nested nodes. Reading does not change document content.',
   inputSchema: CollabOutlineInputSchema,
   outputSchema: CollabOutlineOutputSchema,
-  execute: async (_args: CollabOutlineInput, _toolCtx: PlatformContext) => {
-    return toolFail('Collaborative document tools are not connected to the collaborator yet.', 'not_implemented', {
-      retryable: false
-    })
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
+  execute: async (args: CollabOutlineInput, toolCtx: PlatformContext) => {
+    try {
+      return toolOk(await toolCtx.collaborator.getAgentOutline(args))
+    } catch (error: unknown) {
+      if (error instanceof CollaboratorAgentError) {
+        return toolFail(error.message, error.code, { retryable: error.retryable })
+      }
+      throw error
+    }
   }
 })

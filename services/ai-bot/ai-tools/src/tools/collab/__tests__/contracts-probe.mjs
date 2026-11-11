@@ -25,9 +25,11 @@ const fromHere = createRequire(import.meta.url)
 const ts = fromPackage('typescript')
 const originalLoad = Module._load
 const toolsPath = fromPackage.resolve('../ai-core/src/tools/tools.ts')
+const clientPath = fromPackage.resolve('../../../foundations/core/packages/collaborator-client/src/index.ts')
 Module._load = function (name, parent, isMain) {
   if (name === 'typebox') return { __esModule: true, ...typebox }
   if (name === 'typebox/schema') return { __esModule: true, ...schemaModule }
+  if (name === '@hcengineering/collaborator-client') return originalLoad.call(this, clientPath, parent, isMain)
   if (name === '@hcengineering/ai-core') return originalLoad.call(this, toolsPath, parent, isMain)
   return originalLoad.call(this, name, parent, isMain)
 }
@@ -116,18 +118,99 @@ const { Awareness, getEditorContext } = fromPackage('../../../foundations/core/p
 const { ServerKit } = fromPackage('../../../foundations/core/packages/text/src/kits/server-kit.ts')
 check(model.CollabSchemaOutputSchema, getEditorContext(new Awareness([ServerKit])))
 
-const context = { ctx: { warn: () => {} } }
 const inputByName = {
-  'collab.schema': {}, 'collab.outline': { docName }, 'collab.find': { docName, type: 'heading' },
+  'collab.schema': {}, 'collab.outline': { docName, from: 0, limit: 10 }, 'collab.find': { docName, type: 'heading' },
   'collab.read': { docName, ref }, 'collab.apply': { docName, ops: [ops[2]] }
 }
+const outputByName = {
+  'collab.schema': getEditorContext(new Awareness([ServerKit])),
+  'collab.outline': { total: 1, from: 0, rows: [summary] },
+  'collab.find': { total: 1, from: 0, rows: [summary] },
+  'collab.read': { ref, hash, node, children: [] },
+  'collab.apply': { ok: true, results: [{ opIndex: 0, ref, hash }] }
+}
+const methodByName = {
+  'collab.schema': 'getAgentSchema', 'collab.outline': 'getAgentOutline', 'collab.find': 'findAgentNodes',
+  'collab.read': 'readAgentNode', 'collab.apply': 'applyAgentOps'
+}
+const { getClient, CollaboratorAgentError, AGENT_API_PATH } = fromPackage(clientPath)
 for (const tool of collabTools) {
+  const calls = []
+  const context = {
+    ctx: { warn: () => {} },
+    collaborator: {
+      [methodByName[tool.name]]: async (...args) => { calls.push(args); return outputByName[tool.name] }
+    }
+  }
   assert.ok(tool.description.length > 0)
-  const result = await tool.execute(inputByName[tool.name], context)
-  assert.deepEqual(result, {
-    ok: false,
-    error: { code: 'not_implemented', message: 'Collaborative document tools are not connected to the collaborator yet.', retryable: false }
+  assert.deepEqual(await tool.execute(inputByName[tool.name], context), { ok: true, output: outputByName[tool.name] })
+  assert.deepEqual(calls, tool.name === 'collab.schema' ? [[]] : [[inputByName[tool.name]]])
+  context.collaborator[methodByName[tool.name]] = async () => {
+    throw new CollaboratorAgentError('not_implemented', 'Collaborative agent API is not implemented yet.', 501)
+  }
+  assert.deepEqual(await tool.execute(inputByName[tool.name], context), {
+    ok: false, error: { code: 'not_implemented', message: 'Collaborative agent API is not implemented yet.', retryable: false }
   })
-  checks++
+  checks += 3
+}
+const rejected = { ok: false, opIndex: 0, error: { code: 'STALE_REFERENCE', message: 'Read again.' } }
+assert.deepEqual(await apply.collabApplyTool.execute(inputByName['collab.apply'], {
+  ctx: { warn: () => {} }, collaborator: { applyAgentOps: async () => rejected }
+}), { ok: true, output: rejected })
+checks++
+
+// Exercise the real REST scaffold through the real API client and MCP executors.
+const fromServer = createRequire(fromPackage.resolve('../../../server/collaborator/package.json'))
+const express = fromServer('express')
+const { createAgentRouter } = fromServer('./src/agent/routes.ts')
+const app = express()
+app.use(express.json())
+const requests = []
+app.use((request, response, next) => { requests.push({ method: request.method, url: request.url, body: request.body }); next() })
+app.use(AGENT_API_PATH, createAgentRouter(async (token) => {
+  if (token !== 'test-token') throw new Error('Unauthorized')
+  return 'workspace'
+}))
+const server = await new Promise((resolve, reject) => {
+  const listener = app.listen(0, '127.0.0.1', () => resolve(listener))
+  listener.once('error', reject)
+})
+try {
+  const address = server.address()
+  assert.ok(address !== null && typeof address !== 'string')
+  const baseUrl = `http://127.0.0.1:${address.port}`
+  const client = getClient('workspace', 'test-token', baseUrl)
+  for (const tool of collabTools) {
+    assert.deepEqual(await tool.execute(inputByName[tool.name], {
+      ctx: { warn: () => {} }, collaborator: client
+    }), {
+      ok: false,
+      error: { code: 'not_implemented', message: 'Collaborative agent API is not implemented yet.', retryable: false }
+    })
+    checks++
+  }
+  const documentPath = `${AGENT_API_PATH}/${encodeURIComponent(docName)}`
+  assert.deepEqual(requests.map(({ method, url }) => [method, url]), [
+    ['GET', `${AGENT_API_PATH}/schema`],
+    ['GET', `${documentPath}/outline?from=0&limit=10`],
+    ['GET', `${documentPath}/find?type=heading`],
+    ['GET', `${documentPath}/nodes/${ref}`],
+    ['POST', `${documentPath}/ops`]
+  ])
+  assert.deepEqual(requests[4].body, { ops: [ops[2]] })
+  checks += 2
+  for (const [url, authorization, expected] of [
+    [`${AGENT_API_PATH}/schema`, undefined, 401],
+    [`${AGENT_API_PATH}/schema`, 'Bearer invalid-token', 401],
+    [`${AGENT_API_PATH}/document/outline`, 'Bearer test-token', 400],
+    [`${AGENT_API_PATH}/${encodeURIComponent('other|class|document|content')}/outline`, 'Bearer test-token', 403]
+  ]) {
+    const response = await fetch(`${baseUrl}${url}`, { headers: authorization === undefined ? {} : { Authorization: authorization } })
+    assert.equal(response.status, expected)
+    assert.equal((await response.json()).error.retryable, false)
+    checks++
+  }
+} finally {
+  await new Promise((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error)))
 }
 process.stdout.write(JSON.stringify({ checks }))

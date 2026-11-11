@@ -18,6 +18,18 @@
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
+import type { Static } from 'typebox'
+import type {
+  ApplyAgentOpsRequest, ApplyAgentOpsResponse, FindAgentNodesRequest, FindAgentNodesResponse,
+  GetAgentOutlineRequest, GetAgentOutlineResponse, GetAgentSchemaResponse, ReadAgentNodeRequest, ReadAgentNodeResponse
+} from '@hcengineering/collaborator-client'
+import type { CollabApplyInputSchema, CollabApplyOutputSchema } from '../collab.apply'
+import type { CollabFindInputSchema, CollabFindOutputSchema } from '../collab.find'
+import type { CollabOutlineInputSchema, CollabOutlineOutputSchema } from '../collab.outline'
+import type { CollabSchemaOutputSchema } from '../collab.schema'
+import type { CollabReadInputSchema, CollabReadOutputSchema } from '../collab.read'
+
+
 it('validates the collab wire contracts and descriptions with real TypeBox and editor context', () => {
   const result = spawnSync(process.execPath, [join(__dirname, 'contracts-probe.mjs')], {
     encoding: 'utf8', timeout: 30000
@@ -27,3 +39,19 @@ it('validates the collab wire contracts and descriptions with real TypeBox and e
   const report: { checks: number } = JSON.parse(result.stdout)
   expect(report.checks).toBeGreaterThan(50)
 })
+
+
+// Bidirectional assignability keeps the client DTOs and MCP schemas in sync at compile time.
+type Matches<L, R> = [L] extends [R] ? [R] extends [L] ? true : false : false
+type Assert<T extends true> = T
+export type CollabContractParity = [
+  Assert<Matches<Static<typeof CollabApplyInputSchema>, ApplyAgentOpsRequest>>,
+  Assert<Matches<Static<typeof CollabApplyOutputSchema>, ApplyAgentOpsResponse>>,
+  Assert<Matches<Static<typeof CollabFindInputSchema>, FindAgentNodesRequest>>,
+  Assert<Matches<Static<typeof CollabFindOutputSchema>, FindAgentNodesResponse>>,
+  Assert<Matches<Static<typeof CollabOutlineInputSchema>, GetAgentOutlineRequest>>,
+  Assert<Matches<Static<typeof CollabOutlineOutputSchema>, GetAgentOutlineResponse>>,
+  Assert<Matches<Static<typeof CollabReadInputSchema>, ReadAgentNodeRequest>>,
+  Assert<Matches<Static<typeof CollabReadOutputSchema>, ReadAgentNodeResponse>>,
+  Assert<Matches<Static<typeof CollabSchemaOutputSchema>, GetAgentSchemaResponse>>
+]

@@ -14,7 +14,8 @@
 // limitations under the License.
 //
 
-import { type PlatformContext, createTool, toolFail } from '@hcengineering/ai-core'
+import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
+import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
 import { Type, type Static } from 'typebox'
 import { collabApplyToolId } from './tool-ids'
 import { DocNameSchema, HashSchema, MarkJsonSchema, NodeJsonSchema, NodeRefSchema, PositionSchema } from './schema'
@@ -319,9 +320,19 @@ export const collabApplyTool = createTool({
     'automatically retry: read the document and decide whether a new batch is needed.',
   inputSchema: CollabApplyInputSchema,
   outputSchema: CollabApplyOutputSchema,
-  execute: async (_args: CollabApplyInput, _toolCtx: PlatformContext) => {
-    return toolFail('Collaborative document tools are not connected to the collaborator yet.', 'not_implemented', {
-      retryable: false
-    })
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false
+  },
+  execute: async (args: CollabApplyInput, toolCtx: PlatformContext) => {
+    try {
+      return toolOk(await toolCtx.collaborator.applyAgentOps(args))
+    } catch (error: unknown) {
+      if (error instanceof CollaboratorAgentError) {
+        return toolFail(error.message, error.code, { retryable: error.retryable })
+      }
+      throw error
+    }
   }
 })

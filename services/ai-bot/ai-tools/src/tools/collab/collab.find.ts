@@ -14,7 +14,8 @@
 // limitations under the License.
 //
 
-import { type PlatformContext, createTool, toolFail } from '@hcengineering/ai-core'
+import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
+import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
 import { Type, type Static } from 'typebox'
 import { collabFindToolId } from './tool-ids'
 import { DocNameSchema, NodePageSchema, PageFromSchema, PageLimitSchema } from './schema'
@@ -26,8 +27,7 @@ export const CollabFindInputSchema = Type.Object(
       Type.String({
         minLength: 1,
         description:
-          'Case-sensitive literal substring of the node subtree text. Not a regular expression or a ' +
-          'fulltext query.'
+          'Case-sensitive literal substring of the node subtree text. Not a regular expression or a fulltext query.'
       })
     ),
     type: Type.Optional(
@@ -59,9 +59,19 @@ export const collabFindTool = createTool({
     'workspace fulltext index.',
   inputSchema: CollabFindInputSchema,
   outputSchema: CollabFindOutputSchema,
-  execute: async (_args: CollabFindInput, _toolCtx: PlatformContext) => {
-    return toolFail('Collaborative document tools are not connected to the collaborator yet.', 'not_implemented', {
-      retryable: false
-    })
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
+  execute: async (args: CollabFindInput, toolCtx: PlatformContext) => {
+    try {
+      return toolOk(await toolCtx.collaborator.findAgentNodes(args))
+    } catch (error: unknown) {
+      if (error instanceof CollaboratorAgentError) {
+        return toolFail(error.message, error.code, { retryable: error.retryable })
+      }
+      throw error
+    }
   }
 })
