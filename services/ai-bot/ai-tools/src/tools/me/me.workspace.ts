@@ -48,6 +48,11 @@ export const meWorkspaceTool = createTool({
   description: 'Get information about the current authenticated workspace.',
   inputSchema: WorkspaceInputSchema,
   outputSchema: WorkspaceOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (_args, toolCtx: PlatformContext) => {
     const workspaceId = toolCtx.token.workspace
 

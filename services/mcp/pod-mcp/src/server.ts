@@ -157,7 +157,8 @@ export function createMcpServer (
       {
         description: tool.description,
         inputSchema: fromJsonSchema<Record<string, unknown>>(inputSchema),
-        ...(tool.outputSchema !== undefined ? { outputSchema: fromJsonSchema(tool.outputSchema) } : {})
+        ...(tool.outputSchema !== undefined ? { outputSchema: fromJsonSchema(tool.outputSchema) } : {}),
+        ...(tool.annotations !== undefined ? { annotations: tool.annotations } : {})
       },
       async (args) => {
         const { workspace, ...input } = args

@@ -51,6 +51,11 @@ export const chatUnreadTool = createTool({
     'List streams with unread messages: channels, directs, discussions and threads, each with target, type, name, parent context and unreadCount. Threads are separate rows, including unfollowed threads with personal reading contexts. Counts use the same message range as chat.unread_messages, not UI notification badges. Never marks anything read.',
   inputSchema: ChatUnreadInputSchema,
   outputSchema: ChatUnreadOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args, ctx: PlatformContext) => {
     const socialIds = await ownSocialIds(ctx)
     const { items, ...page } = await scanChatPage(

@@ -103,6 +103,11 @@ export const chatUnreadMessagesTool = createTool({
     'Read unread messages oldest first, across all supported streams or within optional target={class,id}. Every message includes its stream target, type, name and parent context so replies can be addressed directly. Uses personal reading boundaries, excludes own social identities, and includes unfollowed thread contexts. Streams with no reading context contribute no messages. Never marks anything read.',
   inputSchema: ChatUnreadMessagesInputSchema,
   outputSchema: ChatUnreadMessagesOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args, ctx: PlatformContext) => {
     const limit = args.limit ?? 50
     let page: DiscoveryPage<ScopedMessage>

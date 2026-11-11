@@ -42,6 +42,11 @@ export const chatSendTool = createTool({
     'Send Markdown as the authenticated user to target={class,id}. Use a chat document for a main-stream message, or a root chat message for a thread reply, including its first reply. Never creates or joins chats. Do not blindly retry an uncertain send.',
   inputSchema: ChatSendInputSchema,
   outputSchema: ChatSendOutputSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false
+  },
   execute: async (args, ctx: PlatformContext) => {
     const stream = await requireStream(ctx, args.target)
     const chat = stream.chat

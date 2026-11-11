@@ -63,6 +63,11 @@ export const meAccountTool = createTool({
   description: 'Get information about the current authenticated account.',
   inputSchema: AccountInputSchema,
   outputSchema: AccountOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (_args, toolCtx: PlatformContext) => {
     const { client } = toolCtx
 

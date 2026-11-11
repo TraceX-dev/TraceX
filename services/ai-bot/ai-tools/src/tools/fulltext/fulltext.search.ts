@@ -1,9 +1,17 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //
 
 import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
@@ -87,6 +95,11 @@ export const fulltextSearchTool = createTool({
   description: 'Search indexed workspace objects by fulltext and return compact object references.',
   inputSchema: FulltextSearchInputSchema,
   outputSchema: FulltextSearchOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args: FulltextSearchInput, toolCtx: PlatformContext) => {
     const query = args.query.trim()
     if (query.length === 0) {

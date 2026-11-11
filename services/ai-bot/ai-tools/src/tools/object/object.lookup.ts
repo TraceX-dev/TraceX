@@ -130,6 +130,11 @@ export const objectLookupTool = createTool({
   description: 'List workspace objects by class or mixin, optionally filtering and sorting by object fields.',
   inputSchema: ObjectLookupInputSchema,
   outputSchema: ObjectLookupOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args: ObjectLookupInput, toolCtx: PlatformContext) => {
     const { hierarchy } = toolCtx
 

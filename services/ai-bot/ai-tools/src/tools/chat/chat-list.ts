@@ -54,6 +54,11 @@ export const chatListTool = createTool({
     'Discover streams with target, type, name and optional parent context. Without filters, lists joined channels/directs and accessible discussions. type=thread lists all accessible chat threads with replies, regardless of following; parent optionally selects one chat. For discussions, parent selects the owner document. Document comments are excluded. Never joins or marks anything read.',
   inputSchema: ChatListInputSchema,
   outputSchema: ChatListOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args, ctx: PlatformContext) => {
     let type = args.type
     if (type === undefined && args.parent !== undefined) {

@@ -14,11 +14,17 @@
 //
 
 import { MeasureContext } from '@hcengineering/core'
-import { type Static, type TObject, type TString } from 'typebox'
+import { type Static, type TObject, type TString, type TUnion } from 'typebox'
 
 export type ToolInputSchema = TObject
-export type ToolOutputSchema = TObject | TString
+export type ToolOutputSchema = TObject | TUnion | TString
 export type ToolMetadata = Record<string, any>
+
+export interface ToolAnnotations {
+  readOnlyHint?: boolean
+  destructiveHint?: boolean
+  idempotentHint?: boolean
+}
 
 export interface ToolExecutorContext {
   ctx: MeasureContext
@@ -65,6 +71,8 @@ export interface ToolAction<
   outputSchema?: TOutputSchema
   // Tool metadata
   metadata?: TMetadata
+  // Tool annotations
+  annotations?: ToolAnnotations
   // Tool executor
   execute: ToolExecutor<TInputSchema, TOutputSchema, TContext>
 }
