@@ -19,6 +19,32 @@ import { Editor, Node, type AnyExtension } from '@tiptap/core'
 import { writable } from 'svelte/store'
 import { I18nPlaceholderExtension } from '../components/extension/i18nPlaceholder'
 
+// svelte/store ships as ESM only, which Jest cannot load here, so provide a minimal store
+jest.mock('svelte/store', () => {
+  function writable<T> (value: T): any {
+    const subscribers = new Set<(value: T) => void>()
+    return {
+      set (next: T): void {
+        value = next
+        subscribers.forEach((subscriber) => {
+          subscriber(value)
+        })
+      },
+      subscribe (subscriber: (value: T) => void): () => void {
+        subscribers.add(subscriber)
+        subscriber(value)
+        return () => subscribers.delete(subscriber)
+      }
+    }
+  }
+  function get<T> (store: { subscribe: (subscriber: (value: T) => void) => () => void }): T {
+    let current: T | undefined
+    store.subscribe((value) => (current = value))()
+    return current as T
+  }
+  return { writable, get }
+})
+
 jest.mock('@hcengineering/platform', () => ({
   translate: jest.fn(async (key: string, _params: unknown, language: string) => `${key}:${language}`)
 }))
