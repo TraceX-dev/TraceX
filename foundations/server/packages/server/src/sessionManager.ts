@@ -100,6 +100,9 @@ const ticksPerSecond = 20
 const workspaceSoftShutdownTicks = 15 * ticksPerSecond
 
 const hangRequestTimeoutSeconds = 30
+const parsedSlowRequestLogMs = parseInt(process.env.SLOW_REQUEST_LOG_MS ?? '1000', 10)
+// A non-numeric value would silently disable the log (NaN comparisons are false); fall back instead.
+const slowRequestLogMs = Number.isNaN(parsedSlowRequestLogMs) ? 1000 : parsedSlowRequestLogMs
 const hangSessionTimeoutSeconds = 60
 
 function getClientService (token: Token | undefined): string {
@@ -883,6 +886,12 @@ export class TSessionManager implements SessionManager {
           // A socket the client already dropped while we waited (account service, workspace close)
           // must not replace a newer connection that registered under the same sessionId.
           if (ws.isClosed || !ws.checkState()) {
+            ctx.warn('addSession: socket closed during setup, giving up', {
+              stage: 'before-replace',
+              workspaceId: workspace.wsId.uuid,
+              userId: token.account,
+              sessionId
+            })
             this.allowSoftShutdown(workspace)
             return { error: new Error('Connection closed during session setup'), terminate: true }
           }
@@ -895,6 +904,11 @@ export class TSessionManager implements SessionManager {
             // close() awaits the logout publish; the workspace may have been unloaded or replaced
             // meanwhile. Never attach the session to a Workspace that is no longer the active one.
             if (this.workspaces.get(workspace.wsId.uuid) !== workspace || workspace.closing !== undefined) {
+              ctx.warn('addSession: workspace unloaded while replacing the session, re-acquiring', {
+                workspaceId: workspace.wsId.uuid,
+                userId: token.account,
+                sessionId
+              })
               ;({ workspace, resp } = await this.getWorkspace(ctx.parent ?? ctx, token.workspace, wsInfo, token, ws))
               if (resp !== undefined) {
                 return resp
@@ -914,6 +928,12 @@ export class TSessionManager implements SessionManager {
           // logout publish) and already reconnected with the same sessionId. Registering the dead
           // socket now would shadow that newer connection, so give up on it.
           if (ws.isClosed || !ws.checkState()) {
+            ctx.warn('addSession: socket closed during setup, giving up', {
+              stage: 'before-register',
+              workspaceId: workspace.wsId.uuid,
+              userId: token.account,
+              sessionId: session.sessionId
+            })
             this.allowSoftShutdown(workspace)
             return { error: new Error('Connection closed during session setup'), terminate: true }
           }
@@ -921,6 +941,11 @@ export class TSessionManager implements SessionManager {
           // properly instead of silently overwriting its entry and leaving its socket orphaned.
           const sameSessionId = workspace.sessions.get(session.sessionId)
           if (sameSessionId !== undefined && sameSessionId.socket.id !== ws.id) {
+            ctx.warn('addSession: concurrent connect with the same sessionId, replacing it', {
+              workspaceId: workspace.wsId.uuid,
+              userId: token.account,
+              sessionId: session.sessionId
+            })
             void this.close(ctx, sameSessionId.socket, workspace.wsId.uuid).catch((err) => {
               ctx.error('failed to close replaced session', { sessionId: session.sessionId, error: err })
             })
@@ -1146,24 +1171,41 @@ export class TSessionManager implements SessionManager {
     }
 
     const factory = async (): Promise<Pipeline> => {
+      // Diagnostics: how long a cold start waits for a limiter slot and how long the build takes.
+      const queuedAt = Date.now()
+      let startedAt = 0
+      const buildLog = (): Record<string, any> => ({
+        workspace: workspaceIds.uuid,
+        url: workspaceIds.url,
+        queueMs: (startedAt === 0 ? Date.now() : startedAt) - queuedAt,
+        buildMs: startedAt === 0 ? 0 : Date.now() - startedAt,
+        coldBuildsRunning: this.coldBuildLimiter.processingQueue.size
+      })
       // Only the cold build is gated (see coldBuildLimiter); pipeline ops run unthrottled.
-      const pipeline = await this.coldBuildLimiter.exec(() =>
-        pipelineCtx.withCounter('server-lifecycle', { operation: 'start_workspace' }, () =>
-          this.pipelineFactory(
-            pipelineCtx,
-            workspaceIds,
-            {
-              broadcast: (ctx, tx, targets, exclude) => {
-                this.broadcastAll(ctx, workspaceIds.uuid, tx, targets, exclude)
+      const pipeline = await this.coldBuildLimiter
+        .exec(() => {
+          startedAt = Date.now()
+          return pipelineCtx.withCounter('server-lifecycle', { operation: 'start_workspace' }, () =>
+            this.pipelineFactory(
+              pipelineCtx,
+              workspaceIds,
+              {
+                broadcast: (ctx, tx, targets, exclude) => {
+                  this.broadcastAll(ctx, workspaceIds.uuid, tx, targets, exclude)
+                },
+                broadcastSessions: (ctx, sessions) => {
+                  this.broadcastSessions(ctx, sessions)
+                }
               },
-              broadcastSessions: (ctx, sessions) => {
-                this.broadcastSessions(ctx, sessions)
-              }
-            },
-            branding
+              branding
+            )
           )
-        )
-      )
+        })
+        .catch((err) => {
+          this.ctx.warn('pipeline cold build failed', { ...buildLog(), error: err })
+          throw err
+        })
+      this.ctx.info('pipeline cold build done', buildLog())
       return pipeline
     }
     const workspace: Workspace = new Workspace(
@@ -1412,9 +1454,13 @@ export class TSessionManager implements SessionManager {
         this.sessions.delete(webSocket.id)
         const user = s.getUser()
         if (reason !== 'shutdown' && user !== systemAccountUuid && user !== docGuestAccountUuid) {
+          // Only the ignored socket (the caller of a forceClose request) survives doCloseAll.
+          const remaining = sessions.filter(
+            (it) => it[1].socket.id === ignoreSocket?.id && it[1].session.getUser() === user
+          ).length
           void this.usersProducer
             .send(this.ctx, workspace.wsId.uuid, [
-              userEvents.logout({ user, sessions: 0, socialIds: s.getUserSocialIds() })
+              userEvents.logout({ user, sessions: remaining, socialIds: s.getUserSocialIds() })
             ])
             .catch((err) => {
               this.ctx.error('failed to publish logout', { workspaceId: workspace.wsId.uuid, error: err })
@@ -1644,6 +1690,15 @@ export class TSessionManager implements SessionManager {
       }
       const workspace = this.workspaces.get(workspaceId)
       if (workspace === undefined || workspace.closing !== undefined) {
+        this.ctx.warn('request rejected: workspace is closing', {
+          workspaceId,
+          method: request.method,
+          requestId: request.id,
+          userId: service.getUser(),
+          sessionId: service.sessionId,
+          workspaceLoaded: workspace !== undefined,
+          source
+        })
         await ws.send(
           requestCtx,
           {
@@ -1761,6 +1816,19 @@ export class TSessionManager implements SessionManager {
       }
     } finally {
       service.requests.delete(reqId)
+      // Diagnostics: slow requests on the server side (compare with '[conn] slow request' on the client).
+      const durationMs = Date.now() - st
+      if (durationMs >= slowRequestLogMs && request.method !== 'ping') {
+        this.ctx.warn('slow request', {
+          workspaceId,
+          method: request.method,
+          requestId: request.id,
+          userId: service.getUser(),
+          sessionId: service.sessionId,
+          durationMs,
+          source
+        })
+      }
     }
   }
 
