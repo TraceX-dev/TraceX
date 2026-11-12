@@ -1653,7 +1653,12 @@ export class TSessionManager implements SessionManager {
       } catch (err: any) {
         Analytics.handleError(err)
         if (LOGGING_ENABLED) {
-          this.ctx.error('error handle request', { error: err, requestId: request.id, method: request.method })
+          this.ctx.error('error handle request', {
+            error: err,
+            requestId: request.id,
+            method: request.method,
+            paramsCount: Array.isArray(request.params) ? request.params.length : undefined
+          })
         }
         await ws.send(
           requestCtx,

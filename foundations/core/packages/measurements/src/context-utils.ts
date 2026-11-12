@@ -14,7 +14,7 @@
 //
 
 import { type MeasureLogger, type ParamsType } from './types'
-import { logReplacer } from './log-redaction'
+import { safeLogStringify } from './log-redaction'
 
 interface MetricAttributeKey {
   readonly params: ParamsType
@@ -44,8 +44,8 @@ export function getMetricAttributeKey (attributes: Readonly<ParamsType>): Metric
   return prepared
 }
 
-function stringifyLogValue (key: string, value: any): string {
-  return JSON.stringify(logReplacer(key, value), logReplacer)
+function stringifyLogValue (key: string, value: any): string | undefined {
+  return safeLogStringify(value, key)
 }
 
 export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => ({

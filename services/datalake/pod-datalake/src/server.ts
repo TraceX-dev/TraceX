@@ -17,7 +17,12 @@
 import { Analytics } from '@hcengineering/analytics'
 import { S3ServiceException } from '@aws-sdk/client-s3'
 import { getClient } from '@hcengineering/account-client'
-import { MeasureMetricsContext, createMeasureContextProxy, metricsAggregate } from '@hcengineering/core'
+import {
+  MeasureMetricsContext,
+  createMeasureContextProxy,
+  metricsAggregate,
+  safeHttpLogFormat
+} from '@hcengineering/core'
 import type { MeasureContext, Tx } from '@hcengineering/core'
 import { PlatformQueue, QueueTopic, getCPUInfo, getMemoryInfo } from '@hcengineering/server-core'
 import { decodeToken, TokenError } from '@hcengineering/server-token'
@@ -191,7 +196,7 @@ export async function createServer (
       handleRequest(ctx, name, datalake, tempDir, fn, req, res, next)
     }
 
-  app.use(morgan('short', { stream: new LogStream() }))
+  app.use(morgan(safeHttpLogFormat, { stream: new LogStream() }))
 
   if (config.Readonly) {
     app.use(withReadonly)

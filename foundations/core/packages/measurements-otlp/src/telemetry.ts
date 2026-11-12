@@ -27,6 +27,7 @@ import {
   type Metrics,
   type ParamsType,
   reportTelemetryFailure,
+  sanitizeLogFields,
   type WithOptions
 } from '@hcengineering/measurements'
 import {
@@ -241,7 +242,7 @@ export class OpenTelemetryMetricsContext extends BaseMeasureContext {
       severityText: level,
       context: this.context,
       body: message,
-      attributes: { 'service.name': sdkServiceName, ...args }
+      attributes: { 'service.name': sdkServiceName, ...sanitizeLogFields(args) }
     })
   }
 }
@@ -417,7 +418,7 @@ export function reportOTELError (error: Error, attributes?: Record<string, any>)
       body: error.message,
       context: context.active(),
       attributes: {
-        ...attributes,
+        ...sanitizeLogFields(attributes),
         'service.name': sdkServiceName,
         'service.version': sdkServiceVersion,
         'error.stack': error.stack
@@ -441,7 +442,7 @@ export function reportOTEL (
       timestamp: time,
       context: context.active(),
       attributes: {
-        ...attributes,
+        ...sanitizeLogFields(attributes),
         'service.name': sdkServiceName,
         'service.version': sdkServiceVersion
       }

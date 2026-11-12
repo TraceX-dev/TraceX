@@ -20,4 +20,11 @@ export type * from './types'
 
 export * from './base-measure-context'
 export { platformNow, platformNowDiff, reportTelemetryFailure } from './context-utils'
-export { logReplacer, redactUrl, safeHttpLogFormat, sanitizeForLog } from './log-redaction'
+export {
+  logReplacer,
+  redactUrl,
+  safeHttpLogFormat,
+  safeLogStringify,
+  sanitizeForLog,
+  sanitizeLogFields
+} from './log-redaction'
