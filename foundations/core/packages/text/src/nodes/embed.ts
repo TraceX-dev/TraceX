@@ -19,6 +19,15 @@ import { Node } from '@tiptap/core'
 export const EmbedNode = Node.create({
   name: 'embed',
 
+  addSchemaAwareness () {
+    return {
+      label: 'Embedded content',
+      description:
+        'Block embedding content from an existing source URL. Preserve the source unless explicitly replacing the embed.',
+      attributes: { src: { description: 'Source URL.' } }
+    }
+  },
+
   addOptions () {
     return {}
   },
@@ -31,7 +40,8 @@ export const EmbedNode = Node.create({
   addAttributes () {
     return {
       src: {
-        default: null
+        default: null,
+        validate: 'string|null'
       }
     }
   },

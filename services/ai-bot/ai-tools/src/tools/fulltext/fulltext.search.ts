@@ -17,6 +17,7 @@
 import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
 import core, { type Class, type Doc, type DocumentQuery, type Ref, type Space } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 import { buildClassSummary, ClassSummarySchema, SpaceSummarySchema } from '../shared'
 import { fulltextSearchToolId } from './tool-ids'
 
@@ -59,6 +60,7 @@ export const FulltextSearchOutputSchema = Type.Object(
     results: Type.Array(
       Type.Object(
         {
+          collaborativeFields: CollaborativeFieldsSchema,
           id: Type.String({
             description: 'Stable object identifier.'
           }),
@@ -134,7 +136,8 @@ export const fulltextSearchTool = createTool({
           return {
             id: searchResult.id,
             title: searchResult.title ?? searchResult.shortTitle ?? getTitle(doc) ?? searchResult.id,
-            class: await buildClassSummary(toolCtx.hierarchy, searchResult.doc._class),
+            class: await buildClassSummary(toolCtx.hierarchy, doc?._class ?? searchResult.doc._class),
+            collaborativeFields: doc === undefined ? [] : await getCollaborativeFields(toolCtx, doc),
             ...(space !== undefined ? { space: { id: space._id, name: space.name, description: undefined } } : {}),
             ...(searchResult.score !== undefined ? { score: searchResult.score } : {})
           }

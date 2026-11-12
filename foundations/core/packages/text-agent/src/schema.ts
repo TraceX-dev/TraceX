@@ -106,8 +106,9 @@ function attributeType (attr: AttributeSpec): Pick<AttributeSchema, 'type' | 'nu
   }
   if (typeof attr.validate === 'function') {
     const validate: typeof attr.validate & { values?: readonly string[], nullable?: boolean } = attr.validate
-    if (validate.values !== undefined)
-      {return { type: 'string', nullable: validate.nullable === true, enum: validate.values }}
+    if (validate.values !== undefined) {
+      return { type: 'string', nullable: validate.nullable === true, enum: validate.values }
+    }
   }
   return {
     type: attr.default == null ? 'unknown' : Array.isArray(attr.default) ? 'array' : typeof attr.default,

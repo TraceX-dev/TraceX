@@ -232,17 +232,27 @@ describe('plain schema awareness without an Editor', () => {
       }
     })
     const schema = new Awareness([StarterKit, Validated]).schema
-    expect(() => { schema.nodeFromJSON({ type: 'alert', attrs: { kind: 42 } }).check(); }).toThrow()
+    expect(() => {
+      schema.nodeFromJSON({ type: 'alert', attrs: { kind: 42 } }).check()
+    }).toThrow()
   })
 
   it('validates types inferred from defaults without modifying the ordinary editor schema', () => {
     const native = getSchema([StarterKit, Alert])
     const schema = new Awareness([StarterKit, Alert]).schema
     expect(native.nodes.alert.spec.attrs?.kind.validate).toBeUndefined()
-    expect(() => { native.nodeFromJSON({ type: 'alert', attrs: { kind: 42 } }).check(); }).not.toThrow()
-    expect(() => { schema.nodeFromJSON({ type: 'alert', attrs: { kind: 42 } }).check(); }).toThrow()
-    expect(() => { schema.nodeFromJSON({ type: 'alert', attrs: { kind: null } }).check(); }).toThrow()
-    expect(() => { schema.nodeFromJSON({ type: 'alert', attrs: { kind: 'info' } }).check(); }).not.toThrow()
+    expect(() => {
+      native.nodeFromJSON({ type: 'alert', attrs: { kind: 42 } }).check()
+    }).not.toThrow()
+    expect(() => {
+      schema.nodeFromJSON({ type: 'alert', attrs: { kind: 42 } }).check()
+    }).toThrow()
+    expect(() => {
+      schema.nodeFromJSON({ type: 'alert', attrs: { kind: null } }).check()
+    }).toThrow()
+    expect(() => {
+      schema.nodeFromJSON({ type: 'alert', attrs: { kind: 'info' } }).check()
+    }).not.toThrow()
   })
 
   it('validates examples against their owning type and the complete native schema', () => {

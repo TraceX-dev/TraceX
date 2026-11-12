@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 
+import type { CollaborativeDoc } from '@hcengineering/core'
+
 /** REST prefix shared by the collaborator service and its client. */
 export const AGENT_API_PATH = '/api/v1/agent'
 
@@ -66,6 +68,12 @@ export interface AgentMarkDefinition {
   excludes: string[]
 }
 
+/** Omitted filters return the full model; supplied filters select only the named definitions. */
+export interface GetAgentSchemaRequest {
+  nodes?: string[]
+  marks?: string[]
+}
+
 export interface GetAgentSchemaResponse {
   topNode: string
   nodes: Record<string, AgentNodeDefinition>
@@ -73,8 +81,8 @@ export interface GetAgentSchemaResponse {
 }
 
 export interface AgentDocumentRequest {
-  /** Existing workspaceId|objectClass|objectId|objectAttr name in the authenticated workspace. */
-  docName: string
+  /** One collaborative field; the client supplies its authenticated workspace. */
+  document: CollaborativeDoc
 }
 
 export interface AgentPageRequest extends AgentDocumentRequest {
@@ -84,7 +92,7 @@ export interface AgentPageRequest extends AgentDocumentRequest {
 
 export type GetAgentOutlineRequest = AgentPageRequest
 
-/** At least one of text/type is required by the wire schema. Both filters are combined with AND. */
+/** At least one of text/type is required by the server. Both filters are combined with AND. */
 export interface FindAgentNodesRequest extends AgentPageRequest {
   text?: string
   type?: string
@@ -104,7 +112,10 @@ export interface AgentNodePage {
   rows: AgentNodeSummary[]
 }
 
-export type GetAgentOutlineResponse = AgentNodePage
+export interface GetAgentOutlineResponse extends AgentNodePage {
+  /** Addressable node types present in the entire document, including nested nodes and other pages. */
+  typesPresent: string[]
+}
 export type FindAgentNodesResponse = AgentNodePage
 
 export interface ReadAgentNodeRequest extends AgentDocumentRequest {
@@ -140,9 +151,7 @@ export interface ApplyAgentOpsBody {
   ops: AgentOperation[]
 }
 
-export type AgentOperationResult =
-  | { opIndex: number, ref: string, hash: string }
-  | { opIndex: number, deleted: true }
+export type AgentOperationResult = { opIndex: number, ref: string, hash: string } | { opIndex: number, deleted: true }
 
 export type AgentOperationErrorCode =
   | 'STALE_REFERENCE'
@@ -156,23 +165,33 @@ export type AgentOperationErrorCode =
   | 'INVALID_OPERATION'
   | 'TOO_MANY_OPS'
 
+/** A common API error payload; unknown means the caller must read before another write. */
+export interface AgentError {
+  code: string
+  message: string
+  retryable: false
+  outcome: 'not_applied' | 'unknown'
+  opIndex?: number
+}
+
+export interface AgentOperationError extends AgentError {
+  code: AgentOperationErrorCode
+  outcome: 'not_applied'
+  opIndex: number
+}
+
 export type ApplyAgentOpsResponse =
-  | { ok: true, results: AgentOperationResult[] }
-  | { ok: false, opIndex: number, error: { code: AgentOperationErrorCode, message: string } }
+  { ok: true, results: AgentOperationResult[] } | { ok: false, error: AgentOperationError }
 
 /** Transport/service errors are separate from a known atomic batch rejection. */
 export interface AgentApiErrorResponse {
-  error: {
-    code: string
-    message: string
-    retryable?: boolean
-  }
+  error: AgentError
 }
 
 /** Typed agent REST API. Calls are single attempts, without automatic write retries. */
 export interface CollaboratorAgentClient {
   /** Read the shared editor configuration without loading document content. */
-  getAgentSchema: () => Promise<GetAgentSchemaResponse>
+  getAgentSchema: (request?: GetAgentSchemaRequest) => Promise<GetAgentSchemaResponse>
   /** Page through direct children of the document root. */
   getAgentOutline: (request: GetAgentOutlineRequest) => Promise<GetAgentOutlineResponse>
   /** Find non-text nodes at any depth using text/type filters. */

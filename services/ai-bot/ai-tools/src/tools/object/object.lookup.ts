@@ -24,6 +24,7 @@ import core, {
   type SortingQuery
 } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 
 import {
   buildClassSummary,
@@ -97,6 +98,7 @@ export const ObjectLookupOutputSchema = Type.Object(
     results: Type.Array(
       Type.Object(
         {
+          collaborativeFields: CollaborativeFieldsSchema,
           id: Type.String({
             description: 'Stable object identifier.'
           }),
@@ -159,6 +161,7 @@ export const objectLookupTool = createTool({
           return {
             id: doc._id,
             title: await getDocumentTitle(toolCtx, doc),
+            collaborativeFields: await getCollaborativeFields(toolCtx, doc),
             class: classSummary,
             space: buildSpaceSummary(doc.space, space)
           }

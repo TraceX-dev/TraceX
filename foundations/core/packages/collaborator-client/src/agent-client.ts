@@ -13,10 +13,12 @@
 // limitations under the License.
 //
 
-import { concatLink } from '@hcengineering/core'
+import { concatLink, type CollaborativeDoc } from '@hcengineering/core'
+import { encodeDocumentId } from './utils'
 import { AGENT_API_PATH } from './agent'
 import type {
   AgentApiErrorResponse,
+  AgentError,
   ApplyAgentOpsBody,
   ApplyAgentOpsRequest,
   ApplyAgentOpsResponse,
@@ -25,6 +27,7 @@ import type {
   FindAgentNodesResponse,
   GetAgentOutlineRequest,
   GetAgentOutlineResponse,
+  GetAgentSchemaRequest,
   GetAgentSchemaResponse,
   ReadAgentNodeRequest,
   ReadAgentNodeResponse
@@ -34,9 +37,19 @@ import type {
 export class CollaboratorAgentError extends Error {
   readonly retryable = false
 
-  constructor (readonly code: string, message: string, readonly status?: number) {
+  constructor (
+    readonly code: string,
+    message: string,
+    readonly status?: number,
+    readonly outcome: AgentError['outcome'] = 'not_applied'
+  ) {
     super(message)
     this.name = 'CollaboratorAgentError'
+  }
+
+  /** Serialize the same error fields as a rejected atomic batch. */
+  toJSON (): AgentError {
+    return { code: this.code, message: this.message, retryable: false, outcome: this.outcome }
   }
 }
 
@@ -44,9 +57,14 @@ function isApiError (value: unknown): value is AgentApiErrorResponse {
   if (value === null || typeof value !== 'object' || !('error' in value)) return false
   const error = value.error
   return (
-    error !== null && typeof error === 'object' &&
-    'code' in error && typeof error.code === 'string' &&
-    'message' in error && typeof error.message === 'string'
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    'outcome' in error &&
+    (error.outcome === 'not_applied' || error.outcome === 'unknown')
   )
 }
 
@@ -58,18 +76,18 @@ export class AgentClient implements CollaboratorAgentClient {
     private readonly agentUrl: string
   ) {}
 
-  private documentPath (docName: string): string {
-    const parts = docName.split('|')
-    if (parts.length !== 4 || parts.some((part) => part.length === 0)) {
-      throw new CollaboratorAgentError('invalid_document', 'Expected workspaceId|objectClass|objectId|objectAttr.', 400)
+  private documentPath (document: CollaborativeDoc): string {
+    if (
+      [document.objectClass, document.objectId, document.objectAttr].some(
+        (part) => part.length === 0 || part.includes('|')
+      )
+    ) {
+      throw new CollaboratorAgentError('invalid_document', 'Expected a collaborative object and field.', 400)
     }
-    if (parts[0] !== this.agentWorkspace) {
-      throw new CollaboratorAgentError('forbidden', 'The document belongs to a different workspace.', 403)
-    }
-    return `${AGENT_API_PATH}/${encodeURIComponent(docName)}`
+    return `${AGENT_API_PATH}/${encodeURIComponent(encodeDocumentId(this.agentWorkspace, document))}`
   }
 
-  private async request<T> (method: 'GET' | 'POST', path: string, body?: ApplyAgentOpsBody): Promise<T> {
+  private async request<T>(method: 'GET' | 'POST', path: string, body?: ApplyAgentOpsBody): Promise<T> {
     let response: Response
     try {
       response = await fetch(concatLink(this.agentUrl, path), {
@@ -86,7 +104,9 @@ export class AgentClient implements CollaboratorAgentClient {
         'collaborator_unavailable',
         method === 'POST'
           ? 'Collaborator request failed; the write outcome may be unknown. Read the document before another write.'
-          : 'Collaborator request failed.'
+          : 'Collaborator request failed.',
+        undefined,
+        method === 'POST' ? 'unknown' : 'not_applied'
       )
     }
     let data: unknown
@@ -98,47 +118,54 @@ export class AgentClient implements CollaboratorAgentClient {
         method === 'POST'
           ? 'Invalid collaborator response; the write outcome may be unknown. Read the document before another write.'
           : 'Invalid collaborator response.',
-        response.status
+        response.status,
+        method === 'POST' ? 'unknown' : 'not_applied'
       )
     }
     if (!response.ok) {
-      if (isApiError(data)) throw new CollaboratorAgentError(data.error.code, data.error.message, response.status)
+      if (isApiError(data)) {
+        throw new CollaboratorAgentError(data.error.code, data.error.message, response.status, data.error.outcome)
+      }
       throw new CollaboratorAgentError(
-        'collaborator_http_error', `Collaborator returned HTTP ${response.status}.`, response.status
+        'collaborator_http_error',
+        `Collaborator returned HTTP ${response.status}.`,
+        response.status,
+        method === 'POST' ? 'unknown' : 'not_applied'
       )
     }
     return data as T
   }
 
-  private query (values: Record<string, string | number | undefined>): string {
+  private query (values: Record<string, string | number | string[] | undefined>): string {
     const query = new URLSearchParams()
     for (const [name, value] of Object.entries(values)) {
-      if (value !== undefined) query.set(name, String(value))
+      if (value !== undefined) query.set(name, Array.isArray(value) ? JSON.stringify(value) : String(value))
     }
     const encoded = query.toString()
     return encoded === '' ? '' : `?${encoded}`
   }
 
-  async getAgentSchema (): Promise<GetAgentSchemaResponse> {
-    return await this.request('GET', `${AGENT_API_PATH}/schema`)
+  async getAgentSchema (request: GetAgentSchemaRequest = {}): Promise<GetAgentSchemaResponse> {
+    const query = this.query({ nodes: request.nodes, marks: request.marks })
+    return await this.request('GET', `${AGENT_API_PATH}/schema${query}`)
   }
 
   async getAgentOutline (request: GetAgentOutlineRequest): Promise<GetAgentOutlineResponse> {
     const query = this.query({ from: request.from, limit: request.limit })
-    return await this.request('GET', `${this.documentPath(request.docName)}/outline${query}`)
+    return await this.request('GET', `${this.documentPath(request.document)}/outline${query}`)
   }
 
   async findAgentNodes (request: FindAgentNodesRequest): Promise<FindAgentNodesResponse> {
     const query = this.query({ text: request.text, type: request.type, from: request.from, limit: request.limit })
-    return await this.request('GET', `${this.documentPath(request.docName)}/find${query}`)
+    return await this.request('GET', `${this.documentPath(request.document)}/find${query}`)
   }
 
   async readAgentNode (request: ReadAgentNodeRequest): Promise<ReadAgentNodeResponse> {
-    return await this.request('GET', `${this.documentPath(request.docName)}/nodes/${encodeURIComponent(request.ref)}`)
+    return await this.request('GET', `${this.documentPath(request.document)}/nodes/${encodeURIComponent(request.ref)}`)
   }
 
   async applyAgentOps (request: ApplyAgentOpsRequest): Promise<ApplyAgentOpsResponse> {
     const body: ApplyAgentOpsBody = { ops: request.ops }
-    return await this.request('POST', `${this.documentPath(request.docName)}/ops`, body)
+    return await this.request('POST', `${this.documentPath(request.document)}/ops`, body)
   }
 }

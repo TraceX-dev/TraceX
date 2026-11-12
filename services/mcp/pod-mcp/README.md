@@ -64,6 +64,12 @@ The server returns JSON text for all tool results and also fills MCP `structured
 
 ## Tools
 
+### Collaborative editing
+
+`collab.schema`, `collab.outline`, `collab.find`, `collab.read`, and `collab.apply` read and edit live collaborative fields. Obtain an opaque `docName` from `collaborativeFields` in card or object search/read results; workspace is supplied separately. Fields on the object's actual class and its ancestors are supported, including ordinary document and card content. Tag mixin fields are excluded.
+
+See the [end-to-end workflow](../../ai-bot/ai-tools/src/tools/collab/README.md) for schema filters, targeted edits, deletion hashes, and verification in the open editor.
+
 ### Cards
 
 Card tools use the `card.` namespace:

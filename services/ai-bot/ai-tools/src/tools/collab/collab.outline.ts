@@ -14,9 +14,10 @@
 // limitations under the License.
 //
 
-import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
+import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
 import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
 import { Type, type Static } from 'typebox'
+import { decodeAgentDocument } from '../shared/collaborative-document'
 import { collabOutlineToolId } from './tool-ids'
 import { DocNameSchema, NodePageSchema, PageFromSchema, PageLimitSchema } from './schema'
 
@@ -29,7 +30,16 @@ export const CollabOutlineInputSchema = Type.Object(
   { additionalProperties: false, description: 'Read a page of direct children of the document root.' }
 )
 
-export const CollabOutlineOutputSchema = NodePageSchema
+export const CollabOutlineOutputSchema = Type.Object(
+  {
+    ...NodePageSchema.properties,
+    typesPresent: Type.Array(Type.String(), {
+      description:
+        'Distinct addressable node types in the entire document, including nested nodes and other pages. Use with collab.find.type.'
+    })
+  },
+  { additionalProperties: false, description: 'Top-level node page and node types present throughout the document.' }
+)
 
 type CollabOutlineInput = Static<typeof CollabOutlineInputSchema>
 
@@ -37,7 +47,7 @@ export const collabOutlineTool = createTool({
   name: collabOutlineToolId,
   description:
     'List top-level nodes of an existing collaborative document in document order, with handles, ' +
-    'previews, subtree hashes and immediate child counts. Use this to navigate before reading or ' +
+    'previews, subtree hashes and immediate child counts. typesPresent lists node types throughout the document. Use this to navigate before reading or ' +
     'editing. Paginate with from/limit; previews are abbreviated. Use collab.read for a subtree and ' +
     'collab.find to locate nested nodes. Reading does not change document content.',
   inputSchema: CollabOutlineInputSchema,
@@ -49,10 +59,11 @@ export const collabOutlineTool = createTool({
   },
   execute: async (args: CollabOutlineInput, toolCtx: PlatformContext) => {
     try {
-      return toolOk(await toolCtx.collaborator.getAgentOutline(args))
+      const { docName, ...request } = args
+      return toolOk(await toolCtx.collaborator.getAgentOutline({ ...request, document: decodeAgentDocument(docName) }))
     } catch (error: unknown) {
       if (error instanceof CollaboratorAgentError) {
-        return toolFail(error.message, error.code, { retryable: error.retryable })
+        return { ok: false, error: error.toJSON() }
       }
       throw error
     }

@@ -13,6 +13,7 @@
 // limitations under the License.
 //
 
+import { type MeasureContext } from '@hcengineering/core'
 import { fromJsonSchema, type McpServer } from '@modelcontextprotocol/server'
 
 import type { TraceXAuthInfo } from '../../auth'
@@ -23,7 +24,8 @@ import type { WorkspaceManager } from '../../workspace'
 export function registerMeWorkspacesTool (
   server: McpServer,
   workspaceManager: WorkspaceManager,
-  auth: TraceXAuthInfo
+  auth: TraceXAuthInfo,
+  ctx: MeasureContext
 ): void {
   server.registerTool(
     'my.workspaces',
@@ -39,9 +41,11 @@ export function registerMeWorkspacesTool (
     },
     async () => {
       try {
-        return jsonStructuredText({
-          installation: String(auth.resource),
-          workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken, auth.extra.workspaceId)
+        return await ctx.with('mcp-tool', { tool: 'my.workspaces' }, async () => {
+          return jsonStructuredText({
+            installation: String(auth.resource),
+            workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken, auth.extra.workspaceId)
+          })
         })
       } catch {
         return jsonText(

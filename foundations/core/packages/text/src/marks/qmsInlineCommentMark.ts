@@ -32,6 +32,20 @@ export const QMSInlineCommentMark = Mark.create<QMSInlineCommentMarkOptions>({
   inclusive: false,
   excludes: '',
 
+  addSchemaAwareness () {
+    return {
+      label: 'QMS comment anchor',
+      description:
+        'Anchor of an existing QMS comment. Preserve node-uuid and overlapping anchors; the value identifies a comment, not the editable node or an MCP handle.',
+      attributes: {
+        [qmsInlineCommentMarkName]: {
+          access: 'readonly',
+          description: 'Existing QMS comment identity. Do not invent or reassign it.'
+        }
+      }
+    }
+  },
+
   addOptions () {
     return { HTMLAttributes: {} }
   },
@@ -40,6 +54,7 @@ export const QMSInlineCommentMark = Mark.create<QMSInlineCommentMarkOptions>({
     return {
       [qmsInlineCommentMarkName]: {
         default: null,
+        validate: 'string|null',
         parseHTML: (element) => element.getAttribute(qmsInlineCommentMarkName)
       }
     }

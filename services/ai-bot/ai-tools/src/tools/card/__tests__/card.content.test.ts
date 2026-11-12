@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,6 +14,7 @@ import core from '@hcengineering/core'
 import { cardCreateTool } from '../card.create'
 import { cardGetTool } from '../card.get'
 import { cardUpdateTool } from '../card.update'
+import { decodeAgentDocument } from '../../shared/collaborative-document'
 import { attributesForOwner } from '../utils'
 
 jest.mock('@hcengineering/platform', () => ({
@@ -47,6 +49,12 @@ describe('card collaborative content tools', () => {
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.output.content).toBe('<p>Card content</p>')
+      expect(result.output.collaborativeFields.map((field) => field.key)).toEqual(['content', 'collab'])
+      expect(decodeAgentDocument(result.output.collaborativeFields[0].docName)).toEqual({
+        objectClass: doc._class,
+        objectId: doc._id,
+        objectAttr: 'content'
+      })
       expect(result.output.attributes).toEqual([{ key: 'plain', label: 'Plain', value: 'plain-value' }])
       expect((result.output.tags[0] as any).attributes).toEqual([
         { key: 'tagPlain', label: 'Tag plain', value: 'tag-value' }
@@ -232,7 +240,7 @@ function createContext ({ doc = createCard() }: { doc?: Card } = {}): TestContex
     getClass: jest.fn((id: string) => ({ _id: id, label: id === tagId ? 'Tag' : 'Master tag' })),
     getOwnAttributes: jest.fn(() => tagAttributes),
     hasMixin: jest.fn((_doc, mixin) => mixin === tagId),
-    isDerived: jest.fn(() => false),
+    isDerived: jest.fn((value, base) => value === base),
     isMixin: jest.fn((id) => id === tagId)
   }
 

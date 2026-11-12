@@ -27,3 +27,4 @@ export type {
   AddSchemaAwareness
 } from './schema'
 export { Awareness, getEditorContext } from './schema'
+export * from './operations'

@@ -315,6 +315,7 @@ services:
       - OPENAUTH_INTERNAL_URL=http://openauth:3001
       - OPENAUTH_MCP_RESOURCE_URL=http://tracex.local:4020/mcp
       - OPENAUTH_ALLOW_HTTP=true
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
   front:
     image: tracexapp/front

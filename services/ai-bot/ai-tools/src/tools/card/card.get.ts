@@ -18,6 +18,7 @@ import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineeri
 import card, { type Card, type CardSpace, type Tag } from '@hcengineering/card'
 import { type Ref, type TxOperations } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 import { cardCreateToolId, cardGetToolId, cardSearchToolId } from './tool-ids'
 import { attributesForOwner } from './utils'
 import {
@@ -67,6 +68,7 @@ const GetCardOutputTagSchema = Type.Union(
 
 const GetCardOutputSchema = Type.Object(
   {
+    collaborativeFields: CollaborativeFieldsSchema,
     id: Type.String({
       description: 'Stable card identifier.'
     }),
@@ -163,6 +165,7 @@ export const cardGetTool = createTool({
       masterTag: await buildClassSummary(hierarchy, doc._class),
       title: doc.title,
       content: await readCardContentHtml(toolCtx, doc),
+      collaborativeFields: await getCollaborativeFields(toolCtx, doc),
       space: buildSpaceSummary(doc.space, space),
       parent: doc.parent,
       readonly: doc.readonly,

@@ -137,7 +137,7 @@ export function createMcpServer (
     }
   )
 
-  registerMeWorkspacesTool(server, workspaceManager, auth)
+  registerMeWorkspacesTool(server, workspaceManager, auth, ctx)
 
   for (const tool of tools) {
     const inputSchema = {
@@ -162,29 +162,40 @@ export function createMcpServer (
       },
       async (args) => {
         const { workspace, ...input } = args
-        if (typeof workspace !== 'string' || workspace === '') {
-          return jsonText(
-            { error: { code: 'workspace_required', message: 'Choose an explicit workspace ID from my.workspaces.' } },
-            true
-          )
-        }
         try {
-          const connection = await workspaceManager.getConnection(
-            auth.extra.accountToken,
-            workspace,
-            auth.extra.workspaceId
+          return await ctx.with(
+            'mcp-tool',
+            { tool: tool.name, workspace: typeof workspace === 'string' ? workspace : undefined },
+            async (ctx) => {
+              if (typeof workspace !== 'string' || workspace === '') {
+                return jsonText(
+                  {
+                    error: {
+                      code: 'workspace_required',
+                      message: 'Choose an explicit workspace ID from my.workspaces.'
+                    }
+                  },
+                  true
+                )
+              }
+              const connection = await workspaceManager.getConnection(
+                auth.extra.accountToken,
+                workspace,
+                auth.extra.workspaceId
+              )
+              const result = toToolResult(tool, await tool.execute(input, createToolContext(ctx, connection)))
+              return {
+                ...result,
+                content: [
+                  {
+                    type: 'text' as const,
+                    text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})\nInstallation: ${String(auth.resource)}`
+                  },
+                  ...result.content
+                ]
+              }
+            }
           )
-          const result = toToolResult(tool, await tool.execute(input, createToolContext(ctx, connection)))
-          return {
-            ...result,
-            content: [
-              {
-                type: 'text' as const,
-                text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})\nInstallation: ${String(auth.resource)}`
-              },
-              ...result.content
-            ]
-          }
         } catch {
           return jsonText(
             {
@@ -221,11 +232,17 @@ function createToolContext (ctx: MeasureContext, connection: WorkspaceConnection
 }
 
 export function toToolResult (tool: ToolDefinition, result: ToolExecutionResult): CallToolResult {
-  return result.ok
-    ? tool.outputSchema !== undefined
-      ? jsonStructuredText(result.output)
-      : jsonText(result.output)
-    : jsonText({ error: result.error }, true)
+  if (!result.ok) {
+    const error = tool.name.startsWith('collab.')
+      ? {
+          outcome: result.error.code === 'input_format_error' ? 'not_applied' : 'unknown',
+          ...result.error,
+          retryable: false
+        }
+      : result.error
+    return jsonText({ error }, true)
+  }
+  return tool.outputSchema !== undefined ? jsonStructuredText(result.output) : jsonText(result.output)
 }
 
 function getTraceXAuthInfo (authInfo: AuthInfo | undefined): TraceXAuthInfo {

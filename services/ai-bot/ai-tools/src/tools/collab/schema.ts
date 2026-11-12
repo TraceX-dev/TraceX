@@ -1,5 +1,4 @@
 //
-// Copyright © 2026 TraceX.
 // Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -15,28 +14,20 @@
 //
 
 import { Type } from 'typebox'
-import { collabFindToolId, collabOutlineToolId, collabReadToolId, collabSchemaToolId } from './tool-ids'
+
+export { DocNameSchema } from '../shared/collaborative-document'
 
 const HANDLE_PATTERN = '[0-9a-z]+\\.[0-9a-z]+'
-
-export const DocNameSchema = Type.String({
-  minLength: 1,
-  pattern: '^[^|]+\\|[^|]+\\|[^|]+\\|[^|]+$',
-  description:
-    'Existing collaborator document name: workspaceId|objectClass|objectId|objectAttr. The workspace ' +
-    'must be the authenticated workspace. This identifies one collaborative field, not a blob or a ' +
-    'node.'
-})
 
 export const NodeRefSchema = Type.String({
   pattern: `^${HANDLE_PATTERN}$`,
   description:
     'Opaque node handle returned by ' +
-    collabOutlineToolId +
+    'collab.outline' +
     ', ' +
-    collabFindToolId +
+    'collab.find' +
     ' or ' +
-    collabReadToolId +
+    'collab.read' +
     '. Use it only with the same docName. Do not construct handles, use paths as addresses, or reuse ' +
     'a deleted node handle. Text nodes have no handles.'
 })
@@ -51,7 +42,7 @@ export const HashSchema = Type.String({
 
 export const MarkJsonSchema = Type.Object(
   {
-    type: Type.String({ minLength: 1, description: `Technical mark type name from ${collabSchemaToolId}.` }),
+    type: Type.String({ minLength: 1, description: `Technical mark type name from ${'collab.schema'}.` }),
     attrs: Type.Optional(
       Type.Record(Type.String(), Type.Unknown(), {
         description: 'Native mark attributes. Values must satisfy the editor schema and access rules.'
@@ -67,7 +58,7 @@ export const NodeJsonSchema = Type.Cyclic(
       {
         type: Type.String({
           minLength: 1,
-          description: `Technical node type name from ${collabSchemaToolId}, or "text" for a text child.`
+          description: `Technical node type name from ${'collab.schema'}, or "text" for a text child.`
         }),
         attrs: Type.Optional(
           Type.Record(Type.String(), Type.Unknown(), {
@@ -101,7 +92,7 @@ export const NodeJsonSchema = Type.Cyclic(
   {
     description:
       'Recursive ProseMirror node JSON. Use examples from ' +
-      collabSchemaToolId +
+      'collab.schema' +
       '. Attributes, marks and content are validated by the editor schema.'
   }
 )
@@ -141,7 +132,8 @@ export const NodeSummarySchema = Type.Object(
     type: Type.String({ minLength: 1, description: 'Technical node type name.' }),
     preview: Type.String({
       description:
-        'Short plain-text preview for locating content. It may omit content; use collab.read before ' + 'editing.'
+        'Short plain-text preview for locating content. It may omit content; use collab.read when context is needed before ' +
+        'editing.'
     }),
     hash: HashSchema,
     childCount: Type.Integer({
@@ -156,6 +148,7 @@ export const NodeSummarySchema = Type.Object(
 export const PageFromSchema = Type.Optional(
   Type.Integer({
     minimum: 0,
+    maximum: Number.MAX_SAFE_INTEGER,
     default: 0,
     description:
       'Zero-based index of the first result in the current document snapshot. Pages can shift during ' +

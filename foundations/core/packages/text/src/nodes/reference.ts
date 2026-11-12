@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -39,13 +40,28 @@ export const ReferenceNode = Node.create<ReferenceOptions>({
   inline: true,
   selectable: true,
 
+  addSchemaAwareness () {
+    return {
+      label: 'Document reference',
+      description:
+        'Inline reference to an existing platform document. Preserve its target ID and class; editing content does not create referenced documents.',
+      attributes: {
+        id: { access: 'readonly', description: 'Existing target document ID. Do not invent or reassign it.' },
+        objectclass: { access: 'readonly', description: 'Class of the referenced document.' },
+        label: { description: 'Displayed reference label.' },
+        fixed: { description: 'Whether the reference label is fixed.' }
+      }
+    }
+  },
+
   addAttributes () {
     return {
-      id: getDataAttribute('id'),
-      objectclass: getDataAttribute('objectclass'),
-      label: getDataAttribute('label'),
+      id: getDataAttribute('id', { validate: 'string|null' }),
+      objectclass: getDataAttribute('objectclass', { validate: 'string|null' }),
+      label: getDataAttribute('label', { validate: 'string|null' }),
       fixed: {
         default: null,
+        validate: 'boolean|null',
         parseHTML: (element) => element.getAttribute('data-fixed') === 'true',
         renderHTML: (attributes) => {
           if (attributes.fixed !== true) {

@@ -14,11 +14,12 @@
 // limitations under the License.
 //
 
-import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
+import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
 import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
 import { Type, type Static } from 'typebox'
+import { decodeAgentDocument } from '../shared/collaborative-document'
 import { collabReadToolId } from './tool-ids'
-import { DocNameSchema, HashSchema, NodeJsonSchema, NodeRefSchema, NodeSummarySchema } from './schema'
+import { DocNameSchema, NodeRefSchema, HashSchema, NodeJsonSchema, NodeSummarySchema } from './schema'
 
 export const CollabReadInputSchema = Type.Object(
   {
@@ -65,10 +66,11 @@ export const collabReadTool = createTool({
   },
   execute: async (args: CollabReadInput, toolCtx: PlatformContext) => {
     try {
-      return toolOk(await toolCtx.collaborator.readAgentNode(args))
+      const { docName, ...request } = args
+      return toolOk(await toolCtx.collaborator.readAgentNode({ ...request, document: decodeAgentDocument(docName) }))
     } catch (error: unknown) {
       if (error instanceof CollaboratorAgentError) {
-        return toolFail(error.message, error.code, { retryable: error.retryable })
+        return { ok: false, error: error.toJSON() }
       }
       throw error
     }

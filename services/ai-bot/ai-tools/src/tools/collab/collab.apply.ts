@@ -14,11 +14,12 @@
 // limitations under the License.
 //
 
-import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
+import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
 import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
 import { Type, type Static } from 'typebox'
+import { decodeAgentDocument } from '../shared/collaborative-document'
 import { collabApplyToolId } from './tool-ids'
-import { DocNameSchema, HashSchema, MarkJsonSchema, NodeJsonSchema, NodeRefSchema, PositionSchema } from './schema'
+import { DocNameSchema, NodeRefSchema, HashSchema, PositionSchema, NodeJsonSchema, MarkJsonSchema } from './schema'
 
 export const ExpectSchema = Type.Object(
   {
@@ -181,25 +182,6 @@ export const OpSchema = Type.Union(
   }
 )
 
-export const CollabApplyInputSchema = Type.Object(
-  {
-    docName: DocNameSchema,
-    ops: Type.Array(OpSchema, {
-      minItems: 1,
-      maxItems: 100,
-      description:
-        'Ordered atomic batch of 1 to 100 operations. All handles refer to nodes that existed before ' +
-        'this batch. Later operations follow surviving targets through earlier edits.'
-    })
-  },
-  {
-    additionalProperties: false,
-    description:
-      'Directly edit one existing collaborative document as the authenticated user, subject to ' +
-      'document and operation permissions.'
-  }
-)
-
 export const OperationResultSchema = Type.Union(
   [
     Type.Object(
@@ -262,49 +244,42 @@ export const OperationErrorCodeSchema = Type.Union(
   }
 )
 
-export const CollabApplyOutputSchema = Type.Union(
-  [
-    Type.Object(
-      {
-        ok: Type.Literal(true, { description: 'The entire batch committed.' }),
-        results: Type.Array(OperationResultSchema, {
-          description: 'One result per submitted operation, in order, returned after the complete batch commits.'
-        })
-      },
-      { additionalProperties: false, description: 'The entire batch committed successfully.' }
-    ),
-    Type.Object(
-      {
-        ok: Type.Literal(false, { description: 'The batch was rejected before commit; no operations were applied.' }),
-        opIndex: Type.Integer({
-          minimum: 0,
-          description: 'Zero-based index of the operation that failed preparation or validation.'
-        }),
-        error: Type.Object(
-          {
-            code: OperationErrorCodeSchema,
-            message: Type.String({ description: 'Explanation of the failure and the violated constraint.' })
-          },
-          {
-            additionalProperties: false,
-            description:
-              'The first operation failure. Correct the request or read fresh content before submitting a new ' +
-              'batch.'
-          }
-        )
-      },
-      {
-        additionalProperties: false,
-        description: 'The batch was rejected before commit; none of its operations were applied.'
-      }
-    )
-  ],
+export const ApplyAgentOpsSuccessSchema = Type.Object(
   {
+    ok: Type.Literal(true, { description: 'The entire batch committed.' }),
+    results: Type.Array(OperationResultSchema, {
+      description: 'One result per submitted operation, returned after the complete batch commits.'
+    })
+  },
+  {
+    additionalProperties: false,
     description:
-      'Known atomic batch outcome. A transport failure can leave the commit outcome uncertain and is ' +
-      'reported as a tool error, not as a known rejection.'
+      'Confirmed batch success. Failures use the common MCP error channel with code, message, ' +
+      'retryable=false and outcome. A known rejection has outcome=not_applied and error.opIndex; ' +
+      'outcome=unknown requires reading current content before deciding on another write.'
   }
 )
+
+export const AgentOpsSchema = Type.Array(OpSchema, {
+  minItems: 1,
+  maxItems: 100,
+  description: 'One atomic batch of 1 to 100 operations on existing handles.'
+})
+
+export const CollabApplyInputSchema = Type.Object(
+  {
+    docName: DocNameSchema,
+    ops: AgentOpsSchema
+  },
+  {
+    additionalProperties: false,
+    description:
+      'Directly edit one existing collaborative document as the authenticated user, subject to ' +
+      'document and operation permissions.'
+  }
+)
+
+export const CollabApplyOutputSchema = ApplyAgentOpsSuccessSchema
 
 type CollabApplyInput = Static<typeof CollabApplyInputSchema>
 
@@ -312,7 +287,9 @@ export const collabApplyTool = createTool({
   name: collabApplyToolId,
   description:
     'Apply 1 to 100 operations atomically to one existing collaborative document. Read the schema ' +
-    'and target content first. Supported operations: insert_node, update_attrs, replace_text, ' +
+    'before constructing node JSON or marks. Read target content when context is needed and always ' +
+    'before deletion. Explicit literal replacements and mark changes may use an unambiguous find ' +
+    'result directly. Supported operations: insert_node, update_attrs, replace_text, ' +
     'delete_node, add_mark, remove_mark. Use only handles returned for this docName; there are no ' +
     'aliases or move operation. Delete requires the complete subtree hash from a read. Readonly and ' +
     'hidden attributes are rejected on update and explicit insertion. Edits apply directly, without ' +
@@ -327,10 +304,12 @@ export const collabApplyTool = createTool({
   },
   execute: async (args: CollabApplyInput, toolCtx: PlatformContext) => {
     try {
-      return toolOk(await toolCtx.collaborator.applyAgentOps(args))
+      const { docName, ...request } = args
+      const result = await toolCtx.collaborator.applyAgentOps({ ...request, document: decodeAgentDocument(docName) })
+      return result.ok ? toolOk(result) : { ok: false, error: result.error }
     } catch (error: unknown) {
       if (error instanceof CollaboratorAgentError) {
-        return toolFail(error.message, error.code, { retryable: error.retryable })
+        return { ok: false, error: error.toJSON() }
       }
       throw error
     }

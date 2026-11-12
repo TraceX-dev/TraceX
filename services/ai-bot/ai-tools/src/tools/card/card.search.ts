@@ -18,6 +18,7 @@ import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core
 import card, { type Card, type CardSpace, type MasterTag, type Tag } from '@hcengineering/card'
 import core, { type Class, type Doc, type DocumentQuery, type Ref, SortingOrder, Space } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 import { SpaceSummarySchema, ClassSummarySchema, buildClassSummary, buildSpaceSummary } from '../shared'
 import { cardGetToolId, cardSearchToolId } from './tool-ids'
 
@@ -61,6 +62,7 @@ export const SearchCardsOutputSchema = Type.Object(
     cards: Type.Array(
       Type.Object(
         {
+          collaborativeFields: CollaborativeFieldsSchema,
           id: Type.String({
             description: 'Stable card identifier.'
           }),
@@ -161,6 +163,7 @@ async function buildSearchOutput (toolCtx: PlatformContext, docs: Card[]): Promi
     docs.map(async (doc) => ({
       id: doc._id,
       title: doc.title,
+      collaborativeFields: await getCollaborativeFields(toolCtx, doc),
       masterTag: await buildClassSummary(toolCtx.hierarchy, doc._class),
       space: buildSpaceSummary(doc.space, spaces.get(doc.space)),
       tags: await summarizeActiveTags(toolCtx, doc, tags)

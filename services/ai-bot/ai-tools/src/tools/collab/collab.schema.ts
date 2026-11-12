@@ -14,18 +14,36 @@
 // limitations under the License.
 //
 
-import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
+import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
 import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
+import { ServerKit } from '@hcengineering/text'
+import { Awareness, getAgentSchemaCatalog } from '@hcengineering/text-agent'
 import { Type, type Static } from 'typebox'
 import { collabSchemaToolId } from './tool-ids'
 import { MarkDefinitionSchema, NodeDefinitionSchema } from './schema'
 
 export const CollabSchemaInputSchema = Type.Object(
-  {},
+  {
+    nodes: Type.Optional(
+      Type.Array(Type.String({ minLength: 1, description: 'Technical node type name.' }), {
+        description:
+          'Node definitions to return. When any filter is supplied, an omitted or empty nodes filter ' +
+          'selects no nodes. Dependencies are not expanded. Unknown names are rejected.'
+      })
+    ),
+    marks: Type.Optional(
+      Type.Array(Type.String({ minLength: 1, description: 'Technical mark type name.' }), {
+        description:
+          'Mark definitions to return. When any filter is supplied, an omitted or empty marks filter ' +
+          'selects no marks. Dependencies are not expanded. Unknown names are rejected.'
+      })
+    )
+  },
   {
     additionalProperties: false,
     description:
-      'Read the shared editor schema used by the collaborative-document tools. No document content is ' + 'read.'
+      'Read the shared editor schema without reading document content. Omit filters for the full ' +
+      'model; supplied filters select only named definitions, without expanding dependencies.'
   }
 )
 
@@ -33,10 +51,10 @@ export const CollabSchemaOutputSchema = Type.Object(
   {
     topNode: Type.String({ description: 'Technical name of the native document root type.' }),
     nodes: Type.Record(Type.String(), NodeDefinitionSchema, {
-      description: 'All configured node types, including the root and text types, keyed by technical name.'
+      description: 'Selected node definitions keyed by technical name; the complete set when no filters are supplied.'
     }),
     marks: Type.Record(Type.String(), MarkDefinitionSchema, {
-      description: 'All configured mark types, keyed by technical name.'
+      description: 'Selected mark definitions keyed by technical name; the complete set when no filters are supplied.'
     })
   },
   {
@@ -51,9 +69,11 @@ export const collabSchemaTool = createTool({
   name: collabSchemaToolId,
   description:
     'Describe the shared collaborative editor schema: node and mark types, native attribute ' +
-    'constraints, access rules, allowed content and custom-node examples. Call before constructing ' +
-    'node JSON or changing attributes or marks. Use technical type names; labels are for display. ' +
-    'This describes the model, not document content or authorization.',
+    'constraints, access rules, allowed content and JSON examples. Use the catalog below to discover ' +
+    'technical type names without an extra call. This describes the model, not document content or authorization.\n' +
+    getAgentSchemaCatalog(new Awareness([ServerKit])) +
+    '\n' +
+    'Details and JSON examples: collab.schema({nodes:[...], marks:[...]}). Request only the types you need.',
   inputSchema: CollabSchemaInputSchema,
   outputSchema: CollabSchemaOutputSchema,
   annotations: {
@@ -61,12 +81,12 @@ export const collabSchemaTool = createTool({
     destructiveHint: false,
     idempotentHint: true
   },
-  execute: async (_args: CollabSchemaInput, toolCtx: PlatformContext) => {
+  execute: async (args: CollabSchemaInput, toolCtx: PlatformContext) => {
     try {
-      return toolOk(await toolCtx.collaborator.getAgentSchema())
+      return toolOk(await toolCtx.collaborator.getAgentSchema(args))
     } catch (error: unknown) {
       if (error instanceof CollaboratorAgentError) {
-        return toolFail(error.message, error.code, { retryable: error.retryable })
+        return { ok: false, error: error.toJSON() }
       }
       throw error
     }
