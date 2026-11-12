@@ -17,10 +17,32 @@ import type { MeasureContext } from '@hcengineering/core'
 import { get, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { McpConfig } from '../config'
-import { createServer } from '../server'
+import { createServer, toToolResult } from '../server'
 import type { WorkspaceManager } from '../workspace'
 
 jest.mock('@hcengineering/ai-tools', () => ({ tools: [] }))
+
+describe('MCP tool naming', () => {
+  it.each([
+    ['input_format_error', 'not_applied'],
+    ['STALE_REFERENCE', 'unknown']
+  ])('preserves collaborative error metadata for %s', (code, outcome) => {
+    const tool: Partial<Parameters<typeof toToolResult>[0]> = { name: 'collab_apply' }
+    const result: Parameters<typeof toToolResult>[1] = {
+      ok: false,
+      error: { code, message: 'Cannot apply changes' }
+    }
+    const output = toToolResult(tool as Parameters<typeof toToolResult>[0], result)
+
+    expect(output.isError).toBe(true)
+    expect(output.content).toEqual([
+      {
+        type: 'text',
+        text: JSON.stringify({ error: { outcome, code, message: 'Cannot apply changes', retryable: false } }, null, 2)
+      }
+    ])
+  })
+})
 
 describe.each(['/mcp', '/services/mcp'])('MCP HTTP routing at %s', (path) => {
   const config: McpConfig = {

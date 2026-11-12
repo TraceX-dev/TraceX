@@ -53,7 +53,7 @@ export const collabReadTool = createTool({
   name: collabReadToolId,
   description:
     'Read the complete ProseMirror JSON subtree of one node by a handle obtained from ' +
-    'collab.outline, collab.find or an earlier read. Returns its subtree hash and handles for direct ' +
+    'collab_outline, collab_find or an earlier read. Returns its subtree hash and handles for direct ' +
     'non-text children. Preserve existing embedded objects and protected marks when planning edits. ' +
     'Use the returned hash as the required deletion precondition. Reading does not assign IDs or ' +
     'change document content.',

@@ -23,11 +23,11 @@ export const NodeRefSchema = Type.String({
   pattern: `^${HANDLE_PATTERN}$`,
   description:
     'Opaque node handle returned by ' +
-    'collab.outline' +
+    'collab_outline' +
     ', ' +
-    'collab.find' +
+    'collab_find' +
     ' or ' +
-    'collab.read' +
+    'collab_read' +
     '. Use it only with the same docName. Do not construct handles, use paths as addresses, or reuse ' +
     'a deleted node handle. Text nodes have no handles.'
 })
@@ -42,7 +42,7 @@ export const HashSchema = Type.String({
 
 export const MarkJsonSchema = Type.Object(
   {
-    type: Type.String({ minLength: 1, description: `Technical mark type name from ${'collab.schema'}.` }),
+    type: Type.String({ minLength: 1, description: `Technical mark type name from ${'collab_schema'}.` }),
     attrs: Type.Optional(
       Type.Record(Type.String(), Type.Unknown(), {
         description: 'Native mark attributes. Values must satisfy the editor schema and access rules.'
@@ -58,7 +58,7 @@ export const NodeJsonSchema = Type.Cyclic(
       {
         type: Type.String({
           minLength: 1,
-          description: `Technical node type name from ${'collab.schema'}, or "text" for a text child.`
+          description: `Technical node type name from ${'collab_schema'}, or "text" for a text child.`
         }),
         attrs: Type.Optional(
           Type.Record(Type.String(), Type.Unknown(), {
@@ -92,7 +92,7 @@ export const NodeJsonSchema = Type.Cyclic(
   {
     description:
       'Recursive ProseMirror node JSON. Use examples from ' +
-      'collab.schema' +
+      'collab_schema' +
       '. Attributes, marks and content are validated by the editor schema.'
   }
 )
@@ -132,7 +132,7 @@ export const NodeSummarySchema = Type.Object(
     type: Type.String({ minLength: 1, description: 'Technical node type name.' }),
     preview: Type.String({
       description:
-        'Short plain-text preview for locating content. It may omit content; use collab.read when context is needed before ' +
+        'Short plain-text preview for locating content. It may omit content; use collab_read when context is needed before ' +
         'editing.'
     }),
     hash: HashSchema,

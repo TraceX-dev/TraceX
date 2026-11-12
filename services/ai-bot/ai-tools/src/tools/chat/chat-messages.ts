@@ -46,7 +46,7 @@ export const ChatMessagesOutputSchema = Type.Object({
 export const chatMessagesTool = createTool({
   name: chatMessagesToolId,
   description:
-    'Read history from target={class,id}. A chat target returns its main stream; a root chat message target returns its thread replies and a separate root. Use chat.unread_messages for unread history. Document comments are excluded. Never marks anything read.',
+    'Read history from target={class,id}. A chat target returns its main stream; a root chat message target returns its thread replies and a separate root. Use chat_unread_messages for unread history. Document comments are excluded. Never marks anything read.',
   inputSchema: ChatMessagesInputSchema,
   outputSchema: ChatMessagesOutputSchema,
   annotations: {

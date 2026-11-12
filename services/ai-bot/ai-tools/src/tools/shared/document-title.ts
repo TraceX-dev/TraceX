@@ -29,7 +29,7 @@ export async function getDocumentTitle (ctx: PlatformContext, doc: Doc): Promise
   if (presenter !== undefined) {
     try {
       const fn = await getResource<Presenter<Doc>>(presenter.presenter)
-      // Preserve object.lookup's legacy presenter adapter; unsupported presenters fall back to stored fields.
+      // Preserve object_lookup's legacy presenter adapter; unsupported presenters fall back to stored fields.
       const title = await fn(doc, ctx as any)
       if (typeof title === 'string' && title.trim().length > 0) return title
     } catch (err) {

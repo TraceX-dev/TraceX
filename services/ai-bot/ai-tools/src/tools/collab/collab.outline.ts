@@ -35,7 +35,7 @@ export const CollabOutlineOutputSchema = Type.Object(
     ...NodePageSchema.properties,
     typesPresent: Type.Array(Type.String(), {
       description:
-        'Distinct addressable node types in the entire document, including nested nodes and other pages. Use with collab.find.type.'
+        'Distinct addressable node types in the entire document, including nested nodes and other pages. Use with collab_find.type.'
     })
   },
   { additionalProperties: false, description: 'Top-level node page and node types present throughout the document.' }
@@ -48,8 +48,8 @@ export const collabOutlineTool = createTool({
   description:
     'List top-level nodes of an existing collaborative document in document order, with handles, ' +
     'previews, subtree hashes and immediate child counts. typesPresent lists node types throughout the document. Use this to navigate before reading or ' +
-    'editing. Paginate with from/limit; previews are abbreviated. Use collab.read for a subtree and ' +
-    'collab.find to locate nested nodes. Reading does not change document content.',
+    'editing. Paginate with from/limit; previews are abbreviated. Use collab_read for a subtree and ' +
+    'collab_find to locate nested nodes. Reading does not change document content.',
   inputSchema: CollabOutlineInputSchema,
   outputSchema: CollabOutlineOutputSchema,
   annotations: {

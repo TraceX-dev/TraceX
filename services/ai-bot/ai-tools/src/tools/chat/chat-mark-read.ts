@@ -71,7 +71,7 @@ export const chatMarkReadTool = createTool({
     )
 
     const readAt = Math.max(context.lastViewedTimestamp ?? 0, Date.now())
-    const ops = ctx.client.apply(undefined, 'chat.mark_read', true)
+    const ops = ctx.client.apply(undefined, 'chat_mark_read', true)
     for (const item of notifications) {
       await ops.updateDoc(item._class, item.space, item._id, { isViewed: true })
     }

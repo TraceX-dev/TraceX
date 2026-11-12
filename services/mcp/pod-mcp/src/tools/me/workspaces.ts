@@ -28,7 +28,7 @@ export function registerMeWorkspacesTool (
   ctx: MeasureContext
 ): void {
   server.registerTool(
-    'my.workspaces',
+    'my_workspaces',
     {
       description:
         'List accessible TraceX workspaces with stable IDs, names and URL names. Use an exact returned ID in every workspace tool call.',
@@ -41,7 +41,7 @@ export function registerMeWorkspacesTool (
     },
     async () => {
       try {
-        return await ctx.with('mcp-tool', { tool: 'my.workspaces' }, async () => {
+        return await ctx.with('mcp-tool', { tool: 'my_workspaces' }, async () => {
           return jsonStructuredText({
             installation: String(auth.resource),
             workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken, auth.extra.workspaceId)
