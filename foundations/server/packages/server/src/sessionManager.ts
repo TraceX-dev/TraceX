@@ -873,44 +873,46 @@ export class TSessionManager implements SessionManager {
             }
           }
 
-          let { workspace, resp } = await this.getWorkspace(ctx.parent ?? ctx, token.workspace, wsInfo, token, ws)
-          if (resp !== undefined) {
-            return resp
-          }
-
-          if (workspace === undefined || account === undefined) {
+          if (account === undefined) {
             // Should not happen
             return { error: new Error('Workspace not found or not available'), terminate: true }
           }
 
-          // A socket the client already dropped while we waited (account service, workspace close)
-          // must not replace a newer connection that registered under the same sessionId.
-          if (ws.isClosed || !ws.checkState()) {
-            this.allowSoftShutdown(workspace)
-            return { error: new Error('Connection closed during session setup'), terminate: true }
-          }
+          // Acquire the active workspace and replace a previous socket of this session. close() awaits
+          // the logout publish, so the workspace may be unloaded or replaced meanwhile: then acquire again.
+          let workspace: Workspace
+          while (true) {
+            const { workspace: acquired, resp } = await this.getWorkspace(
+              ctx.parent ?? ctx,
+              token.workspace,
+              wsInfo,
+              token,
+              ws
+            )
+            if (resp !== undefined) {
+              return resp
+            }
+            if (acquired === undefined) {
+              // Should not happen
+              return { error: new Error('Workspace not found or not available'), terminate: true }
+            }
+            workspace = acquired
+            // A socket dropped while we waited must not replace a newer connection with the same sessionId.
+            const abandoned = this.abandonClosedSocket(ws, workspace)
+            if (abandoned !== undefined) {
+              return abandoned
+            }
 
-          const oldSession = sessionId !== undefined ? workspace.sessions?.get(sessionId) : undefined
-          if (oldSession !== undefined) {
+            const oldSession = sessionId !== undefined ? workspace.sessions.get(sessionId) : undefined
+            if (oldSession === undefined) {
+              break
+            }
             // Just close old socket for old session id.
             await this.close(ctx, oldSession.socket, workspace.wsId.uuid)
-
-            // close() awaits the logout publish; the workspace may have been unloaded or replaced
-            // meanwhile. Never attach the session to a Workspace that is no longer the active one.
-            if (this.workspaces.get(workspace.wsId.uuid) !== workspace || workspace.closing !== undefined) {
-              ctx.warn('addSession guard', {
-                reason: 'workspace-replaced',
-                workspaceId: workspace.wsId.uuid,
-                sessionId
-              })
-              ;({ workspace, resp } = await this.getWorkspace(ctx.parent ?? ctx, token.workspace, wsInfo, token, ws))
-              if (resp !== undefined) {
-                return resp
-              }
-              if (workspace === undefined) {
-                return { error: new Error('Workspace not found or not available'), terminate: true }
-              }
+            if (this.isActive(workspace) && workspace.closing === undefined) {
+              break
             }
+            ctx.warn('addSession guard', { reason: 'workspace-replaced', workspaceId: workspace.wsId.uuid, sessionId })
           }
 
           const session = this.createSession(token, workspace.wsId, account)
@@ -918,12 +920,11 @@ export class TSessionManager implements SessionManager {
           session.sessionId = sessionId !== undefined && (sessionId ?? '').trim().length > 0 ? sessionId : generateId()
           session.sessionInstanceId = generateId()
 
-          // The client may have dropped this socket while we were waiting above (account service,
-          // logout publish) and already reconnected with the same sessionId. Registering the dead
-          // socket now would shadow that newer connection, so give up on it.
-          if (ws.isClosed || !ws.checkState()) {
-            this.allowSoftShutdown(workspace)
-            return { error: new Error('Connection closed during session setup'), terminate: true }
+          // Checked again after the awaits above: registering a dead socket would shadow a newer
+          // connection that the client has already opened with the same sessionId.
+          const abandoned = this.abandonClosedSocket(ws, workspace)
+          if (abandoned !== undefined) {
+            return abandoned
           }
           // A concurrent connect with the same sessionId may have registered meanwhile: replace it
           // properly instead of silently overwriting its entry and leaving its socket orphaned.
@@ -1328,18 +1329,16 @@ export class TSessionManager implements SessionManager {
           workspace.sessions.delete(sessionRef.session.sessionId)
         }
 
-        const userUuid = sessionRef.session.getUser()
-        await this.usersProducer.send(ctx, workspaceUuid, [
-          userEvents.logout({
-            user: userUuid,
-            sessions: this.countUserSessions(workspace, userUuid),
-            socialIds: sessionRef.session.getUserSocialIds()
-          })
-        ])
+        await this.publishLogout(
+          ctx,
+          workspaceUuid,
+          sessionRef.session,
+          this.countUserSessions(workspace, sessionRef.session.getUser())
+        )
 
         // The publish above is async: if the Workspace was force-closed or unloaded meanwhile, its
         // tick handlers never run again, so don't leave reconnect bookkeeping on it.
-        const stillActive = this.workspaces.get(workspaceUuid) === workspace
+        const stillActive = this.isActive(workspace)
         if (this.doHandleTick && stillActive) {
           workspace.tickHandlers.set(sessionRef.session.sessionId, {
             ticks: this.timeouts.reconnectTimeout * ticksPerSecond,
@@ -1400,8 +1399,7 @@ export class TSessionManager implements SessionManager {
       this.ctx.warn('force-close', { name: ws.wsId.url })
       ws.maintenance = true // We need to similare upgrade to refresh all clients.
       ws.closing = this.doCloseAll(ws, 99, 'force-close', ignoreSocket)
-      this.workspaces.delete(wsId)
-      this.dropPendingReconnects(ws)
+      this.unloadIfActive(ws)
       await ws.closing
       ws.closing = undefined
     } else {
@@ -1446,13 +1444,9 @@ export class TSessionManager implements SessionManager {
           const remaining = sessions.filter(
             (it) => it[1].socket.id === ignoreSocket?.id && it[1].session.getUser() === user
           ).length
-          void this.usersProducer
-            .send(this.ctx, workspace.wsId.uuid, [
-              userEvents.logout({ user, sessions: remaining, socialIds: s.getUserSocialIds() })
-            ])
-            .catch((err) => {
-              this.ctx.error('failed to publish logout', { workspaceId: workspace.wsId.uuid, error: err })
-            })
+          void this.publishLogout(this.ctx, workspace.wsId.uuid, s, remaining).catch((err) => {
+            this.ctx.error('failed to publish logout', { workspaceId: workspace.wsId.uuid, error: err })
+          })
         }
       }
     }
@@ -1489,6 +1483,47 @@ export class TSessionManager implements SessionManager {
       binary,
       compression
     )
+  }
+
+  /** True while `workspace` is the instance registered for its uuid (not unloaded or replaced). */
+  private isActive (workspace: Workspace): boolean {
+    return this.workspaces.get(workspace.wsId.uuid) === workspace
+  }
+
+  /**
+   * Drop a Workspace that is going away: forget its pending reconnects and remove it from the map,
+   * unless a newer instance has been registered meanwhile. Returns true if it was the active one.
+   */
+  private unloadIfActive (workspace: Workspace): boolean {
+    this.dropPendingReconnects(workspace)
+    if (!this.isActive(workspace)) {
+      return false
+    }
+    this.workspaces.delete(workspace.wsId.uuid)
+    return true
+  }
+
+  /**
+   * addSession() gives up on a socket the client dropped during setup (it may already have
+   * reconnected with the same sessionId). Returns the response to send, or undefined to go on.
+   */
+  private abandonClosedSocket (ws: ConnectionSocket, workspace: Workspace): AddSessionResponse | undefined {
+    if (!ws.isClosed && ws.checkState()) {
+      return undefined
+    }
+    this.allowSoftShutdown(workspace)
+    return { error: new Error('Connection closed during session setup'), terminate: true }
+  }
+
+  private async publishLogout (
+    ctx: MeasureContext,
+    workspaceId: WorkspaceUuid,
+    session: Session,
+    sessions: number
+  ): Promise<void> {
+    await this.usersProducer.send(ctx, workspaceId, [
+      userEvents.logout({ user: session.getUser(), sessions, socialIds: session.getUserSocialIds() })
+    ])
   }
 
   /**
@@ -1533,11 +1568,9 @@ export class TSessionManager implements SessionManager {
           await workspace.close(this.ctx)
 
           workspace.context.end()
-          this.dropPendingReconnects(workspace)
-          // forceClose() may have replaced this Workspace while it was closing; only unload
-          // (and report down) if it is still the active instance.
-          if (this.workspaces.get(uuid) === workspace) {
-            this.workspaces.delete(uuid)
+          // forceClose() may have replaced this Workspace while it was closing; only report down
+          // if it was still the active instance.
+          if (this.unloadIfActive(workspace)) {
             if (LOGGING_ENABLED) {
               this.ctx.warn('Closed workspace', logParams)
             }
@@ -1546,10 +1579,7 @@ export class TSessionManager implements SessionManager {
         }
       } catch (err: any) {
         Analytics.handleError(err)
-        this.dropPendingReconnects(workspace)
-        if (this.workspaces.get(uuid) === workspace) {
-          this.workspaces.delete(uuid)
-        }
+        this.unloadIfActive(workspace)
         if (LOGGING_ENABLED) {
           this.ctx.error('failed', { ...logParams, error: err })
         }
