@@ -86,11 +86,37 @@ export class Workspace {
     }
   }
 
+  // One close per pipeline instance: forceMaintenance() followed by forceClose(), or a forceClose()
+  // during a soft close, must not close the same pipeline twice.
+  private readonly pipelineCloses = new WeakMap<Pipeline, Promise<void>>()
+
   async close (ctx: MeasureContext): Promise<void> {
-    if (this.pipeline === undefined) {
+    for (;;) {
+      const current = this.pipeline
+      if (current === undefined) {
+        return
+      }
+      let pipeline: Pipeline
+      try {
+        pipeline = await current
+      } catch (err) {
+        // The build failed; if another caller already started a new build, close that one instead.
+        if (this.pipeline !== undefined && this.pipeline !== current) {
+          continue
+        }
+        throw err
+      }
+      let op = this.pipelineCloses.get(pipeline)
+      if (op === undefined) {
+        op = this.closePipeline(ctx, pipeline)
+        this.pipelineCloses.set(pipeline, op)
+      }
+      await op
       return
     }
-    const pipeline = await this.pipeline
+  }
+
+  private async closePipeline (ctx: MeasureContext, pipeline: Pipeline): Promise<void> {
     const closePipeline = async (): Promise<void> => {
       try {
         await ctx.with('close-pipeline', {}, async () => {
