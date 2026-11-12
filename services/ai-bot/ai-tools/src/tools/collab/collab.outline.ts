@@ -34,8 +34,7 @@ export const CollabOutlineOutputSchema = Type.Object(
   {
     ...NodePageSchema.properties,
     typesPresent: Type.Array(Type.String(), {
-      description:
-        `Distinct addressable node types in the entire document, including nested nodes and other pages. Use with ${collabFindToolId}.type.`
+      description: `Distinct addressable node types in the entire document, including nested nodes and other pages. Use with ${collabFindToolId}.type.`
     })
   },
   { additionalProperties: false, description: 'Top-level node page and node types present throughout the document.' }

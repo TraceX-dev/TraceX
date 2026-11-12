@@ -15,10 +15,10 @@
 //
 
 import { MeasureContext } from '@hcengineering/core'
-import { type Static, type TObject, type TString, type TUnion } from 'typebox'
+import { type Static, type TObject, type TString } from 'typebox'
 
 export type ToolInputSchema = TObject
-export type ToolOutputSchema = TObject | TUnion | TString
+export type ToolOutputSchema = TObject | TString
 export type ToolMetadata = Record<string, any>
 
 export interface ToolAnnotations {

@@ -147,8 +147,7 @@ export function createMcpServer (
         ...tool.inputSchema.properties,
         workspace: {
           type: 'string',
-          description:
-            `Exact workspace ID returned by ${meWorkspacesToolId}. Required for every call; never infer an implicit current workspace.`
+          description: `Exact workspace ID returned by ${meWorkspacesToolId}. Required for every call; never infer an implicit current workspace.`
         }
       },
       required: [...(tool.inputSchema.required ?? []), 'workspace']
@@ -203,8 +202,7 @@ export function createMcpServer (
             {
               error: {
                 code: 'workspace_operation_failed',
-                message:
-                  `The operation failed. Verify the workspace with ${meWorkspacesToolId} and reload the object before retrying. If the TraceX session has expired, reconnect.`,
+                message: `The operation failed. Verify the workspace with ${meWorkspacesToolId} and reload the object before retrying. If the TraceX session has expired, reconnect.`,
                 workspace
               }
             },

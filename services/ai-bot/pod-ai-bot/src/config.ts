@@ -175,8 +175,13 @@ convict.addFormat({
       if (entry.systemPrompt !== undefined && typeof entry.systemPrompt !== 'string') {
         throw new Error(`tools[${index}].systemPrompt must be a string`)
       }
-      if (entry.outputSchema !== undefined && !isPlainObject(entry.outputSchema)) {
-        throw new Error(`tools[${index}].outputSchema must be an object`)
+      if (entry.outputSchema !== undefined) {
+        if (!isPlainObject(entry.outputSchema)) {
+          throw new Error(`tools[${index}].outputSchema must be an object`)
+        }
+        if (entry.outputSchema.type !== 'object' && entry.outputSchema.type !== 'string') {
+          throw new Error(`tools[${index}].outputSchema must have root type "object" or "string"`)
+        }
       }
     })
   }

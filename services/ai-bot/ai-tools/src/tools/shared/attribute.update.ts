@@ -23,8 +23,7 @@ export const AttributeUpdateSchema = Type.Object(
       description: `Stable attribute key returned by ${cardMasterTagDetailsToolId}.`
     }),
     value: Type.Any({
-      description:
-        `Attribute value. The value shape must match the attribute type from ${cardMasterTagDetailsToolId}. Collaborative content values are HTML when exposed by a tool.`
+      description: `Attribute value. The value shape must match the attribute type from ${cardMasterTagDetailsToolId}. Collaborative content values are HTML when exposed by a tool.`
     })
   },
   {
