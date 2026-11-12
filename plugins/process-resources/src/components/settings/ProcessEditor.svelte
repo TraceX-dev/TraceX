@@ -299,16 +299,18 @@
   <div class="hulyComponent-content__column content">
     {#if value}
       <Scroller align="center" padding="var(--spacing-3)" bottomPadding="var(--spacing-3)">
-        <div class="hulyComponent-content gap">
-          <div class="header flex-between">
-            <EditBox
-              bind:value={value.name}
-              kind="modern-ghost-large"
-              on:change={saveName}
-              required
-              placeholder={process.string.Untitled}
-            />
-            <div class="flex-row-center flex-gap-2">
+        <div class="process-editor flex-col flex-gap-4 w-full min-w-0">
+          <div class="flex-between flex-wrap flex-gap-2">
+            <div class="process-title min-w-0">
+              <EditBox
+                bind:value={value.name}
+                kind="modern-ghost-large"
+                on:change={saveName}
+                required
+                placeholder={process.string.Untitled}
+              />
+            </div>
+            <div class="flex-row-center flex-wrap flex-gap-2">
               {#if value.requiredSlots && Object.keys(value.requiredSlots).length > 0}
                 <ButtonIcon
                   icon={IconLink}
@@ -318,7 +320,13 @@
                   on:click={handleBindings}
                 />
               {/if}
-              <ButtonIcon icon={IconSettings} size="small" kind="secondary" on:click={handleSettings} />
+              <ButtonIcon
+                icon={IconSettings}
+                tooltip={{ label: process.string.ConfigLabel, direction: 'bottom' }}
+                size="small"
+                kind="secondary"
+                on:click={handleSettings}
+              />
               <ButtonMenu
                 icon={IconDownload}
                 tooltip={{ label: process.string.Export, direction: 'bottom' }}
@@ -358,7 +366,7 @@
               />
             </div>
           </div>
-          <div class="hulyComponent-content flex-col-center flex-gap-4">
+          <div class="flex-col flex-gap-4 w-full min-w-0">
             <StatesInlineEditor {states} {readonly} process={value} />
             <TransitionsInlineEditor {readonly} process={value} />
           </div>
@@ -367,3 +375,13 @@
     {/if}
   </div>
 </div>
+
+<style lang="scss">
+  .process-editor {
+    max-width: 48rem;
+  }
+
+  .process-title {
+    flex: 1 1 18rem;
+  }
+</style>
