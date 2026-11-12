@@ -15,15 +15,16 @@
 //
 
 import { Type, type Static } from 'typebox'
+import { cardMasterTagDetailsToolId } from '../card/tool-ids'
 
 export const AttributeUpdateSchema = Type.Object(
   {
     key: Type.String({
-      description: 'Stable attribute key returned by card_master_tag_details.'
+      description: `Stable attribute key returned by ${cardMasterTagDetailsToolId}.`
     }),
     value: Type.Any({
       description:
-        'Attribute value. The value shape must match the attribute type from card_master_tag_details. Collaborative content values are HTML when exposed by a tool.'
+        `Attribute value. The value shape must match the attribute type from ${cardMasterTagDetailsToolId}. Collaborative content values are HTML when exposed by a tool.`
     })
   },
   {

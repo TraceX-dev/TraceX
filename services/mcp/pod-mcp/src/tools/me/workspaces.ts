@@ -19,6 +19,7 @@ import { fromJsonSchema, type McpServer } from '@modelcontextprotocol/server'
 import type { TraceXAuthInfo } from '../../auth'
 import { jsonStructuredText, jsonText } from '../../mcp'
 import type { WorkspaceManager } from '../../workspace'
+import { meWorkspacesToolId } from './tool-ids'
 
 /** Register account-level workspace discovery without requiring a selected workspace. */
 export function registerMeWorkspacesTool (
@@ -28,7 +29,7 @@ export function registerMeWorkspacesTool (
   ctx: MeasureContext
 ): void {
   server.registerTool(
-    'my_workspaces',
+    meWorkspacesToolId,
     {
       title: 'List accessible workspaces',
       description:
@@ -42,7 +43,7 @@ export function registerMeWorkspacesTool (
     },
     async () => {
       try {
-        return await ctx.with('mcp-tool', { tool: 'my_workspaces' }, async () => {
+        return await ctx.with('mcp-tool', { tool: meWorkspacesToolId }, async () => {
           return jsonStructuredText({
             installation: String(auth.resource),
             workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken, auth.extra.workspaceId)

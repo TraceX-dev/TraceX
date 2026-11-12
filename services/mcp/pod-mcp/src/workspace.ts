@@ -28,6 +28,7 @@ import { type StorageAdapter } from '@hcengineering/server-core'
 import { decodeToken, type Token } from '@hcengineering/server-token'
 
 import type { McpConfig } from './config'
+import { meWorkspacesToolId } from './tools/me/tool-ids'
 
 export interface WorkspaceConnection {
   token: Token
@@ -77,7 +78,7 @@ export class WorkspaceManager {
     // Check current membership before using cached clients; selectWorkspace also supports guest/admin fallbacks.
     const workspace = (await this.getWorkspaces(accountToken)).find((entry) => entry.id === workspaceId)
     if (workspace === undefined) {
-      throw new Error('Workspace is not accessible. Use my_workspaces to choose an available workspace ID.')
+      throw new Error(`Workspace is not accessible. Use ${meWorkspacesToolId} to choose an available workspace ID.`)
     }
     const login = await getAccountClient(this.config.AccountsURL, accountToken).selectWorkspace(
       workspace.url,

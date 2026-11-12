@@ -74,7 +74,7 @@ export const collabSchemaTool = createTool({
     'technical type names without an extra call. This describes the model, not document content or authorization.\n' +
     getAgentSchemaCatalog(new Awareness([ServerKit])) +
     '\n' +
-    'Details and JSON examples: collab_schema({nodes:[...], marks:[...]}). Request only the types you need.',
+    `Details and JSON examples: ${collabSchemaToolId}({nodes:[...], marks:[...]}). Request only the types you need.`,
   inputSchema: CollabSchemaInputSchema,
   outputSchema: CollabSchemaOutputSchema,
   annotations: {

@@ -18,7 +18,7 @@ import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core
 import { CollaboratorAgentError } from '@hcengineering/collaborator-client'
 import { Type, type Static } from 'typebox'
 import { decodeAgentDocument } from '../shared/collaborative-document'
-import { collabReadToolId } from './tool-ids'
+import { collabFindToolId, collabOutlineToolId, collabReadToolId } from './tool-ids'
 import { DocNameSchema, NodeRefSchema, HashSchema, NodeJsonSchema, NodeSummarySchema } from './schema'
 
 export const CollabReadInputSchema = Type.Object(
@@ -54,7 +54,7 @@ export const collabReadTool = createTool({
   title: 'Read document node',
   description:
     'Read the complete ProseMirror JSON subtree of one node by a handle obtained from ' +
-    'collab_outline, collab_find or an earlier read. Returns its subtree hash and handles for direct ' +
+    `${collabOutlineToolId}, ${collabFindToolId} or an earlier read. Returns its subtree hash and handles for direct ` +
     'non-text children. Preserve existing embedded objects and protected marks when planning edits. ' +
     'Use the returned hash as the required deletion precondition. Reading does not assign IDs or ' +
     'change document content.',

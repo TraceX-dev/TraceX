@@ -39,13 +39,14 @@ import { type McpConfig } from './config'
 import { createMcpTokenVerifier, type TraceXAuthInfo } from './auth'
 import { jsonStructuredText, jsonText } from './mcp'
 import { registerMeWorkspacesTool } from './tools/me/workspaces'
+import { meWorkspacesToolId } from './tools/me/tool-ids'
 import type { WorkspaceConnection, WorkspaceManager } from './workspace'
 
 const SERVER_NAME = 'tracex-mcp'
 const SERVER_VERSION = '0.1.0'
 const SERVER_INSTRUCTIONS = `TraceX MCP provides tools for the workspaces accessible to the authenticated TraceX account. Never ask the user for tokens or expose token values.
 
-Call my_workspaces to discover workspaces authorized by this connection. A connection may be restricted to one workspace. Every other tool requires the exact workspace ID returned by my_workspaces. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes. Production and staging are separate installations.
+Call ${meWorkspacesToolId} to discover workspaces authorized by this connection. A connection may be restricted to one workspace. Every other tool requires the exact workspace ID returned by ${meWorkspacesToolId}. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes. Production and staging are separate installations.
 
 Use read-only tools first to discover the available object types, allowed fields, and stable identifiers before making changes. Do not invent workspace ids, object ids, class ids, mixin ids, type ids, or attribute keys; obtain them from tool results or ask the user to clarify.
 
@@ -147,7 +148,7 @@ export function createMcpServer (
         workspace: {
           type: 'string',
           description:
-            'Exact workspace ID returned by my_workspaces. Required for every call; never infer an implicit current workspace.'
+            `Exact workspace ID returned by ${meWorkspacesToolId}. Required for every call; never infer an implicit current workspace.`
         }
       },
       required: [...(tool.inputSchema.required ?? []), 'workspace']
@@ -173,7 +174,7 @@ export function createMcpServer (
                   {
                     error: {
                       code: 'workspace_required',
-                      message: 'Choose an explicit workspace ID from my_workspaces.'
+                      message: `Choose an explicit workspace ID from ${meWorkspacesToolId}.`
                     }
                   },
                   true
@@ -203,7 +204,7 @@ export function createMcpServer (
               error: {
                 code: 'workspace_operation_failed',
                 message:
-                  'The operation failed. Verify the workspace with my_workspaces and reload the object before retrying. If the TraceX session has expired, reconnect.',
+                  `The operation failed. Verify the workspace with ${meWorkspacesToolId} and reload the object before retrying. If the TraceX session has expired, reconnect.`,
                 workspace
               }
             },
