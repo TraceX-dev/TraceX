@@ -87,15 +87,60 @@ let _token: string | undefined
 let _client: Client | undefined
 let _clientSet: boolean = false
 
+// connect() calls in flight, to report the (not yet fixed) race between concurrent connects.
+let connectSeq = 0
+const connectsInFlight = new Map<number, string | undefined>()
+
+function describeInFlight (): string[] {
+  return [...connectsInFlight.entries()].map(([id, ws]) => `${id}:${ws ?? '-'}`)
+}
+
+// Connect steps slower than this are logged (connect metrics accumulate over the page lifetime).
+const slowConnectStepMs = 1000
+async function timedStep<T> (
+  connectId: number,
+  wsUrl: string | undefined,
+  step: string,
+  op: () => Promise<T>
+): Promise<T> {
+  const start = platformNow()
+  try {
+    return await op()
+  } finally {
+    const durationMs = platformNow() - start
+    if (durationMs >= slowConnectStepMs) {
+      console.warn('[workbench] slow connect step', { connectId, wsUrl, step, durationMs: Math.round(durationMs) })
+    }
+  }
+}
+
 export async function disconnect (): Promise<void> {
   if (_client !== undefined) {
-    await _client.close()
+    const client = _client
     _client = undefined
     _clientSet = false
+    // Same order as a workspace switch in connect(): stop live queries and the presentation pipeline
+    // first, so components don't keep issuing requests through a client that is being closed.
+    await purgeClient()
+    await client.close()
   }
 }
 
 export async function connect (title: string): Promise<Client | undefined> {
+  const connectId = ++connectSeq
+  const wsUrl = getCurrentLocation().path[1]
+  connectsInFlight.set(connectId, wsUrl)
+  try {
+    return await doConnect(title, connectId)
+  } catch (err: any) {
+    console.warn('[workbench] connect failed', { connectId, wsUrl, error: err?.message ?? err })
+    throw err
+  } finally {
+    connectsInFlight.delete(connectId)
+  }
+}
+
+async function doConnect (title: string, connectId: number): Promise<Client | undefined> {
   const ctx = uiContext.newChild('connect', {})
   const loc = getCurrentLocation()
   const wsUrl = loc.path[1]
@@ -120,7 +165,9 @@ export async function connect (title: string): Promise<Client | undefined> {
 
   let connectAttempt = 0
   while (true) {
-    const selectResult = await ctx.with('select-workspace', {}, async () => await selectWorkspace(wsUrl, null, false))
+    const selectResult = await timedStep(connectId, wsUrl, 'select-workspace', () =>
+      ctx.with('select-workspace', {}, async () => await selectWorkspace(wsUrl, null, false))
+    )
     workspaceLoginInfo = selectResult[1] ?? undefined
     if (!selectResult[2]) {
       // Connection error: exponential backoff capped at 10s to avoid request storm when server is down
@@ -161,7 +208,9 @@ export async function connect (title: string): Promise<Client | undefined> {
   let workspace: WorkspaceInfoWithStatus | undefined
 
   while (true) {
-    const fetchResult = await ctx.with('fetch-workspace', {}, async () => await fetchWorkspace())
+    const fetchResult = await timedStep(connectId, wsUrl, 'fetch-workspace', () =>
+      ctx.with('fetch-workspace', {}, async () => await fetchWorkspace())
+    )
 
     if (!fetchResult[2]) {
       // Connection error happen, wait and retry
@@ -190,7 +239,9 @@ export async function connect (title: string): Promise<Client | undefined> {
       if (wsUrl !== getCurrentLocation().path[1]) return
 
       workspaceCreating.set(workspace.processingProgress ?? 0)
-      const fetchResult = await ctx.with('fetch-workspace', {}, async () => await fetchWorkspace())
+      const fetchResult = await timedStep(connectId, wsUrl, 'fetch-workspace', () =>
+        ctx.with('fetch-workspace', {}, async () => await fetchWorkspace())
+      )
       if (!fetchResult[2]) {
         // Connection error happen, wait and retry
         await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -253,235 +304,252 @@ export async function connect (title: string): Promise<Client | undefined> {
 
   const clientFactory = await getResource(client.function.GetClient)
   let version: Version | undefined
-  const newClient = await ctx.with(
-    'create-client',
-    {},
-    async (ctx) =>
-      await clientFactory(token, endpoint, {
-        onHello: (serverVersion?: string) => {
-          const frontVersion = getMetadata(presentation.metadata.FrontVersion)
-          if (
-            serverVersion !== undefined &&
-            serverVersion !== '' &&
-            frontVersion !== undefined &&
-            frontVersion !== serverVersion
-          ) {
-            const reloaded = localStorage.getItem(`versionUpgrade:s${serverVersion}:f${frontVersion}`)
-            const isUpgrading = get(upgradeDownloadProgress) >= 0
+  const newClient = await timedStep(connectId, wsUrl, 'create-client', () =>
+    ctx.with(
+      'create-client',
+      {},
+      async (ctx) =>
+        await clientFactory(token, endpoint, {
+          onHello: (serverVersion?: string) => {
+            const frontVersion = getMetadata(presentation.metadata.FrontVersion)
+            if (
+              serverVersion !== undefined &&
+              serverVersion !== '' &&
+              frontVersion !== undefined &&
+              frontVersion !== serverVersion
+            ) {
+              const reloaded = localStorage.getItem(`versionUpgrade:s${serverVersion}:f${frontVersion}`)
+              const isUpgrading = get(upgradeDownloadProgress) >= 0
 
-            if (reloaded === null) {
-              localStorage.setItem(`versionUpgrade:s${serverVersion}:f${frontVersion}`, 't')
-              // It might have been refreshed manually and download has started - do not reload
-              if (!isUpgrading) {
-                console.log('reload due to version upgrade')
-                location.reload()
-              }
-
-              return false
-            } else {
-              errorActions.set([])
-              error.set(`Front version ${frontVersion} is not in sync with server version ${serverVersion}`)
-
-              if (!desktopPlatform || !isUpgrading) {
-                setTimeout(() => {
-                  // It might be possible that this callback will fire after the user has spent some time
-                  // in the upgrade !modal! dialog and clicked upgrade - check again and do not reload
-                  if (get(upgradeDownloadProgress) < 0) {
-                    console.log('reload due to upgrade download')
-                    location.reload()
-                  }
-                }, 10000)
-              }
-              // For embedded if the download has started it should download the upgrade and restart the app
-
-              return false
-            }
-          }
-
-          return true
-        },
-        onUpgrade: () => {
-          console.log('reload due to upgrade')
-          location.reload()
-        },
-        onError: (status: StatusCode) => {
-          switch (status) {
-            case platform.status.WorkspaceArchived: {
-              const selectWorkspace: Pages = 'selectWorkspace'
-              navigate({
-                path: [loginId, selectWorkspace],
-                query: {}
-              })
-              break
-            }
-            case platform.status.PasswordExpired: {
-              translateCB(login.string.PasswordExpiredDesc, {}, get(themeStore).language, (r) => {
-                error.set(r)
-                errorActions.set([
-                  {
-                    label: login.string.SelectWorkspace,
-                    action: () => {
-                      const selectWorkspace: Pages = 'selectWorkspace'
-                      navigate({
-                        path: [loginId, selectWorkspace],
-                        query: {}
-                      })
-                    }
-                  },
-                  {
-                    label: login.string.ChangePassword,
-                    action: () => {
-                      const changePassword: Pages = 'changePassword'
-                      navigate({
-                        path: [loginId, changePassword],
-                        query: {}
-                      })
-                    }
-                  }
-                ])
-              })
-              break
-            }
-            case platform.status.WorkspaceMigration: {
-              translateCB(plugin.string.WorkspaceIsMigrating, {}, get(themeStore).language, (r) => {
-                error.set(r)
-                errorActions.set([])
-                setTimeout(() => {
-                  console.log('reload due to migration')
+              if (reloaded === null) {
+                localStorage.setItem(`versionUpgrade:s${serverVersion}:f${frontVersion}`, 't')
+                // It might have been refreshed manually and download has started - do not reload
+                if (!isUpgrading) {
+                  console.log('reload due to version upgrade')
                   location.reload()
-                }, 5000)
-              })
-              break
+                }
+
+                return false
+              } else {
+                errorActions.set([])
+                error.set(`Front version ${frontVersion} is not in sync with server version ${serverVersion}`)
+
+                if (!desktopPlatform || !isUpgrading) {
+                  setTimeout(() => {
+                    // It might be possible that this callback will fire after the user has spent some time
+                    // in the upgrade !modal! dialog and clicked upgrade - check again and do not reload
+                    if (get(upgradeDownloadProgress) < 0) {
+                      console.log('reload due to upgrade download')
+                      location.reload()
+                    }
+                  }, 10000)
+                }
+                // For embedded if the download has started it should download the upgrade and restart the app
+
+                return false
+              }
             }
-            case platform.status.Unauthorized: {
-              void logOut().then(() => {
+
+            return true
+          },
+          onUpgrade: () => {
+            console.log('reload due to upgrade')
+            location.reload()
+          },
+          onError: (status: StatusCode) => {
+            switch (status) {
+              case platform.status.WorkspaceArchived: {
+                const selectWorkspace: Pages = 'selectWorkspace'
                 navigate({
-                  path: [loginId],
+                  path: [loginId, selectWorkspace],
                   query: {}
                 })
-              })
-            }
-          }
-        },
-        // We need to refresh all active live queries and clear old queries.
-        onConnect: async (event: ClientConnectEvent, data: any): Promise<void> => {
-          console.log('WorkbenchClient: onConnect', event)
-          if (event === ClientConnectEvent.Maintenance) {
-            if (data != null && data.total !== 0) {
-              translateCB(plugin.string.ServerUnderMaintenance, {}, get(themeStore).language, (r) => {
-                errorActions.set([])
-                error.set(`${r} ${Math.floor((100 / data.total) * (data.total - data.toProcess))}%`)
-              })
-            } else {
-              translateCB(plugin.string.ServerUnderMaintenance, {}, get(themeStore).language, (r) => {
-                errorActions.set([])
-                error.set(r)
-              })
-            }
-            return
-          }
-          try {
-            if (event === ClientConnectEvent.Connected || event === ClientConnectEvent.Reconnected) {
-              setMetadata(presentation.metadata.SessionId, data)
-            }
-            const gapMs = lastOnConnectAt === 0 ? 0 : platformNow() - lastOnConnectAt
-            lastOnConnectAt = platformNow()
-            if ((_clientSet && event === ClientConnectEvent.Connected) || event === ClientConnectEvent.Refresh) {
-              console.log('[workbench] refreshClient triggered', { event, tokenChanged, gapMs })
-              void ctx.with('refresh client', {}, async () => {
-                await refreshClient(tokenChanged, gapMs)
-              })
-              tokenChanged = false
-            } else if (event === ClientConnectEvent.Reconnected) {
-              console.log('[workbench] reconnected no-refresh (lastTx unchanged)', { gapMs })
-            }
-
-            if (event === ClientConnectEvent.Upgraded) {
-              console.log('reload due to upgrade')
-              window.location.reload()
-            }
-
-            void (async () => {
-              if (_client !== undefined) {
-                const client = _client
-                const newVersion = await ctx.with(
-                  'find-version',
-                  {},
-                  async () => await client.findOne<Version>(core.class.Version, {})
-                )
-                console.log('Reconnect Model version', newVersion)
-
-                const currentVersionStr = versionToString(version as Version)
-                const reconnectVersionStr = versionToString(newVersion as Version)
-
-                if (currentVersionStr !== reconnectVersionStr) {
-                  // It seems upgrade happened
-                  console.log('reload due to version mismatch')
-                  location.reload()
-                  errorActions.set([])
-                  error.set(`${currentVersionStr} != ${reconnectVersionStr}`)
-                }
-
-                console.log(
-                  'Server version',
-                  reconnectVersionStr,
-                  version !== undefined ? versionToString(version) : ''
-                )
-
-                if (reconnectVersionStr !== '' && currentVersionStr !== reconnectVersionStr) {
-                  if (typeof sessionStorage !== 'undefined') {
-                    if (sessionStorage.getItem(versionStorageKey) !== reconnectVersionStr) {
-                      console.log('reload due to version mismatch')
-                      sessionStorage.setItem(versionStorageKey, reconnectVersionStr)
-                      location.reload()
-                    }
-                  }
-                  error.set(`${currentVersionStr} != ${reconnectVersionStr}`)
-                  errorActions.set([])
-                }
-
-                const frontUrl = getMetadata(presentation.metadata.FrontUrl) ?? ''
-                const currentFrontVersion = getMetadata(presentation.metadata.FrontVersion)
-                if (currentFrontVersion !== undefined) {
-                  try {
-                    const frontConfig = await loadServerConfig(concatLink(frontUrl, '/config.json'))
-                    if (frontConfig?.version !== undefined && frontConfig.version !== currentFrontVersion) {
-                      console.log('reload due to config version mismatch')
-                      location.reload()
-                    }
-                  } catch (err: any) {
-                    // Failed to load server config, reload location
-                    console.log('reload due to config loading error')
-                    location.reload()
-                  }
-                }
+                break
               }
-            })()
-          } catch (err) {
-            console.error(err)
+              case platform.status.PasswordExpired: {
+                translateCB(login.string.PasswordExpiredDesc, {}, get(themeStore).language, (r) => {
+                  error.set(r)
+                  errorActions.set([
+                    {
+                      label: login.string.SelectWorkspace,
+                      action: () => {
+                        const selectWorkspace: Pages = 'selectWorkspace'
+                        navigate({
+                          path: [loginId, selectWorkspace],
+                          query: {}
+                        })
+                      }
+                    },
+                    {
+                      label: login.string.ChangePassword,
+                      action: () => {
+                        const changePassword: Pages = 'changePassword'
+                        navigate({
+                          path: [loginId, changePassword],
+                          query: {}
+                        })
+                      }
+                    }
+                  ])
+                })
+                break
+              }
+              case platform.status.WorkspaceMigration: {
+                translateCB(plugin.string.WorkspaceIsMigrating, {}, get(themeStore).language, (r) => {
+                  error.set(r)
+                  errorActions.set([])
+                  setTimeout(() => {
+                    console.log('reload due to migration')
+                    location.reload()
+                  }, 5000)
+                })
+                break
+              }
+              case platform.status.Unauthorized: {
+                void logOut().then(() => {
+                  navigate({
+                    path: [loginId],
+                    query: {}
+                  })
+                })
+              }
+            }
+          },
+          // We need to refresh all active live queries and clear old queries.
+          onConnect: async (event: ClientConnectEvent, data: any): Promise<void> => {
+            console.log('WorkbenchClient: onConnect', event)
+            if (event === ClientConnectEvent.Maintenance) {
+              if (data != null && data.total !== 0) {
+                translateCB(plugin.string.ServerUnderMaintenance, {}, get(themeStore).language, (r) => {
+                  errorActions.set([])
+                  error.set(`${r} ${Math.floor((100 / data.total) * (data.total - data.toProcess))}%`)
+                })
+              } else {
+                translateCB(plugin.string.ServerUnderMaintenance, {}, get(themeStore).language, (r) => {
+                  errorActions.set([])
+                  error.set(r)
+                })
+              }
+              return
+            }
+            try {
+              if (event === ClientConnectEvent.Connected || event === ClientConnectEvent.Reconnected) {
+                setMetadata(presentation.metadata.SessionId, data)
+              }
+              const gapMs = lastOnConnectAt === 0 ? 0 : platformNow() - lastOnConnectAt
+              lastOnConnectAt = platformNow()
+              if ((_clientSet && event === ClientConnectEvent.Connected) || event === ClientConnectEvent.Refresh) {
+                console.log('[workbench] refreshClient triggered', { event, tokenChanged, gapMs })
+                void ctx.with('refresh client', {}, async () => {
+                  await refreshClient(tokenChanged, gapMs)
+                })
+                tokenChanged = false
+              } else if (event === ClientConnectEvent.Reconnected) {
+                console.log('[workbench] reconnected no-refresh (lastTx unchanged)', { gapMs })
+              }
+
+              if (event === ClientConnectEvent.Upgraded) {
+                console.log('reload due to upgrade')
+                window.location.reload()
+              }
+
+              void (async () => {
+                if (_client !== undefined) {
+                  const client = _client
+                  const newVersion = await ctx.with(
+                    'find-version',
+                    {},
+                    async () => await client.findOne<Version>(core.class.Version, {})
+                  )
+                  console.log('Reconnect Model version', newVersion)
+
+                  const currentVersionStr = versionToString(version as Version)
+                  const reconnectVersionStr = versionToString(newVersion as Version)
+
+                  if (currentVersionStr !== reconnectVersionStr) {
+                    // It seems upgrade happened
+                    console.log('reload due to version mismatch')
+                    location.reload()
+                    errorActions.set([])
+                    error.set(`${currentVersionStr} != ${reconnectVersionStr}`)
+                  }
+
+                  console.log(
+                    'Server version',
+                    reconnectVersionStr,
+                    version !== undefined ? versionToString(version) : ''
+                  )
+
+                  if (reconnectVersionStr !== '' && currentVersionStr !== reconnectVersionStr) {
+                    if (typeof sessionStorage !== 'undefined') {
+                      if (sessionStorage.getItem(versionStorageKey) !== reconnectVersionStr) {
+                        console.log('reload due to version mismatch')
+                        sessionStorage.setItem(versionStorageKey, reconnectVersionStr)
+                        location.reload()
+                      }
+                    }
+                    error.set(`${currentVersionStr} != ${reconnectVersionStr}`)
+                    errorActions.set([])
+                  }
+
+                  const frontUrl = getMetadata(presentation.metadata.FrontUrl) ?? ''
+                  const currentFrontVersion = getMetadata(presentation.metadata.FrontVersion)
+                  if (currentFrontVersion !== undefined) {
+                    try {
+                      const frontConfig = await loadServerConfig(concatLink(frontUrl, '/config.json'))
+                      if (frontConfig?.version !== undefined && frontConfig.version !== currentFrontVersion) {
+                        console.log('reload due to config version mismatch')
+                        location.reload()
+                      }
+                    } catch (err: any) {
+                      // Failed to load server config, reload location
+                      console.log('reload due to config loading error')
+                      location.reload()
+                    }
+                  }
+                }
+              })()
+            } catch (err) {
+              console.error(err)
+            }
+          },
+          ctx,
+          onDialTimeout: async () => {
+            const newLoginInfo = await ctx.with(
+              'select-workspace',
+              {},
+              async () => (await selectWorkspace(wsUrl, token))[1]
+            )
+            if (newLoginInfo?.endpoint !== endpoint) {
+              console.log('endpoint changed, reloading')
+              location.reload()
+            }
           }
-        },
-        ctx,
-        onDialTimeout: async () => {
-          const newLoginInfo = await ctx.with(
-            'select-workspace',
-            {},
-            async () => (await selectWorkspace(wsUrl, token))[1]
-          )
-          if (newLoginInfo?.endpoint !== endpoint) {
-            console.log('endpoint changed, reloading')
-            location.reload()
-          }
-        }
-      })
+        })
+    )
   )
 
+  const currentWsUrl = getCurrentLocation().path[1]
+  const overwrites = _client !== undefined && _client !== newClient
+  if (overwrites || wsUrl !== currentWsUrl) {
+    // connect() calls are not serialized: another one finished meanwhile (its client is overwritten
+    // without being closed) or the user already moved to another workspace.
+    console.warn('[workbench] concurrent connect', {
+      connectId,
+      wsUrl,
+      currentWsUrl,
+      overwrites,
+      inFlight: describeInFlight()
+    })
+  }
   _client = newClient
 
   // TODO: should we take the function from some resource like fetchWorkspace/selectWorkspace
   // to remove account client dependency?
   const accountsUrl = getMetadata(login.metadata.AccountsUrl)
-  const socialIds: SocialId[] = await getAccountClient(accountsUrl, token).getSocialIds(true)
+  const socialIds: SocialId[] = await timedStep(connectId, wsUrl, 'get-social-ids', () =>
+    ctx.with('get-social-ids', {}, async () => await getAccountClient(accountsUrl, token).getSocialIds(true))
+  )
 
   const me: Account = {
     uuid: account,
@@ -493,7 +561,13 @@ export async function connect (title: string): Promise<Client | undefined> {
 
   // Ensure employee and social identifiers
   if (workspaceLoginInfo.role !== AccountRole.Admin) {
-    const employee = await ensureEmployee(ctx, me, newClient, socialIds, getGlobalPerson)
+    const employee = await timedStep(connectId, wsUrl, 'ensure-employee', () =>
+      ctx.with(
+        'ensure-employee',
+        {},
+        async (ctx) => await ensureEmployee(ctx, me, newClient, socialIds, getGlobalPerson)
+      )
+    )
 
     if (employee == null) {
       console.log('Failed to ensure employee')
@@ -595,9 +669,11 @@ export async function connect (title: string): Promise<Client | undefined> {
   // Update window title
   document.title = [wsUrl, title].filter((it) => it).join(' - ')
   _clientSet = true
-  await ctx.with('set-client', {}, async () => {
-    await setClient(newClient)
-  })
+  await timedStep(connectId, wsUrl, 'set-client', () =>
+    ctx.with('set-client', {}, async () => {
+      await setClient(newClient)
+    })
+  )
   await ctx.with('broadcast-connected', {}, async () => {
     await broadcastEvent(plugin.event.NotifyConnection, me)
   })

@@ -21,7 +21,8 @@
   import TraceXLogo from './TraceXLogo.svelte'
 
   // Caption under the logo. Defaults to "Loading your workspace...".
-  export let caption: IntlString = uiPlugin.string.LoadingWorkspace
+  // May become undefined at runtime (a prop default only applies on mount), so fall back below too.
+  export let caption: IntlString | undefined = uiPlugin.string.LoadingWorkspace
   export let captionParams: Record<string, any> = {}
   // 0..100 for a determinate bar, undefined for an indeterminate one.
   export let progress: number | undefined = undefined
@@ -32,7 +33,7 @@
 
   // Rendered only once translated: the loading screen appears before the
   // language bundles resolve, and a raw IntlString id must never be shown.
-  $: translateCB(caption, captionParams ?? {}, $themeStore.language, (r) => {
+  $: translateCB(caption ?? uiPlugin.string.LoadingWorkspace, captionParams ?? {}, $themeStore.language, (r) => {
     captionText = r
   })
 

@@ -22,6 +22,7 @@ import core, {
   TxCreateDoc,
   type Doc
 } from '@hcengineering/core'
+import platform, { PlatformError } from '@hcengineering/platform'
 import { connect } from '../connection'
 
 // Mock CloseEvent for Node.js environment (used in MockWebSocket)
@@ -370,5 +371,43 @@ describe('connect function', () => {
     // Close immediately after test
     await client.close()
     await new Promise((resolve) => setTimeout(resolve, 50))
+  })
+
+  // Requests still in flight when the client is closed (e.g. leaving the workbench) must be rejected
+  // with the ConnectionClosed status, which the presentation layer treats as an expected shutdown.
+  // A plain Error was surfaced to the user as a "Connection closed" error notification.
+  it('rejects in-flight requests with ConnectionClosed on close', async () => {
+    const mockWs = new MockWebSocket('ws://localhost:3333')
+    mockWebSockets.push(mockWs)
+    const client = connect(
+      'ws://localhost:3333',
+      jest.fn(),
+      'test-workspace' as WorkspaceUuid,
+      'test-user' as PersonUuid,
+      {
+        socketFactory: () => mockWs
+      }
+    )
+    connections.push(client)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    // The mock never completes the handshake, so the request stays pending.
+    const pending = client.findAll(core.class.Space, {})
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    await client.close()
+
+    const err = await pending.then(
+      () => undefined,
+      (e) => e
+    )
+    expect(err).toBeInstanceOf(PlatformError)
+    expect((err as PlatformError<any>).status.code).toBe(platform.status.ConnectionClosed)
+
+    // A request made after close fails the same way, immediately.
+    const late = await client.findAll(core.class.Space, {}).then(
+      () => undefined,
+      (e) => e
+    )
+    expect((late as PlatformError<any>).status.code).toBe(platform.status.ConnectionClosed)
   })
 })
