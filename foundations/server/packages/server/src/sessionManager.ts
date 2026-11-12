@@ -886,12 +886,6 @@ export class TSessionManager implements SessionManager {
           // A socket the client already dropped while we waited (account service, workspace close)
           // must not replace a newer connection that registered under the same sessionId.
           if (ws.isClosed || !ws.checkState()) {
-            ctx.warn('addSession: socket closed during setup, giving up', {
-              stage: 'before-replace',
-              workspaceId: workspace.wsId.uuid,
-              userId: token.account,
-              sessionId
-            })
             this.allowSoftShutdown(workspace)
             return { error: new Error('Connection closed during session setup'), terminate: true }
           }
@@ -904,9 +898,9 @@ export class TSessionManager implements SessionManager {
             // close() awaits the logout publish; the workspace may have been unloaded or replaced
             // meanwhile. Never attach the session to a Workspace that is no longer the active one.
             if (this.workspaces.get(workspace.wsId.uuid) !== workspace || workspace.closing !== undefined) {
-              ctx.warn('addSession: workspace unloaded while replacing the session, re-acquiring', {
+              ctx.warn('addSession guard', {
+                reason: 'workspace-replaced',
                 workspaceId: workspace.wsId.uuid,
-                userId: token.account,
                 sessionId
               })
               ;({ workspace, resp } = await this.getWorkspace(ctx.parent ?? ctx, token.workspace, wsInfo, token, ws))
@@ -928,12 +922,6 @@ export class TSessionManager implements SessionManager {
           // logout publish) and already reconnected with the same sessionId. Registering the dead
           // socket now would shadow that newer connection, so give up on it.
           if (ws.isClosed || !ws.checkState()) {
-            ctx.warn('addSession: socket closed during setup, giving up', {
-              stage: 'before-register',
-              workspaceId: workspace.wsId.uuid,
-              userId: token.account,
-              sessionId: session.sessionId
-            })
             this.allowSoftShutdown(workspace)
             return { error: new Error('Connection closed during session setup'), terminate: true }
           }
@@ -941,9 +929,9 @@ export class TSessionManager implements SessionManager {
           // properly instead of silently overwriting its entry and leaving its socket orphaned.
           const sameSessionId = workspace.sessions.get(session.sessionId)
           if (sameSessionId !== undefined && sameSessionId.socket.id !== ws.id) {
-            ctx.warn('addSession: concurrent connect with the same sessionId, replacing it', {
+            ctx.warn('addSession guard', {
+              reason: 'concurrent-session-id',
               workspaceId: workspace.wsId.uuid,
-              userId: token.account,
               sessionId: session.sessionId
             })
             void this.close(ctx, sameSessionId.socket, workspace.wsId.uuid).catch((err) => {
@@ -1171,15 +1159,12 @@ export class TSessionManager implements SessionManager {
     }
 
     const factory = async (): Promise<Pipeline> => {
-      // Diagnostics: how long a cold start waits for a limiter slot and how long the build takes.
       const queuedAt = Date.now()
       let startedAt = 0
-      const buildLog = (): Record<string, any> => ({
+      const buildLog = (): { workspace: WorkspaceUuid, queueMs: number, buildMs: number } => ({
         workspace: workspaceIds.uuid,
-        url: workspaceIds.url,
         queueMs: (startedAt === 0 ? Date.now() : startedAt) - queuedAt,
-        buildMs: startedAt === 0 ? 0 : Date.now() - startedAt,
-        coldBuildsRunning: this.coldBuildLimiter.processingQueue.size
+        buildMs: startedAt === 0 ? 0 : Date.now() - startedAt
       })
       // Only the cold build is gated (see coldBuildLimiter); pipeline ops run unthrottled.
       const pipeline = await this.coldBuildLimiter
@@ -1205,7 +1190,10 @@ export class TSessionManager implements SessionManager {
           this.ctx.warn('pipeline cold build failed', { ...buildLog(), error: err })
           throw err
         })
-      this.ctx.info('pipeline cold build done', buildLog())
+      const timing = buildLog()
+      if (timing.queueMs + timing.buildMs >= slowRequestLogMs) {
+        this.ctx.warn('slow pipeline cold build', timing)
+      }
       return pipeline
     }
     const workspace: Workspace = new Workspace(
@@ -1693,11 +1681,8 @@ export class TSessionManager implements SessionManager {
         this.ctx.warn('request rejected: workspace is closing', {
           workspaceId,
           method: request.method,
-          requestId: request.id,
-          userId: service.getUser(),
           sessionId: service.sessionId,
-          workspaceLoaded: workspace !== undefined,
-          source
+          workspaceLoaded: workspace !== undefined
         })
         await ws.send(
           requestCtx,
@@ -1816,14 +1801,11 @@ export class TSessionManager implements SessionManager {
       }
     } finally {
       service.requests.delete(reqId)
-      // Diagnostics: slow requests on the server side (compare with '[conn] slow request' on the client).
       const durationMs = Date.now() - st
       if (durationMs >= slowRequestLogMs && request.method !== 'ping') {
         this.ctx.warn('slow request', {
           workspaceId,
           method: request.method,
-          requestId: request.id,
-          userId: service.getUser(),
           sessionId: service.sessionId,
           durationMs,
           source
