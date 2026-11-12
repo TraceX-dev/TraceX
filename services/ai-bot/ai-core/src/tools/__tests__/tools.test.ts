@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,6 +32,7 @@ describe('createTool', () => {
 
   const getWeatherTool = createTool({
     name: 'get-weather',
+    title: 'Get weather',
     description: 'Get weather tool tool',
     inputSchema: GetWeatherInputSchema,
     outputSchema: GetWeatherOutputSchema,
@@ -44,6 +46,11 @@ describe('createTool', () => {
           return toolFail('Unknown location', 'unknown_location')
       }
     }
+  })
+
+  it('preserves the display title separately from the callable name', () => {
+    expect(getWeatherTool.name).toBe('get-weather')
+    expect(getWeatherTool.title).toBe('Get weather')
   })
 
   it('returns weather for known location', async () => {

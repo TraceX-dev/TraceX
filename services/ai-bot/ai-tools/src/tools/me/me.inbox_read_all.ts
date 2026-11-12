@@ -41,6 +41,7 @@ type InboxReadAllInput = Static<typeof InboxReadAllInputSchema>
 
 export const meInboxReadAllTool = createTool({
   name: meInboxReadAllToolId,
+  title: 'Mark all inbox notifications as read',
   description: 'Mark all inbox messages for the current authenticated account as read.',
   inputSchema: InboxReadAllInputSchema,
   outputSchema: InboxReadAllOutputSchema,

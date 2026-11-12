@@ -111,6 +111,7 @@ type CardDataUpdate = Partial<Data<Card>>
 
 export const cardUpdateTool = createTool({
   name: cardUpdateToolId,
+  title: 'Update card',
   description:
     'Update a card. Card collaborative content goes to top-level content as HTML. Master attributes go to attributes; tag mixins are added, updated, or removed with tags[].',
   inputSchema: UpdateCardInputSchema,

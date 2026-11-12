@@ -139,6 +139,7 @@ const GetCardOutputSchema = Type.Object(
 
 export const cardGetTool = createTool({
   name: cardGetToolId,
+  title: 'Get card',
   description: 'Get a card with top-level HTML collaborative content and compact attribute values.',
   inputSchema: GetCardInputSchema,
   outputSchema: GetCardOutputSchema,

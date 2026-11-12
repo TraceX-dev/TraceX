@@ -14,15 +14,53 @@
 //
 
 import type { MeasureContext } from '@hcengineering/core'
+import { tools } from '@hcengineering/ai-tools'
+import { McpServer } from '@modelcontextprotocol/server'
 import { get, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { McpConfig } from '../config'
-import { createServer, toToolResult } from '../server'
+import type { TraceXAuthInfo } from '../auth'
+import { createMcpServer, createServer, toToolResult } from '../server'
 import type { WorkspaceManager } from '../workspace'
 
 jest.mock('@hcengineering/ai-tools', () => ({ tools: [] }))
 
 describe('MCP tool naming', () => {
+  it('registers human-readable titles separately from tool identifiers', async () => {
+    const tool: (typeof tools)[number] = {
+      name: 'card_get',
+      title: 'Get card',
+      description: 'Read a card',
+      inputSchema: { type: 'object', properties: {} },
+      execute: async () => ({ ok: true, output: {} })
+    }
+    const auth: Partial<TraceXAuthInfo> = { resource: new URL('https://mcp.test/mcp') }
+    const manager: Partial<WorkspaceManager> = {}
+    const context: Partial<MeasureContext> = {}
+    const register = jest.spyOn(McpServer.prototype, 'registerTool')
+    let server: McpServer | undefined
+    tools.push(tool)
+
+    try {
+      server = createMcpServer(auth as TraceXAuthInfo, manager as WorkspaceManager, context as MeasureContext)
+
+      expect(register).toHaveBeenCalledWith(
+        'card_get',
+        expect.objectContaining({ title: 'Get card' }),
+        expect.any(Function)
+      )
+      expect(register).toHaveBeenCalledWith(
+        'my_workspaces',
+        expect.objectContaining({ title: 'List accessible workspaces' }),
+        expect.any(Function)
+      )
+    } finally {
+      tools.pop()
+      register.mockRestore()
+      await server?.close()
+    }
+  })
+
   it.each([
     ['input_format_error', 'not_applied'],
     ['STALE_REFERENCE', 'unknown']

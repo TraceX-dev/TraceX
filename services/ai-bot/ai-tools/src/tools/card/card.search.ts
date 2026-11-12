@@ -103,6 +103,7 @@ type SearchCardsOutput = Static<typeof SearchCardsOutputSchema>
 
 export const cardSearchTool = createTool({
   name: cardSearchToolId,
+  title: 'Search cards',
   description: `Search cards and return compact card references. Use ${cardGetToolId} to load attributes and active tags.`,
   inputSchema: SearchCardsInputSchema,
   outputSchema: SearchCardsOutputSchema,

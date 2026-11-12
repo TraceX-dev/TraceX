@@ -285,6 +285,7 @@ type CollabApplyInput = Static<typeof CollabApplyInputSchema>
 
 export const collabApplyTool = createTool({
   name: collabApplyToolId,
+  title: 'Edit document content',
   description:
     'Apply 1 to 100 operations atomically to one existing collaborative document. Read the schema ' +
     'before constructing node JSON or marks. Read target content when context is needed and always ' +

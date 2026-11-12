@@ -47,6 +47,7 @@ export const ChatUnreadOutputSchema = Type.Object({
 
 export const chatUnreadTool = createTool({
   name: chatUnreadToolId,
+  title: 'List unread chats',
   description:
     'List streams with unread messages: channels, directs, discussions and threads, each with target, type, name, parent context and unreadCount. Threads are separate rows, including unfollowed threads with personal reading contexts. Counts use the same message range as chat_unread_messages, not UI notification badges. Never marks anything read.',
   inputSchema: ChatUnreadInputSchema,

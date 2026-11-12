@@ -38,6 +38,7 @@ export const ChatSendOutputSchema = Type.Object({ id: Type.String(), stream: Cha
 
 export const chatSendTool = createTool({
   name: chatSendToolId,
+  title: 'Send chat message',
   description:
     'Send Markdown as the authenticated user to target={class,id}. Use a chat document for a main-stream message, or a root chat message for a thread reply, including its first reply. Never creates or joins chats. Do not blindly retry an uncertain send.',
   inputSchema: ChatSendInputSchema,

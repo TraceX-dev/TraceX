@@ -45,6 +45,7 @@ const WorkspaceOutputSchema = Type.Object(
 
 export const meWorkspaceTool = createTool({
   name: meWorkspaceToolId,
+  title: 'Get workspace details',
   description: 'Get information about the current authenticated workspace.',
   inputSchema: WorkspaceInputSchema,
   outputSchema: WorkspaceOutputSchema,

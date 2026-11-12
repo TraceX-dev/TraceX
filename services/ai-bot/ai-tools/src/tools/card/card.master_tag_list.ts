@@ -80,6 +80,7 @@ export const ListMasterTagsOutputSchema = Type.Object(
 
 export const cardListMasterTagsTool = createTool({
   name: cardListMasterTagsToolId,
+  title: 'List card types',
   description: 'List available card master tags, optionally filtered by card space.',
   inputSchema: ListMasterTagsInputSchema,
   outputSchema: ListMasterTagsOutputSchema,

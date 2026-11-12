@@ -30,6 +30,7 @@ export function registerMeWorkspacesTool (
   server.registerTool(
     'my_workspaces',
     {
+      title: 'List accessible workspaces',
       description:
         'List accessible TraceX workspaces with stable IDs, names and URL names. Use an exact returned ID in every workspace tool call.',
       inputSchema: fromJsonSchema<Record<string, unknown>>({

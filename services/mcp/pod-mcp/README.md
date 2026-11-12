@@ -64,6 +64,8 @@ The server returns JSON text for all tool results and also fills MCP `structured
 
 ## Tools
 
+Tool IDs use underscores, for example `card_get` and `chat_send`. Each tool also advertises a separate human-readable `title`, such as **Get card** or **Send chat message**. Use the ID when calling a tool. Refresh the client's tool list after updating the server to load the current IDs and titles.
+
 ### Collaborative editing
 
 `collab_schema`, `collab_outline`, `collab_find`, `collab_read`, and `collab_apply` read and edit live collaborative fields. Obtain an opaque `docName` from `collaborativeFields` in card or object search/read results; workspace is supplied separately. Fields on the object's actual class and its ancestors are supported, including ordinary document and card content. Tag mixin fields are excluded.

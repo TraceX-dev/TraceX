@@ -51,6 +51,7 @@ type CollabReadInput = Static<typeof CollabReadInputSchema>
 
 export const collabReadTool = createTool({
   name: collabReadToolId,
+  title: 'Read document node',
   description:
     'Read the complete ProseMirror JSON subtree of one node by a handle obtained from ' +
     'collab_outline, collab_find or an earlier read. Returns its subtree hash and handles for direct ' +

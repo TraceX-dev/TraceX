@@ -155,6 +155,7 @@ export function createMcpServer (
     server.registerTool(
       tool.name,
       {
+        ...(tool.title !== undefined ? { title: tool.title } : {}),
         description: tool.description,
         inputSchema: fromJsonSchema<Record<string, unknown>>(inputSchema),
         ...(tool.outputSchema !== undefined ? { outputSchema: fromJsonSchema(tool.outputSchema) } : {}),

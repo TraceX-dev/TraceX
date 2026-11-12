@@ -67,6 +67,7 @@ type CollabSchemaInput = Static<typeof CollabSchemaInputSchema>
 
 export const collabSchemaTool = createTool({
   name: collabSchemaToolId,
+  title: 'Describe document schema',
   description:
     'Describe the shared collaborative editor schema: node and mark types, native attribute ' +
     'constraints, access rules, allowed content and JSON examples. Use the catalog below to discover ' +

@@ -101,6 +101,7 @@ export const CreateCardOutputSchema = Type.Object(
 
 export const cardCreateTool = createTool({
   name: cardCreateToolId,
+  title: 'Create card',
   description:
     'Create a card. Card collaborative content goes to top-level content as HTML. Master attributes go to attributes; tag mixins are assigned with tags[].attributes.',
   inputSchema: CreateCardInputSchema,

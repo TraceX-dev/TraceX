@@ -45,6 +45,7 @@ type CollabOutlineInput = Static<typeof CollabOutlineInputSchema>
 
 export const collabOutlineTool = createTool({
   name: collabOutlineToolId,
+  title: 'Get document outline',
   description:
     'List top-level nodes of an existing collaborative document in document order, with handles, ' +
     'previews, subtree hashes and immediate child counts. typesPresent lists node types throughout the document. Use this to navigate before reading or ' +

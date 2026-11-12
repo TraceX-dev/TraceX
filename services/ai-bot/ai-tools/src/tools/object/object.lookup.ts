@@ -129,6 +129,7 @@ type ObjectSortEntry = Static<typeof ObjectQuerySortSchema>
 
 export const objectLookupTool = createTool({
   name: objectLookupToolId,
+  title: 'Find objects by class',
   description: 'List workspace objects by class or mixin, optionally filtering and sorting by object fields.',
   inputSchema: ObjectLookupInputSchema,
   outputSchema: ObjectLookupOutputSchema,

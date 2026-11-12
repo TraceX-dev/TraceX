@@ -102,6 +102,7 @@ export const MasterTagDetailsOutputSchema = Type.Object(
 
 export const cardMasterTagDetailsTool = createTool({
   name: cardMasterTagDetailsToolId,
+  title: 'Get card type details',
   description:
     'Returns master tag details, including master attributes and applicable tag mixins with their attributes. Collaborative attributes are omitted; card content is HTML in top-level content fields.',
   inputSchema: MasterTagDetailsInputSchema,

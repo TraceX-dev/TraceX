@@ -40,6 +40,7 @@ export const ChatMarkReadOutputSchema = Type.Object({
 
 export const chatMarkReadTool = createTool({
   name: chatMarkReadToolId,
+  title: 'Mark chat as read',
   description:
     'Explicitly mark the entire target={class,id} stream as read for the authenticated user. Updates its personal reading timestamp and marks its unviewed notifications as viewed. A chat and each thread are independent. This marks the whole stream, not only a fetched page. Without a personal context, does nothing. Never creates or joins chats or follows threads.',
   inputSchema: ChatMarkReadInputSchema,

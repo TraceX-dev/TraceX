@@ -84,6 +84,7 @@ export const ListSpacesOutputSchema = Type.Object(
 
 export const cardListSpacesTool = createTool({
   name: cardListSpacesToolId,
+  title: 'List card spaces',
   description: 'List card spaces visible in the workspace.',
   inputSchema: ListSpacesInputSchema,
   outputSchema: ListSpacesOutputSchema,

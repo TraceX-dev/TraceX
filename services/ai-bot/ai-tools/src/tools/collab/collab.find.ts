@@ -51,6 +51,7 @@ type CollabFindInput = Static<typeof CollabFindInputSchema>
 
 export const collabFindTool = createTool({
   name: collabFindToolId,
+  title: 'Find document content',
   description:
     'Find addressable nodes, including nested nodes, inside one existing collaborative document by ' +
     'literal text and/or exact node type. Filters are combined with AND. Results are paginated in ' +

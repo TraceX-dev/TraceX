@@ -94,6 +94,7 @@ type FulltextSearchOutput = Static<typeof FulltextSearchOutputSchema>
 
 export const fulltextSearchTool = createTool({
   name: fulltextSearchToolId,
+  title: 'Search workspace',
   description: 'Search indexed workspace objects by fulltext and return compact object references.',
   inputSchema: FulltextSearchInputSchema,
   outputSchema: FulltextSearchOutputSchema,

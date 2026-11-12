@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -61,8 +62,10 @@ export interface ToolAction<
   TContext extends ToolExecutorContext,
   TMetadata extends ToolMetadata
 > {
-  // Tool name for LLM
+  // Tool identifier for LLM
   name: string
+  // Human-readable display name
+  title?: string
   // Tool description for LLM
   description: string
   // Tool input arguments schema
