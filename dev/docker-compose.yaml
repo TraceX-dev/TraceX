@@ -351,7 +351,7 @@ services:
       - STREAM_URL=http://tracex.local:1080/recording
       - BACKUP_URL=http://tracex.local:4039/api/backup,
       - EXCLUDED_APPLICATIONS_FOR_ANONYMOUS=[]
-      - DISABLED_FEATURES=auto-translate,mailboxes
+      - DISABLED_FEATURES=mail,auto-translate,github,inventory,survey,lead,recruit,gmail,mailboxes,testManagement,telegram,hr
       # - DISABLE_SIGNUP=true
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       - DATALAKE_URL=http://tracex.local:4030
