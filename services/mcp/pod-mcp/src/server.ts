@@ -1,6 +1,5 @@
 //
 // Copyright © 2026 TraceX.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -134,7 +133,7 @@ export function createMcpServer (
       version: SERVER_VERSION
     },
     {
-      instructions: `${SERVER_INSTRUCTIONS}\n\nConnected TraceX installation: ${String(auth.resource)}`
+      instructions: SERVER_INSTRUCTIONS
     }
   )
 
@@ -164,39 +163,43 @@ export function createMcpServer (
       async (args) => {
         const { workspace, ...input } = args
         try {
-          return await ctx.with(
-            'mcp-tool',
-            { tool: tool.name, workspace: typeof workspace === 'string' ? workspace : undefined },
-            async (ctx) => {
-              if (typeof workspace !== 'string' || workspace === '') {
-                return jsonText(
-                  {
-                    error: {
-                      code: 'workspace_required',
-                      message: `Choose an explicit workspace ID from ${meWorkspacesToolId}.`
-                    }
-                  },
-                  true
-                )
-              }
-              const connection = await workspaceManager.getConnection(
-                auth.extra.accountToken,
-                workspace,
-                auth.extra.workspaceId
+          return await ctx.with('mcp-tool', { tool: tool.name }, async (ctx) => {
+            if (typeof workspace !== 'string' || workspace === '') {
+              return jsonText(
+                {
+                  error: {
+                    code: 'workspace_required',
+                    message: `Choose an explicit workspace ID from ${meWorkspacesToolId}.`
+                  }
+                },
+                true
               )
-              const result = toToolResult(tool, await tool.execute(input, createToolContext(ctx, connection)))
-              return {
-                ...result,
-                content: [
-                  {
-                    type: 'text' as const,
-                    text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})\nInstallation: ${String(auth.resource)}`
-                  },
-                  ...result.content
-                ]
-              }
             }
-          )
+            const connection = await ctx.with(
+              'connect',
+              {},
+              async () =>
+                await workspaceManager.getConnection(auth.extra.accountToken, workspace, auth.extra.workspaceId)
+            )
+            const result = toToolResult(
+              tool,
+              await ctx.with(
+                'execute',
+                {},
+                async (ctx) => await tool.execute(input, createToolContext(ctx, connection))
+              )
+            )
+            return {
+              ...result,
+              content: [
+                {
+                  type: 'text' as const,
+                  text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})`
+                },
+                ...result.content
+              ]
+            }
+          })
         } catch {
           return jsonText(
             {
