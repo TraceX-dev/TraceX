@@ -37,7 +37,13 @@ export type {
   AuditEventOptions
 } from './audit'
 export { ApiError, classifyApiError, type ApiErrorOptions } from './apiError'
-export { withAuditedResponse, sendApiError, createErrorHandler, notifyAfterCompletion } from './rest'
+export {
+  withAuditedResponse,
+  sendApiError,
+  createErrorHandler,
+  notifyAfterCompletion,
+  accountLookupError
+} from './rest'
 export * from './base'
 export * from './benchmark'
 export type * from './configuration'

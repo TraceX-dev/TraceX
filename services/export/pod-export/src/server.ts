@@ -55,6 +55,7 @@ import { createClient, getAccountClient, getTransactorEndpoint } from '@hcengine
 import {
   createDummyStorageAdapter,
   ApiError,
+  accountLookupError,
   auditActorFromToken,
   createErrorHandler,
   createPipeline,
@@ -384,7 +385,7 @@ export function createServer (
       try {
         info = await accountClient.getLoginWithWorkspaceInfo()
       } catch (err: any) {
-        throw new ApiError(401, 'Invalid workspace', { reason: 'invalid_workspace', cause: err })
+        throw accountLookupError(err)
       }
       const winfo = info.workspaces[decodedToken.workspace]
       if (!isAdmin) {
@@ -392,7 +393,7 @@ export function createServer (
           throw new ApiError(401, 'Invalid workspace', { reason: 'not_workspace_member' })
         }
         if (winfo.role !== AccountRole.Owner) {
-          throw new ApiError(401, 'Not an owner of workspace', { reason: 'not_workspace_owner' })
+          throw new ApiError(403, 'Not an owner of workspace', { reason: 'not_workspace_owner' })
         }
       }
 
@@ -766,7 +767,9 @@ export function createServer (
 
         // Get target workspace info
         const accountClient = getClient(envConfig.AccountsUrl, token)
-        const targetWsLoginInfo = await accountClient.getLoginWithWorkspaceInfo()
+        const targetWsLoginInfo = await accountClient.getLoginWithWorkspaceInfo().catch((err) => {
+          throw accountLookupError(err)
+        })
 
         const targetWsInfo = targetWsLoginInfo.workspaces[targetWorkspace]
         if (targetWsInfo === undefined) {

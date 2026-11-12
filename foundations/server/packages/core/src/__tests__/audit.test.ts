@@ -322,3 +322,19 @@ test('derives the actor only from a verified token', () => {
   expect(auditActorFromToken('garbage')).toEqual({})
   expect(auditActorFromToken(undefined)).toEqual({})
 })
+
+test('a skipped action records nothing on success but still records its failure', async () => {
+  await withAuditEvent(ctx, { event: 'workspace.backup.download' }, async (audit) => {
+    audit.skip()
+  })
+  expect(write).not.toHaveBeenCalled()
+  const error = new Error('denied')
+  await expect(
+    withAuditEvent(ctx, { event: 'workspace.backup.download' }, async (audit) => {
+      audit.skip()
+      throw error
+    })
+  ).rejects.toBe(error)
+  expect(write).toHaveBeenCalledTimes(1)
+  expect(write.mock.calls[0][1].outcome).toBe('failed')
+})

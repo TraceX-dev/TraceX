@@ -149,6 +149,11 @@ export interface AuditScope {
   mirror: (workspaceUuid: string, overrides?: AuditDetails) => void
   /** The action continues in the background: record its outcome when all deferred work settles. */
   defer: (work: Promise<unknown>) => void
+  /**
+   * The request turned out not to be an auditable operation (e.g. a listing or a cache revalidation):
+   * do not record its success. Failures and denials are still recorded.
+   */
+  skip: () => void
 }
 
 /**
@@ -181,6 +186,7 @@ export async function withAuditEvent<T> (
   let details: AuditDetails = {}
   const mirrors: Array<{ workspaceUuid: string, overrides: AuditDetails }> = []
   const deferred: Array<Promise<unknown>> = []
+  let skipped = false
 
   const record = async (outcome: AuditDetails): Promise<void> => {
     const base: AuditEvent = { ...event, ...outcome }
@@ -192,6 +198,7 @@ export async function withAuditEvent<T> (
     }
   }
   const succeeded = async (): Promise<void> => {
+    if (skipped) return
     await record({ outcome: 'succeeded', ...details })
   }
   const failed = async (error: unknown): Promise<void> => {
@@ -213,6 +220,9 @@ export async function withAuditEvent<T> (
     },
     defer: (work) => {
       deferred.push(work)
+    },
+    skip: () => {
+      skipped = true
     }
   }
 

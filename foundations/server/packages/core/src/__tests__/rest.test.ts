@@ -18,7 +18,15 @@ import { createServer, request, type IncomingMessage, type ServerResponse } from
 import type { AddressInfo } from 'net'
 import { ApiError } from '../apiError'
 import { setAuditEventWriter, type AuditRecord } from '../audit'
-import { createErrorHandler, notifyAfterCompletion, sendApiError, withAuditedResponse } from '../rest'
+import {
+  accountLookupError,
+  createErrorHandler,
+  notifyAfterCompletion,
+  sendApiError,
+  withAuditedResponse
+} from '../rest'
+import { classifyApiError } from '../apiError'
+import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 
 const ctx = { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as MeasureContext
 let records: AuditRecord[] = []
@@ -209,4 +217,15 @@ test('a failed follow-up notification is logged and does not fail the completed 
   await notifyAfterCompletion(ctx, 'unused', send)
   expect(send).toHaveBeenCalledTimes(1)
   expect(ctx.error).toHaveBeenCalledTimes(1)
+})
+
+test('an account-service answer is a denial, an unreachable service is a failure', () => {
+  const answered = accountLookupError(new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {})))
+  expect(answered.code).toBe(401)
+  expect(answered.message).toBe('Invalid workspace')
+  expect(classifyApiError(answered)).toEqual({ outcome: 'denied', errorCode: 'invalid_workspace' })
+
+  const outage = accountLookupError(new TypeError('fetch failed'))
+  expect(outage.code).toBe(503)
+  expect(classifyApiError(outage)).toEqual({ outcome: 'failed', errorCode: 'account_lookup_failed' })
 })

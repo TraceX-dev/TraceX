@@ -17,6 +17,7 @@
 // which an Express `Response` extends.
 
 import type { MeasureContext } from '@hcengineering/core'
+import { PlatformError } from '@hcengineering/platform'
 import type { ServerResponse } from 'http'
 import { ApiError, classifyApiError } from './apiError'
 import { withAuditEvent, type AuditEvent, type AuditScope } from './audit'
@@ -91,4 +92,16 @@ export async function notifyAfterCompletion (
   } catch (err: unknown) {
     ctx.error(failureMessage, { err })
   }
+}
+
+/**
+ * Error for a failed account-service lookup of the caller's access. When the service answered (a `PlatformError`:
+ * invalid token, unknown workspace) access is denied; when it could not be reached it is a failure, so an outage
+ * is not recorded in the audit journal as a burst of denials.
+ */
+export function accountLookupError (err: unknown, deniedMessage: string = 'Invalid workspace'): ApiError {
+  if (err instanceof PlatformError) {
+    return new ApiError(401, deniedMessage, { reason: 'invalid_workspace', cause: err })
+  }
+  return new ApiError(503, undefined, { reason: 'account_lookup_failed', cause: err })
 }
