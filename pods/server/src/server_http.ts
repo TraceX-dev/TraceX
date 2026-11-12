@@ -23,6 +23,7 @@ import { Analytics } from '@hcengineering/analytics'
 import {
   generateId,
   platformNow,
+  safeHttpLogFormat,
   systemAccountUuid,
   type MeasureContext,
   type Tx,
@@ -143,7 +144,7 @@ export function startHttpServer (
 
   const myStream = new MyStream()
 
-  app.use(morgan('short', { stream: myStream }))
+  app.use(morgan(safeHttpLogFormat, { stream: myStream }))
 
   const getUsers = (): any => Array.from(sessions.sessions.entries()).map(([k, v]) => v.session.getUser())
 

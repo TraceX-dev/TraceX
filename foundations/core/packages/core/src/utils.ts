@@ -1033,7 +1033,14 @@ export function unique<T> (arr: T[]): T[] {
 export function uniqueNotEmpty<T extends NonNullable<unknown>> (arr: Array<T | undefined | null>): T[] {
   return unique(arr).filter(notEmpty)
 }
-export { platformNow, platformNowDiff } from '@hcengineering/measurements'
+export {
+  platformNow,
+  platformNowDiff,
+  logReplacer,
+  redactUrl,
+  safeHttpLogFormat,
+  sanitizeForLog
+} from '@hcengineering/measurements'
 
 export interface PermissionsGrant {
   spaces?: Ref<Space>[]

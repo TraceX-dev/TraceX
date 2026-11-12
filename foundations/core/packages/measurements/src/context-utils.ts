@@ -14,6 +14,7 @@
 //
 
 import { type MeasureLogger, type ParamsType } from './types'
+import { logReplacer } from './log-redaction'
 
 interface MetricAttributeKey {
   readonly params: ParamsType
@@ -43,13 +44,8 @@ export function getMetricAttributeKey (attributes: Readonly<ParamsType>): Metric
   return prepared
 }
 
-const errorPrinter = ({ message, stack, ...rest }: Error): object => ({
-  message,
-  stack,
-  ...rest
-})
-function replacer (value: any): any {
-  return value instanceof Error ? errorPrinter(value) : value
+function stringifyLogValue (key: string, value: any): string {
+  return JSON.stringify(logReplacer(key, value), logReplacer)
 }
 
 export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => ({
@@ -57,7 +53,7 @@ export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => 
     console.info(
       msg,
       ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
+        (it) => `${it[0]}=${stringifyLogValue(it[0], it[1])}`
       )
     )
   },
@@ -65,7 +61,7 @@ export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => 
     console.error(
       msg,
       ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
+        (it) => `${it[0]}=${stringifyLogValue(it[0], it[1])}`
       )
     )
   },
@@ -73,7 +69,7 @@ export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => 
     console.warn(
       msg,
       ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
+        (it) => `${it[0]}=${stringifyLogValue(it[0], it[1])}`
       )
     )
   },
@@ -81,7 +77,7 @@ export const consoleLogger = (logParams: Record<string, any>): MeasureLogger => 
     console.debug(
       msg,
       ...Object.entries({ ...(args ?? {}), ...(logParams ?? {}) }).map(
-        (it) => `${it[0]}=${JSON.stringify(replacer(it[1]))}`
+        (it) => `${it[0]}=${stringifyLogValue(it[0], it[1])}`
       )
     )
   },
