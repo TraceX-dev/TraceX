@@ -12,6 +12,7 @@
     "Forms": "Forms",
     "Enabled": "양식 활성화",
     "TargetSpace": "Create cards in",
+    "SelectSpaceToEnableForm": "양식을 활성화하려면 카드를 만들 스페이스를 선택하세요.",
     "FormLink": "Form link",
     "Submit": "Submit",
     "Submitted": "Your response has been submitted",
