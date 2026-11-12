@@ -18,7 +18,7 @@
 import { Editor } from '@tiptap/core'
 import { StarterKit } from '@tiptap/starter-kit'
 import { showPopup } from '@hcengineering/ui'
-import { LeftMenuExtension } from './leftMenu'
+import { LeftMenuExtension } from '../leftMenu'
 
 jest.mock('@hcengineering/platform', () => ({ getMetadata: jest.fn() }))
 jest.mock('@hcengineering/ui', () => ({

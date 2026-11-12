@@ -19,7 +19,7 @@ import { Editor, Node, type Command } from '@tiptap/core'
 import { StarterKit } from '@tiptap/starter-kit'
 import { TableKit } from '@tiptap/extension-table'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { insertEditableBlock, saveInsertionSelection } from './insertion-selection'
+import { insertEditableBlock, saveInsertionSelection } from '../insertion-selection'
 
 const Mermaid = Node.create({
   name: 'mermaid',
