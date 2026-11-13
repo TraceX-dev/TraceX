@@ -58,7 +58,14 @@ tabIdStore.subscribe((value) => {
   saveTabToLocalStorage(value)
 })
 
+let tabsWorkspace: string | undefined
 locationWorkspaceStore.subscribe((workspace) => {
+  if (tabsWorkspace !== undefined && workspace !== tabsWorkspace) {
+    // Tabs belong to a workspace: drop the previous workspace's tabs right away, before the new
+    // Workbench query refills the store, so nothing renders (or writes) them against the new client.
+    tabsStore.set([])
+  }
+  tabsWorkspace = workspace
   tabIdStore.set(getTabFromLocalStorage(workspace ?? ''))
 })
 

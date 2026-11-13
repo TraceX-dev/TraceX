@@ -220,6 +220,13 @@ export class PresentationPipelineImpl implements PresentationPipeline {
           return { success: false }
         }
       }
+      console.warn('[presentation] tx failed', {
+        txClass: tx._class,
+        objectClass: (tx as any).objectClass,
+        objectId: (tx as any).objectId,
+        error: err instanceof Error ? err.message : err,
+        status: err instanceof PlatformError ? err.status.code : undefined
+      })
       const status = unknownError(err)
       await setPlatformStatus(status)
       return { success: false }
