@@ -60,7 +60,7 @@ export async function authorizeBackupAccess (
 
 /**
  * Stream a backup file and resolve when the transfer ends, so an abandoned download is detected by the audit
- * layer. A revalidation answered with 304 transferred no data and is not recorded as a download.
+ * layer. A revalidation answered with 304 still records the access attempt.
  */
 export async function sendBackupFile (
   storage: Pick<BackupStorage, 'statInfo' | 'load'>,
@@ -89,7 +89,6 @@ export async function sendBackupFile (
     ifNoneMatch === fileInfo.etag ||
     (ifModifiedSince !== undefined && fileInfo.lastModified <= parseInt(ifModifiedSince))
   ) {
-    audit.skip()
     res.writeHead(304, responseHeaders).end()
     return
   }

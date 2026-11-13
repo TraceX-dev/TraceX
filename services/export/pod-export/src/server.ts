@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -290,15 +291,14 @@ export const auditedRequest = (
 ): ((req: Request, res: Response, next: NextFunction) => void) =>
   wrapRequest(async (req, res, wsIds, token, socialId) => {
     const auditEvent = { event, ...auditActorFromToken(token), workspaceUuid: wsIds.uuid }
-    await withAuditedResponse(
-      ctx,
-      auditEvent,
-      res,
-      async (audit) => {
+    await withAuditedResponse(ctx, auditEvent, res, async (audit) => {
+      try {
         await fn(req, res, wsIds, token, socialId, audit)
-      },
-      fallbackMessage
-    )
+      } catch (err: unknown) {
+        if (err instanceof ApiError) throw err
+        throw new ApiError(500, fallbackMessage, { cause: err })
+      }
+    })
   })
 
 export function hasQueryFilter (query: DocumentQuery<Doc> | undefined | null): boolean {

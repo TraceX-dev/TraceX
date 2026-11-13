@@ -93,16 +93,10 @@ describe('withAuditedResponse', () => {
   test('records success with the details the action set', async () => {
     await withServer(
       async (_req, res) => {
-        await withAuditedResponse(
-          ctx,
-          event,
-          res,
-          async (audit) => {
-            audit.set({ format: 'md' })
-            res.end('ok')
-          },
-          'Failed'
-        )
+        await withAuditedResponse(ctx, event, res, async (audit) => {
+          audit.set({ format: 'md' })
+          res.end('ok')
+        })
       },
       async (url) => {
         expect((await call(url)).status).toBe(200)
@@ -111,35 +105,19 @@ describe('withAuditedResponse', () => {
     expect(records[0]).toMatchObject({ outcome: 'succeeded', format: 'md', workspaceUuid: 'ws' })
   })
 
-  test('keeps ApiError as thrown and hides unexpected error messages behind the fallback', async () => {
-    let n = 0
-    await withServer(
-      async (_req, res) => {
-        n++
-        await withAuditedResponse(
-          ctx,
-          event,
-          res,
-          async () => {
-            if (n === 1) throw new ApiError(403, 'Owner role required', { reason: 'not_owner' })
-            throw new TypeError('connect ECONNREFUSED 10.0.0.5:5432')
-          },
-          'Export failed'
-        )
-      },
-      async (url) => {
-        const denied = await call(url)
-        expect(denied.status).toBe(403)
-        expect(JSON.parse(denied.body)).toEqual({ code: 403, message: 'Owner role required' })
-        const crash = await call(url)
-        expect(crash.status).toBe(500)
-        expect(JSON.parse(crash.body)).toEqual({ code: 500, message: 'Export failed' })
-      }
-    )
-    expect(records.map((r) => [r.outcome, r.errorCode])).toEqual([
-      ['denied', 'not_owner'],
-      ['failed', 'TypeError']
-    ])
+  test.each([
+    [new ApiError(403, 'Owner role required', { reason: 'not_owner' }), 'denied', 'not_owner'],
+    [new TypeError('connect ECONNREFUSED 10.0.0.5:5432'), 'failed', 'TypeError']
+  ])('propagates %p unchanged and audits its outcome', async (error, outcome, errorCode) => {
+    const res: Partial<ServerResponse> = {}
+    await expect(
+      withAuditedResponse(ctx, event, res as ServerResponse, async () => {
+        throw error
+      })
+    ).rejects.toBe(error)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ outcome, errorCode })
+    expect(JSON.stringify(records)).not.toContain(error.message)
   })
 
   test('records a download the client abandoned as interrupted', async () => {
@@ -149,21 +127,15 @@ describe('withAuditedResponse', () => {
     })
     await withServer(
       async (_req, res) => {
-        await withAuditedResponse(
-          ctx,
-          event,
-          res,
-          async () => {
-            res.writeHead(200, { 'content-type': 'application/octet-stream' })
-            res.write('part')
-            await new Promise<void>((resolve) =>
-              res.once('close', () => {
-                resolve()
-              })
-            )
-          },
-          'Failed'
-        )
+        await withAuditedResponse(ctx, event, res, async () => {
+          res.writeHead(200, { 'content-type': 'application/octet-stream' })
+          res.write('part')
+          await new Promise<void>((resolve) =>
+            res.once('close', () => {
+              resolve()
+            })
+          )
+        })
         done()
       },
       async (url) => {

@@ -295,15 +295,14 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
       targetType: 'backup',
       fileName: request.params.file ?? ''
     } as const
-    await withAuditedResponse(
-      ctx,
-      event,
-      res,
-      async (audit) => {
+    await withAuditedResponse(ctx, event, res, async (audit) => {
+      try {
         await handleBackup(request, res, verifiedToken, verified, audit)
-      },
-      'Backup request failed'
-    )
+      } catch (err: unknown) {
+        if (err instanceof ApiError) throw err
+        throw new ApiError(500, 'Backup request failed', { cause: err })
+      }
+    })
   }
 
   app.get('/api/backup/:workspace/:file(*)', (req, res) => {

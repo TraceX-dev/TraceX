@@ -103,15 +103,9 @@ describe('sendBackupFile', () => {
   async function serve (storage: any, run: (url: string) => Promise<void>, file = 'tx-0001.tar.gz'): Promise<void> {
     const server = createServer((req, res) => {
       const event = { event: 'workspace.backup.download', workspaceUuid: workspace, fileName: file } as const
-      void withAuditedResponse(
-        ctx,
-        event,
-        res,
-        async (audit) => {
-          await sendBackupFile(storage, file, req.headers, res, audit)
-        },
-        'Backup request failed'
-      ).catch((err) => {
+      void withAuditedResponse(ctx, event, res, async (audit) => {
+        await sendBackupFile(storage, file, req.headers, res, audit)
+      }).catch((err) => {
         sendApiError(err, res)
       })
     })
@@ -165,14 +159,23 @@ describe('sendBackupFile', () => {
     expect(records[0]).toMatchObject({ outcome: 'succeeded', fileName: 'tx-0001.tar.gz', fileSize: 4 })
   })
 
-  test('a 304 revalidation is not recorded as a download', async () => {
+  const revalidationHeaders: IncomingHttpHeaders[] = [{ 'if-none-match': 'etag-1' }, { 'if-modified-since': '1000' }]
+
+  test.each(revalidationHeaders)('records a 304 revalidation access attempt for %j', async (headers) => {
     const storage = { statInfo: async () => fileInfo, load: jest.fn() }
     await serve(storage, async (url) => {
-      expect((await get(url, { 'if-none-match': 'etag-1' })).status).toBe(304)
+      expect((await get(url, headers)).status).toBe(304)
     })
     await settle()
     expect(storage.load).not.toHaveBeenCalled()
-    expect(records).toHaveLength(0)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({
+      event: 'workspace.backup.download',
+      outcome: 'succeeded',
+      workspaceUuid: workspace,
+      fileName: 'tx-0001.tar.gz',
+      fileSize: 4
+    })
   })
 
   test('records an abandoned download as interrupted and releases the storage stream', async () => {

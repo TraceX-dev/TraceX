@@ -24,8 +24,8 @@ import { withAuditEvent, type AuditEvent, type AuditScope } from './audit'
 
 /**
  * Handle a request whose outcome is audited in one place: success on completion, denied/failed from the
- * thrown exception (see `classifyApiError`). `fallbackMessage` replaces the message of unexpected
- * (non-`ApiError`) errors so internal details are never returned to the client.
+ * thrown exception (see `classifyApiError`). Errors propagate unchanged; the caller decides how to
+ * translate them into HTTP responses.
  *
  * A response the client abandoned mid-transfer is recorded as an interrupted download only when the action
  * awaits the end of the transfer (e.g. the `res.download` callback). An action that returns right after
@@ -35,19 +35,13 @@ export async function withAuditedResponse (
   ctx: MeasureContext,
   event: AuditEvent,
   res: ServerResponse,
-  action: (audit: AuditScope) => Promise<void>,
-  fallbackMessage: string
+  action: (audit: AuditScope) => Promise<void>
 ): Promise<void> {
   await withAuditEvent(
     ctx,
     event,
     async (audit) => {
-      try {
-        await action(audit)
-      } catch (err: unknown) {
-        if (err instanceof ApiError) throw err
-        throw new ApiError(500, fallbackMessage, { cause: err })
-      }
+      await action(audit)
       if (res.headersSent && !res.writableFinished && res.destroyed) {
         audit.set({ outcome: 'failed', errorCode: 'download_interrupted' })
       }
