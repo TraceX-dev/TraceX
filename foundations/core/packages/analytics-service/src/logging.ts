@@ -13,10 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { MeasureLogger, ParamsType } from '@hcengineering/core'
+import { logReplacer, MeasureLogger, ParamsType, sanitizeForLog } from '@hcengineering/core'
 import { basename, dirname, join } from 'path'
 import winston from 'winston'
 import DailyRotateFile from 'winston-daily-rotate-file'
+
+// Applies the same masking for transports that do not use JSON replacer (prettyPrint).
+// JSON transports rely on `logReplacer` only, to avoid serializing every record twice.
+const sanitizeFormat = winston.format((info) => {
+  for (const key of Object.keys(info)) {
+    if (key === 'level' || key === 'message' || key === 'timestamp') continue
+    info[key] = sanitizeForLog(info[key], key)
+  }
+  return info
+})
 
 export class SplitLogger implements MeasureLogger {
   logger: winston.Logger
@@ -31,22 +41,15 @@ export class SplitLogger implements MeasureLogger {
       level: process.env.LOG_LEVEL === 'debug' ? 'debug' : 'info',
       exitOnError: false
     })
-    const errorPrinter = ({ message, stack, ...rest }: Error): object => ({
-      message,
-      stack,
-      ...rest
-    })
     const jsonOptions: winston.Logform.JsonOptions = {
-      replacer: (key, value) => {
-        return value instanceof Error ? errorPrinter(value) : value
-      }
+      replacer: logReplacer
     }
     this.logger.add(
       new DailyRotateFile({
-        format: winston.format.combine(
-          winston.format.timestamp(),
-          opts.pretty === true ? winston.format.prettyPrint() : winston.format.json(jsonOptions)
-        ),
+        format:
+          opts.pretty === true
+            ? winston.format.combine(sanitizeFormat(), winston.format.timestamp(), winston.format.prettyPrint())
+            : winston.format.combine(winston.format.timestamp(), winston.format.json(jsonOptions)),
         filename: `${name}-combined-%DATE%.log`,
         auditFile: join(rootDir, `${basename(name)}-audit.log`),
         dirname: rootDir,
@@ -58,7 +61,7 @@ export class SplitLogger implements MeasureLogger {
     )
     this.logger.add(
       new DailyRotateFile({
-        format: winston.format.combine(winston.format.timestamp(), winston.format.prettyPrint()),
+        format: winston.format.combine(sanitizeFormat(), winston.format.timestamp(), winston.format.prettyPrint()),
         filename: `${name}-error-%DATE%.log`,
         auditFile: join(rootDir, `${basename(name)}-audit.log`),
         level: 'error',
