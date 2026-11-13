@@ -154,12 +154,13 @@
       <svelte:fragment slot="object" let:value>
         {@const processValue = toProcess(value)}
         <button
-          class="hulyTableAttr-content__row justify-start"
+          type="button"
+          class="hulyTableAttr-content__row justify-start w-full cursor-pointer"
           on:click|stopPropagation={() => {
             handleSelect(processValue._id)
           }}
         >
-          <div class="hulyTableAttr-content__row-label px-2 font-medium-14 cursor-pointer">
+          <div class="hulyTableAttr-content__row-label px-2 font-medium-14">
             {processValue.name}
           </div>
         </button>

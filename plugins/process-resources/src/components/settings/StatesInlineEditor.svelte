@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -61,8 +62,8 @@
 
 <style lang="scss">
   .box {
-    width: 32rem;
-    align-self: center;
+    width: 100%;
+    min-width: 0;
   }
 
   .header {
