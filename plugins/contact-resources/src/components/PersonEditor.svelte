@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,6 +16,7 @@
 <script lang="ts">
   import { Contact, Person } from '@hcengineering/contact'
   import { DocumentQuery, Ref, RefTo, Space } from '@hcengineering/core'
+  import { createReferenceQuery } from '@hcengineering/view-resources'
   import { getClient } from '@hcengineering/presentation'
   import { getGuestScopedPersonQuery } from '../utils'
   import { IntlString } from '@hcengineering/platform'
@@ -44,6 +46,9 @@
     docQuery = Object.keys(query).length > 0 ? (query as DocumentQuery<Contact>) : undefined
   }
 
+  const candidates = createReferenceQuery<Person>()
+  $: candidates.update(type, docQuery)
+
   $: _class = type?.to ?? contact.class.Person
 </script>
 
@@ -54,7 +59,7 @@
   {size}
   {justify}
   {width}
-  {docQuery}
+  docQuery={$candidates}
   bind:value
   on:change={(e) => {
     onChange(e.detail)

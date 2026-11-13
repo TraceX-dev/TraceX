@@ -82,7 +82,6 @@ export default mergeIds(settingId, setting, {
     Select: '' as IntlString,
     AddOwner: '' as IntlString,
     ReadonlyGuest: '' as IntlString,
-    User: '' as IntlString,
     Maintainer: '' as IntlString,
     Guest: '' as IntlString,
     Owner: '' as IntlString,

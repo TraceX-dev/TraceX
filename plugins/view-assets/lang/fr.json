@@ -187,6 +187,7 @@
     "RoleLabel": "Rôle : {role}",
     "ForbidAttributeChanges": "Interdire les modifications: ",
     "AllowAttributeChanges": "Autoriser les modifications: ",
-    "RelationshipTable": "Matrice de traçabilité"
+    "RelationshipTable": "Matrice de traçabilité",
+    "InvalidReferenceFilter": "Le filtre de référence est invalide ou indisponible. Corrigez-le ou supprimez-le avant de sauvegarder."
   }
 }

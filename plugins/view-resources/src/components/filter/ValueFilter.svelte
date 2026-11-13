@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -65,6 +66,13 @@
   let filterUpdateTimeout: any | undefined
 
   async function getValues (search: string): Promise<void> {
+    if (filter.key.options !== undefined) {
+      values = new Set(filter.key.options.map((option) => option.id))
+      for (const option of filter.key.options) realValues.set(option.id, new Set([option.id]))
+      sortedValues = [...values]
+      return
+    }
+
     if (objectsPromise) {
       await objectsPromise
     }
@@ -204,7 +212,10 @@
                 handleFilterToggle(value)
               }}
             >
-              {#if value !== undefined}
+              {#if filter.key.options !== undefined}
+                {@const option = filter.key.options.find((item) => item.id === value)}
+                {#if option}<Label label={option.label} />{/if}
+              {:else if value !== undefined}
                 <div class="clear-mins flex-grow">
                   <svelte:component
                     this={attribute.presenter}

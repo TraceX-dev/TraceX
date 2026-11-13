@@ -189,6 +189,7 @@
     "RoleLabel": "Роль: {role}",
     "ForbidAttributeChanges": "Запретить изменение: ",
     "AllowAttributeChanges": "Разрешить изменение: ",
-    "RelationshipTable": "Таблица связей"
+    "RelationshipTable": "Таблица связей",
+    "InvalidReferenceFilter": "Фильтр выбора некорректен или недоступен. Исправьте или удалите его перед сохранением."
   }
 }

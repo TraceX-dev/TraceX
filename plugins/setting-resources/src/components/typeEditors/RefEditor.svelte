@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,17 +16,20 @@
 <script lang="ts">
   import core, { AnyAttribute, Class, Doc, DOMAIN_STATUS, Ref, RefTo } from '@hcengineering/core'
   import { TypeRef } from '@hcengineering/model'
+  import { ReferenceFilters, supportsReferenceFilters } from '@hcengineering/view-resources'
   import { getClient } from '@hcengineering/presentation'
   import { Component, DropdownLabelsIntl, Label } from '@hcengineering/ui'
-  import view from '@hcengineering/view-resources/src/plugin'
+  import view from '@hcengineering/view'
   import card from '@hcengineering/card'
   import { createEventDispatcher } from 'svelte'
+  import setting from '../../plugin'
   import type { ButtonKind, ButtonSize, DropdownIntlItem } from '@hcengineering/ui'
 
   export let type: RefTo<Doc> | undefined
   export let attribute: AnyAttribute | undefined
   export let attributeOf: Ref<Class<Doc>>
   export let editable: boolean = true
+  export let disabled: boolean = false
   export let kind: ButtonKind = 'regular'
   export let size: ButtonSize = 'medium'
   export let isCard: boolean = false
@@ -33,20 +37,23 @@
 
   const _classes = [core.class.Doc]
 
-  const dispatch = createEventDispatcher()
+  const dispatch = createEventDispatcher<{ change: { type: RefTo<Doc>, preserveOptions: boolean, valid: boolean } }>()
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
+  const removedClasses = new Set(
+    client
+      .getModel()
+      .findAllSync(card.class.MasterTag, { removed: true })
+      .map((clazz) => clazz._id)
+  )
   const classes = fillClasses(_classes)
 
   function fillClasses (classes: Ref<Class<Doc>>[]): DropdownIntlItem[] {
     const res: DropdownIntlItem[] = []
     const descendants = new Set(classes.map((p) => hierarchy.getDescendants(p)).reduce((a, b) => a.concat(b)))
-    // exclude removed card types
-    const removedTypes = client.getModel().findAllSync(card.class.MasterTag, { removed: true })
-    const excluded = new Set(removedTypes.map((p) => p._id))
     for (const desc of descendants) {
-      if (excluded.has(desc)) continue
+      if (removedClasses.has(desc)) continue
       const domain = hierarchy.findDomain(desc)
       if (domain === DOMAIN_STATUS || domain === undefined) continue
       if (hierarchy.classHierarchyMixin(desc, view.mixin.AttributeEditor) === undefined) continue
@@ -61,7 +68,23 @@
 
   $: selected = classes.find((p) => p.id === refClass)
 
-  $: refClass !== undefined && dispatch('change', { type: TypeRef(refClass) })
+  let filters = type?._class === core.class.RefTo ? type.filters : undefined
+  let filtersValid = true
+
+  $: filtersSupported = refClass !== undefined && supportsReferenceFilters(hierarchy, refClass)
+  $: if (!filtersSupported) {
+    filters = undefined
+    filtersValid = true
+  }
+
+  function updateType (clazz: Ref<Class<Doc>>, filters: string | undefined, valid: boolean): void {
+    const nextType: RefTo<Doc> = type?._class === core.class.RefTo ? { ...type, ...TypeRef(clazz) } : TypeRef(clazz)
+    if (filters !== undefined) nextType.filters = filters
+    else delete nextType.filters
+    dispatch('change', { type: nextType, preserveOptions: clazz === type?.to, valid })
+  }
+
+  $: if (refClass !== undefined) updateType(refClass, filters, filtersValid)
 
   $: editor = refClass !== undefined && hierarchy.classHierarchyMixin(refClass, view.mixin.TypeEditor)?.editor
 </script>
@@ -82,6 +105,30 @@
 {:else if selected}
   <Label label={selected.label} />
 {/if}
+{#if refClass !== undefined && filtersSupported}
+  <span class="label">
+    <Label label={setting.string.RelationFilter} />
+  </span>
+  <div class="reference-filters">
+    {#key refClass}
+      <ReferenceFilters
+        _class={refClass}
+        value={filters}
+        {disabled}
+        on:change={(event) => {
+          filters = event.detail.value
+          filtersValid = event.detail.valid
+        }}
+      />
+    {/key}
+  </div>
+{/if}
 {#if editor}
   <Component is={editor} props={{ attribute, type, editable, attributeOf, isCard }} on:change />
 {/if}
+
+<style lang="scss">
+  .reference-filters {
+    min-width: 0;
+  }
+</style>

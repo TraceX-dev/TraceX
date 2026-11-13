@@ -187,6 +187,7 @@
     "RoleLabel": "Ruolo: {role}",
     "ForbidAttributeChanges": "Vieta modifiche: ",
     "AllowAttributeChanges": "Consenti modifiche: ",
-    "RelationshipTable": "Tabella delle relazioni"
+    "RelationshipTable": "Tabella delle relazioni",
+    "InvalidReferenceFilter": "Il filtro dei riferimenti non è valido o non è disponibile. Correggilo o rimuovilo prima di salvare."
   }
 }

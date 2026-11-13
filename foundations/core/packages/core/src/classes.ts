@@ -397,6 +397,8 @@ export interface TypeNumber extends Type<number> {
  */
 export interface RefTo<T extends Doc> extends Type<Ref<Class<T>>> {
   to: Ref<Class<T>>
+  /** Serialized view filters restricting Person/Card attribute candidates. */
+  filters?: string
 }
 
 /**

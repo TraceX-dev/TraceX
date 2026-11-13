@@ -192,6 +192,7 @@
     "RoleLabel": "Role: {role}",
     "ForbidAttributeChanges": "Zakázat změny: ",
     "AllowAttributeChanges": "Povolit změny: ",
-    "RelationshipTable": "Tabulka vztahů"
+    "RelationshipTable": "Tabulka vztahů",
+    "InvalidReferenceFilter": "Filtr reference je neplatný nebo nedostupný. Před uložením jej opravte nebo odeberte."
   }
 }

@@ -15,7 +15,7 @@
 -->
 <script lang="ts">
   import core, { Class, Doc, Ref, RefTo, Space, Status } from '@hcengineering/core'
-  import { translate } from '@hcengineering/platform'
+  import { getEmbeddedLabel, translate } from '@hcengineering/platform'
   import { getAttributePresenterClass, getClient } from '@hcengineering/presentation'
   import {
     AnyComponent,
@@ -174,7 +174,16 @@
           )
         }}
       >
-        {#if valueComponent}
+        {#if currentFilter.key.key === '_class'}
+          {#each currentFilter.value as id (id)}<Label
+              label={hierarchy.findClass(id)?.label ?? getEmbeddedLabel(id)}
+            />{/each}
+        {:else if currentFilter.key.options !== undefined}
+          {#each currentFilter.value as value (value[0])}
+            {@const option = currentFilter.key.options.find((item) => item.id === value[0])}
+            {#if option}<Label label={option.label} />{/if}
+          {/each}
+        {:else if valueComponent}
           <Component
             is={valueComponent}
             props={{ value: currentFilter.value, onChange, filter: currentFilter, space }}

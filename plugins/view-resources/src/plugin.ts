@@ -22,6 +22,7 @@ import view, { viewId } from '@hcengineering/view'
 
 export default mergeIds(viewId, view, {
   component: {
+    ClassFilter: '' as AnyComponent,
     ObjectFilter: '' as AnyComponent,
     DateFilter: '' as AnyComponent,
     ValueFilter: '' as AnyComponent,
@@ -38,6 +39,7 @@ export default mergeIds(viewId, view, {
     IdPresenter: '' as AnyComponent
   },
   string: {
+    InvalidReferenceFilter: '' as IntlString,
     Contains: '' as IntlString,
     NotContains: '' as IntlString,
     ValueIsSet: '' as IntlString,

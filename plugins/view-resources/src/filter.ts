@@ -14,6 +14,8 @@
 
 import core, {
   type AnyAttribute,
+  getClassExclusionQuery,
+  mergeQueries,
   type AttachedDoc,
   type Class,
   type Collection,
@@ -31,6 +33,7 @@ import { getCurrentResolvedLocation, locationToUrl, type AnyComponent } from '@h
 import { type Filter, type FilterMode, type FilteredView, type KeyFilter } from '@hcengineering/view'
 import { get, writable } from 'svelte/store'
 import view from './plugin'
+import { getClassInclusionFilter } from './class-filter'
 
 /**
  * @public
@@ -94,6 +97,24 @@ export async function filtersToQuery (
       const result = await getResource(mode.result)
       const newValue = await result(filter, () => {})
 
+      if (filter.key.key === '_class' && filter.mode === view.filter.FilterObjectIn) {
+        const inclusion = getClassInclusionFilter(hierarchy, filter.value)
+        let query = inclusion.query
+        if (query === undefined) {
+          // DocumentQuery has no OR operator; resolve mixed class/mixin unions before picker limits.
+          const docs = await client.findAll(filter.key._class, {}, { projection: inclusion.projection })
+          query = { _id: { $in: docs.filter(inclusion.matches).map((doc) => doc._id) } }
+        }
+        Object.assign(newQuery, mergeQueries(newQuery, query))
+        continue
+      }
+
+      if (filter.key.key === '_class' && filter.mode === view.filter.FilterObjectNin) {
+        const classes = filter.value as Array<Ref<Class<Doc>>>
+        Object.assign(newQuery, getClassExclusionQuery(hierarchy, classes, newQuery))
+        continue
+      }
+
       let filterKey = filter.key.key
       // Throws for a stale filter whose attribute or class no longer exists — such a filter is
       // skipped individually so the remaining ones still apply.
@@ -102,7 +123,11 @@ export async function filtersToQuery (
         filterKey = attr.attributeOf + '.' + filter.key.key
       }
 
-      newQuery[filterKey] = mergeFilterValue(newQuery[filterKey], newValue)
+      if (strict) {
+        Object.assign(newQuery, mergeQueries(newQuery, { [filterKey]: newValue }))
+      } else {
+        newQuery[filterKey] = mergeFilterValue(newQuery[filterKey], newValue)
+      }
     } catch (e) {
       if (strict) throw e
       console.error('Failed to apply filter', filter.key?.key, e)
