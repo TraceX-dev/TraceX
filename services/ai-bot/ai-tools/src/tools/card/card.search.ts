@@ -5,11 +5,19 @@
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
 import card, { type Card, type CardSpace, type MasterTag, type Tag } from '@hcengineering/card'
 import core, { type Class, type Doc, type DocumentQuery, type Ref, SortingOrder, Space } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 import { SpaceSummarySchema, ClassSummarySchema, buildClassSummary, buildSpaceSummary } from '../shared'
 import { cardGetToolId, cardSearchToolId } from './tool-ids'
 
@@ -53,6 +61,7 @@ export const SearchCardsOutputSchema = Type.Object(
     cards: Type.Array(
       Type.Object(
         {
+          collaborativeFields: CollaborativeFieldsSchema,
           id: Type.String({
             description: 'Stable card identifier.'
           }),
@@ -93,9 +102,15 @@ type SearchCardsOutput = Static<typeof SearchCardsOutputSchema>
 
 export const cardSearchTool = createTool({
   name: cardSearchToolId,
+  title: 'Search cards',
   description: `Search cards and return compact card references. Use ${cardGetToolId} to load attributes and active tags.`,
   inputSchema: SearchCardsInputSchema,
   outputSchema: SearchCardsOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args: SearchCardsInput, toolCtx: PlatformContext) => {
     const { client } = toolCtx
 
@@ -148,6 +163,7 @@ async function buildSearchOutput (toolCtx: PlatformContext, docs: Card[]): Promi
     docs.map(async (doc) => ({
       id: doc._id,
       title: doc.title,
+      collaborativeFields: await getCollaborativeFields(toolCtx, doc),
       masterTag: await buildClassSummary(toolCtx.hierarchy, doc._class),
       space: buildSpaceSummary(doc.space, spaces.get(doc.space)),
       tags: await summarizeActiveTags(toolCtx, doc, tags)

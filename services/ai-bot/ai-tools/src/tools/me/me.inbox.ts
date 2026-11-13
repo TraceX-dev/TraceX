@@ -95,9 +95,15 @@ type InboxMessageOutput = Static<typeof InboxMessageOutputSchema>
 
 export const meInboxTool = createTool({
   name: meInboxToolId,
+  title: 'List my inbox notifications',
   description: 'List inbox messages for the current authenticated account.',
   inputSchema: InboxInputSchema,
   outputSchema: InboxOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args: InboxInput, toolCtx: PlatformContext) => {
     const { client } = toolCtx
     const limit = args.limit ?? 50

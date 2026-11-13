@@ -31,6 +31,7 @@ describe('createTool', () => {
 
   const getWeatherTool = createTool({
     name: 'get-weather',
+    title: 'Get weather',
     description: 'Get weather tool tool',
     inputSchema: GetWeatherInputSchema,
     outputSchema: GetWeatherOutputSchema,
@@ -44,6 +45,11 @@ describe('createTool', () => {
           return toolFail('Unknown location', 'unknown_location')
       }
     }
+  })
+
+  it('preserves the display title separately from the callable name', () => {
+    expect(getWeatherTool.name).toBe('get-weather')
+    expect(getWeatherTool.title).toBe('Get weather')
   })
 
   it('returns weather for known location', async () => {

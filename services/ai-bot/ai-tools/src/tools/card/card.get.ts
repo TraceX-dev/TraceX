@@ -5,11 +5,19 @@
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 import { type PlatformContext, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
 import card, { type Card, type CardSpace, type Tag } from '@hcengineering/card'
 import { type Ref, type TxOperations } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 import { cardCreateToolId, cardGetToolId, cardSearchToolId } from './tool-ids'
 import { attributesForOwner } from './utils'
 import {
@@ -59,6 +67,7 @@ const GetCardOutputTagSchema = Type.Union(
 
 const GetCardOutputSchema = Type.Object(
   {
+    collaborativeFields: CollaborativeFieldsSchema,
     id: Type.String({
       description: 'Stable card identifier.'
     }),
@@ -129,9 +138,15 @@ const GetCardOutputSchema = Type.Object(
 
 export const cardGetTool = createTool({
   name: cardGetToolId,
+  title: 'Get card',
   description: 'Get a card with top-level HTML collaborative content and compact attribute values.',
   inputSchema: GetCardInputSchema,
   outputSchema: GetCardOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args: GetCardArgs, toolCtx: PlatformContext) => {
     const { client, hierarchy } = toolCtx
     const doc = await client.findOne(card.class.Card, { _id: args.cardId as Ref<Card> })
@@ -150,6 +165,7 @@ export const cardGetTool = createTool({
       masterTag: await buildClassSummary(hierarchy, doc._class),
       title: doc.title,
       content: await readCardContentHtml(toolCtx, doc),
+      collaborativeFields: await getCollaborativeFields(toolCtx, doc),
       space: buildSpaceSummary(doc.space, space),
       parent: doc.parent,
       readonly: doc.readonly,

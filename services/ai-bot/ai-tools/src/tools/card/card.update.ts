@@ -5,6 +5,13 @@
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 import { type PlatformContext, ToolError, createTool, toolFail, toolOk } from '@hcengineering/ai-core'
 import card, { type Card, type MasterTag, type Tag } from '@hcengineering/card'
@@ -103,10 +110,16 @@ type CardDataUpdate = Partial<Data<Card>>
 
 export const cardUpdateTool = createTool({
   name: cardUpdateToolId,
+  title: 'Update card',
   description:
     'Update a card. Card collaborative content goes to top-level content as HTML. Master attributes go to attributes; tag mixins are added, updated, or removed with tags[].',
   inputSchema: UpdateCardInputSchema,
   outputSchema: UpdateCardOutputSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false
+  },
   execute: async (args: UpdateCardInput, toolCtx: PlatformContext) => {
     const { client, hierarchy } = toolCtx
     const cardId = args.cardId as Ref<Card>

@@ -13,9 +13,9 @@
 // limitations under the License.
 //
 
-export const chatListToolId = 'chat.list'
-export const chatMessagesToolId = 'chat.messages'
-export const chatUnreadToolId = 'chat.unread'
-export const chatSendToolId = 'chat.send'
-export const chatUnreadMessagesToolId = 'chat.unread_messages'
-export const chatMarkReadToolId = 'chat.mark_read'
+export const chatListToolId = 'chat_list'
+export const chatMessagesToolId = 'chat_messages'
+export const chatUnreadToolId = 'chat_unread'
+export const chatSendToolId = 'chat_send'
+export const chatUnreadMessagesToolId = 'chat_unread_messages'
+export const chatMarkReadToolId = 'chat_mark_read'

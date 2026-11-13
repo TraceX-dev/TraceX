@@ -19,7 +19,7 @@ import { Type } from 'typebox'
 import { findStream, summarizeStream } from './chats'
 import { scanChatPage } from './discovery'
 import { ChatLimitSchema, ChatPageProperties, ChatSummarySchema, ChatTypeSchema } from './schemas'
-import { chatUnreadToolId } from './tool-ids'
+import { chatUnreadMessagesToolId, chatUnreadToolId } from './tool-ids'
 import { ownSocialIds } from './unread-state'
 import { contextClasses, countUnread, getUnreadScope } from './unread'
 
@@ -37,7 +37,7 @@ export const ChatUnreadOutputSchema = Type.Object({
     Type.Object({
       ...ChatSummarySchema.properties,
       unreadCount: Type.Number({
-        description: 'Database count of messages matching unread_messages in this stream; excludes own identities.'
+        description: `Database count of messages matching ${chatUnreadMessagesToolId} in this stream; excludes own identities.`
       }),
       readFrom: Type.Number({ description: 'Exclusive unread-history boundary in milliseconds.' })
     })
@@ -47,10 +47,15 @@ export const ChatUnreadOutputSchema = Type.Object({
 
 export const chatUnreadTool = createTool({
   name: chatUnreadToolId,
-  description:
-    'List streams with unread messages: channels, directs, discussions and threads, each with target, type, name, parent context and unreadCount. Threads are separate rows, including unfollowed threads with personal reading contexts. Counts use the same message range as chat.unread_messages, not UI notification badges. Never marks anything read.',
+  title: 'List unread chats',
+  description: `List streams with unread messages: channels, directs, discussions and threads, each with target, type, name, parent context and unreadCount. Threads are separate rows, including unfollowed threads with personal reading contexts. Counts use the same message range as ${chatUnreadMessagesToolId}, not UI notification badges. Never marks anything read.`,
   inputSchema: ChatUnreadInputSchema,
   outputSchema: ChatUnreadOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args, ctx: PlatformContext) => {
     const socialIds = await ownSocialIds(ctx)
     const { items, ...page } = await scanChatPage(

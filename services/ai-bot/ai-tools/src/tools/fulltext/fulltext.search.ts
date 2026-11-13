@@ -5,10 +5,18 @@
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 import { type PlatformContext, createTool, toolOk } from '@hcengineering/ai-core'
 import core, { type Class, type Doc, type DocumentQuery, type Ref, type Space } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 import { buildClassSummary, ClassSummarySchema, SpaceSummarySchema } from '../shared'
 import { fulltextSearchToolId } from './tool-ids'
 
@@ -51,6 +59,7 @@ export const FulltextSearchOutputSchema = Type.Object(
     results: Type.Array(
       Type.Object(
         {
+          collaborativeFields: CollaborativeFieldsSchema,
           id: Type.String({
             description: 'Stable object identifier.'
           }),
@@ -84,9 +93,15 @@ type FulltextSearchOutput = Static<typeof FulltextSearchOutputSchema>
 
 export const fulltextSearchTool = createTool({
   name: fulltextSearchToolId,
+  title: 'Search workspace',
   description: 'Search indexed workspace objects by fulltext and return compact object references.',
   inputSchema: FulltextSearchInputSchema,
   outputSchema: FulltextSearchOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args: FulltextSearchInput, toolCtx: PlatformContext) => {
     const query = args.query.trim()
     if (query.length === 0) {
@@ -121,7 +136,8 @@ export const fulltextSearchTool = createTool({
           return {
             id: searchResult.id,
             title: searchResult.title ?? searchResult.shortTitle ?? getTitle(doc) ?? searchResult.id,
-            class: await buildClassSummary(toolCtx.hierarchy, searchResult.doc._class),
+            class: await buildClassSummary(toolCtx.hierarchy, doc?._class ?? searchResult.doc._class),
+            collaborativeFields: doc === undefined ? [] : await getCollaborativeFields(toolCtx, doc),
             ...(space !== undefined ? { space: { id: space._id, name: space.name, description: undefined } } : {}),
             ...(searchResult.score !== undefined ? { score: searchResult.score } : {})
           }

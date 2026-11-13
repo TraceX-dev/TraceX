@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,6 +14,8 @@
 // limitations under the License.
 //
 
+import { isReadOnlyOrGuest } from '@hcengineering/account'
+import { AGENT_API_PATH } from '@hcengineering/collaborator-client'
 import { Analytics } from '@hcengineering/analytics'
 import { MeasureContext, generateId, metricsAggregate } from '@hcengineering/core'
 import type { StorageAdapter } from '@hcengineering/server-core'
@@ -24,11 +27,13 @@ import express from 'express'
 import { IncomingMessage, createServer } from 'http'
 import { WebSocket, WebSocketServer } from 'ws'
 
+import { AgentService } from './agent/service'
+import { createAgentRouter } from './agent/routes'
 import { Config } from './config'
 import { Context } from './context'
 import { AuthenticationExtension } from './extensions/authentication'
 import { StorageExtension } from './extensions/storage'
-import { simpleClientFactory } from './platform'
+import { simpleClientFactory, userClientFactory } from './platform'
 import { RpcErrorResponse, RpcRequest, RpcResponse, methods } from './rpc'
 import { PlatformStorageAdapter } from './storage/platform'
 import { MarkupTransformer } from './transformers/markup'
@@ -52,8 +57,6 @@ export async function start (ctx: MeasureContext, config: Config, storageAdapter
   const app = express()
   app.disable('x-powered-by')
   app.use(cors())
-  app.use(express.json({ limit: '10mb' }))
-  app.use(bp.json({ limit: '10mb' }))
 
   const extensionsCtx = ctx.newChild('extensions', {}, { span: false })
   const transformer = new MarkupTransformer()
@@ -104,6 +107,23 @@ export async function start (ctx: MeasureContext, config: Config, storageAdapter
       })
     ]
   })
+
+  const agentApi = new AgentService(server.hocuspocus)
+  app.use(
+    AGENT_API_PATH,
+    createAgentRouter(async (rawToken) => {
+      const token = decodeToken(rawToken)
+      const wsIds = await getWorkspaceIds(rawToken)
+      return {
+        workspace: wsIds.uuid,
+        readonly: isReadOnlyOrGuest(token.account, token.extra),
+        context: { connectionId: generateId(), wsIds, clientFactory: simpleClientFactory(token) },
+        readClientFactory: userClientFactory(rawToken, token)
+      }
+    }, agentApi)
+  )
+  app.use(express.json({ limit: '10mb' }))
+  app.use(bp.json({ limit: '10mb' }))
 
   const rpcCtx = ctx.newChild('rpc', {}, { span: false })
 

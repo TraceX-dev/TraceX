@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,7 @@
 //
 
 import { Node, mergeAttributes } from '@tiptap/core'
+import { enumValidator } from './utils'
 import type { Blob, Ref } from '@hcengineering/core'
 
 declare module '@tiptap/core' {
@@ -35,16 +37,31 @@ export const EmojiNode = Node.create<EmojiNodeOptions>({
   atom: true,
   selectable: false,
 
+  addSchemaAwareness () {
+    return {
+      label: 'Emoji',
+      description: 'Inline Unicode emoji or custom image emoji. Image emoji use an existing blob reference.',
+      attributes: {
+        emoji: { description: 'Unicode characters or the custom emoji shortcode.' },
+        kind: { description: 'Emoji representation.' },
+        image: { access: 'readonly', description: 'Existing blob ID for an image emoji. Do not invent it.' }
+      }
+    }
+  },
+
   addAttributes () {
     return {
       emoji: {
-        default: ''
+        default: '',
+        validate: 'string'
       },
       kind: {
-        default: 'unicode'
+        default: 'unicode',
+        validate: enumValidator(['unicode', 'image'])
       },
       image: {
-        default: null
+        default: null,
+        validate: 'string|null'
       }
     }
   },

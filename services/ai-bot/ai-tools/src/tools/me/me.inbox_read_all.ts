@@ -41,9 +41,15 @@ type InboxReadAllInput = Static<typeof InboxReadAllInputSchema>
 
 export const meInboxReadAllTool = createTool({
   name: meInboxReadAllToolId,
+  title: 'Mark all inbox notifications as read',
   description: 'Mark all inbox messages for the current authenticated account as read.',
   inputSchema: InboxReadAllInputSchema,
   outputSchema: InboxReadAllOutputSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false
+  },
   execute: async (_args: InboxReadAllInput, toolCtx: PlatformContext) => {
     const ops = toolCtx.client.apply(undefined, 'readAllNotifications', true)
     const account = toolCtx.token.account

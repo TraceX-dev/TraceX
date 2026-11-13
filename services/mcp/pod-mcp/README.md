@@ -13,11 +13,11 @@ Health: http://localhost:4020/health
 
 MCP uses OAuth authorization code with PKCE. Add the server URL in your client and sign in through TraceX in the browser. No manual API-key creation or copying is required.
 
-One connection can work with every workspace the authenticated account can currently access. Call `my.workspaces` first, then pass an exact returned workspace ID in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
+One connection can work with every workspace the authenticated account can currently access. Call `my_workspaces` first, then pass an exact returned workspace ID in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
 
 OAuth access tokens are opaque, short-lived, and bound to this MCP resource. TraceX account tokens stay on the issuer. Workspace tokens are obtained through the existing accounts `selectWorkspace` exchange when a tool runs. Membership is checked even when a workspace client is cached.
 
-Consent grants access to one explicitly selected workspace or all currently accessible workspaces, including future memberships. `my.workspaces` only lists workspaces allowed by that connection. Calls for a different workspace are rejected before token exchange or cache access. Refresh preserves the original restriction; changing it requires a new authorization.
+Consent grants access to one explicitly selected workspace or all currently accessible workspaces, including future memberships. `my_workspaces` only lists workspaces allowed by that connection. Calls for a different workspace are rejected before token exchange or cache access. Refresh preserves the original restriction; changing it requires a new authorization.
 
 ## Local Docker Compose
 
@@ -64,23 +64,31 @@ The server returns JSON text for all tool results and also fills MCP `structured
 
 ## Tools
 
+Tool IDs use underscores, for example `card_get` and `chat_send`. Each tool also advertises a separate human-readable `title`, such as **Get card** or **Send chat message**. Use the ID when calling a tool. Refresh the client's tool list after updating the server to load the current IDs and titles.
+
+### Collaborative editing
+
+`collab_schema`, `collab_outline`, `collab_find`, `collab_read`, and `collab_apply` read and edit live collaborative fields. Obtain an opaque `docName` from `collaborativeFields` in card or object search/read results; workspace is supplied separately. Fields on the object's actual class and its ancestors are supported, including ordinary document and card content. Tag mixin fields are excluded.
+
+See the [end-to-end workflow](../../ai-bot/ai-tools/src/tools/collab/README.md) for schema filters, targeted edits, deletion hashes, and verification in the open editor.
+
 ### Cards
 
-Card tools use the `card.` namespace:
+Card tools use the `card_` prefix:
 
 ```text
-card.list_spaces
-card.list_master_tags
-card.master_tag_details
-card.get
-card.search
-card.create
-card.update
+card_list_spaces
+card_list_master_tags
+card_master_tag_details
+card_get
+card_search
+card_create
+card_update
 ```
 
-Use `card.list_spaces` to discover visible card spaces. Use `card.list_master_tags` and `card.master_tag_details` to discover available card types, master attributes, versioning settings, and tag mixins before creating or updating cards.
+Use `card_list_spaces` to discover visible card spaces. Use `card_list_master_tags` and `card_master_tag_details` to discover available card types, master attributes, versioning settings, and tag mixins before creating or updating cards.
 
-`card.get`, `card.create`, and `card.update` support top-level collaborative card content as HTML. `card.update` also supports `TypeCollaborativeDoc` attribute updates through the collaborator service.
+`card_get`, `card_create`, and `card_update` support top-level collaborative card content as HTML. `card_update` also supports `TypeCollaborativeDoc` attribute updates through the collaborator service.
 
 ### Chat
 
@@ -89,14 +97,14 @@ All six tools use the same stream address, `target: { "class": "<class-id>", "id
 
 | Tool | Purpose |
 | --- | --- |
-| `chat.list` | Discover streams, optionally filtered by `type`, `parent` or `name` |
-| `chat.unread` | List streams with unread messages and database-calculated `unreadCount` |
-| `chat.messages` | Read ordinary history from one required `target` |
-| `chat.unread_messages` | Read unread messages everywhere, or within optional `target` |
-| `chat.send` | Send Markdown to the required `target` as the authenticated user |
-| `chat.mark_read` | Explicitly mark the whole required `target` read |
+| `chat_list` | Discover streams, optionally filtered by `type`, `parent` or `name` |
+| `chat_unread` | List streams with unread messages and database-calculated `unreadCount` |
+| `chat_messages` | Read ordinary history from one required `target` |
+| `chat_unread_messages` | Read unread messages everywhere, or within optional `target` |
+| `chat_send` | Send Markdown to the required `target` as the authenticated user |
+| `chat_mark_read` | Explicitly mark the whole required `target` read |
 
-Every call requires an explicit `workspace` from `my.workspaces`.
+Every call requires an explicit `workspace` from `my_workspaces`.
 
 #### Stream identity and context
 
@@ -123,7 +131,7 @@ Tools never join chats or add followers.
 
 #### Discovery
 
-Without filters, `chat.list` returns active channels, directs and discussions.
+Without filters, `chat_list` returns active channels, directs and discussions.
 Use `type: "thread"` for threads with existing replies, including threads the account does not follow.
 A root without replies can still be used as a target to send its first reply.
 
@@ -134,7 +142,7 @@ Discovery pages use stable identifier order, across the different storage domain
 
 #### Unread streams and messages
 
-`chat.unread` returns one row for every stream with a positive unread-message count.
+`chat_unread` returns one row for every stream with a positive unread-message count.
 A thread is a separate row: its replies are not added to its parent chat's count.
 Optional `type` filters the rows. Each row includes `unreadCount` and `readFrom`.
 Counts use a database total with the same filters as message retrieval; history is not downloaded
@@ -145,7 +153,7 @@ unfollowed threads. It does not require a UI timestamp marker or unviewed reply 
 those signals do not necessarily match the unread-history range.
 Archived and unjoined chats are omitted.
 
-`chat.unread_messages` returns messages oldest first, with `stream` metadata on every message.
+`chat_unread_messages` returns messages oldest first, with `stream` metadata on every message.
 Omit `target` for the global feed, or supply any supported target for one stream.
 Reading uses the same personal boundary and own-identity exclusion as the counter:
 
@@ -163,10 +171,10 @@ not an individual read receipt for each returned row. See the
 
 #### History, pagination and read actions
 
-`chat.messages` returns `stream`, `messages` and, for a thread, its separate `root`.
+`chat_messages` returns `stream`, `messages` and, for a thread, its separate `root`.
 Main-stream history excludes replies. History defaults to the latest page (`direction: "older"`);
 `direction: "newer"` traverses forward. Each returned page is chronological.
-Unread selection belongs only to `chat.unread_messages`; history has no `unreadOnly` flag.
+Unread selection belongs only to `chat_unread_messages`; history has no `unreadOnly` flag.
 
 Readers accept `limit` (default `50`, maximum `200`), and return `hasMore` and optional `nextCursor`.
 Pass the cursor unchanged with the same target and filters. History/feed cursors retain both
@@ -175,7 +183,7 @@ Discovery and global unread scanning can return an empty filtered page with `has
 continue with its cursor.
 
 Fetching history or discovering streams does not mark anything read.
-`chat.mark_read` updates the selected context's timestamp and unviewed notifications together.
+`chat_mark_read` updates the selected context's timestamp and unviewed notifications together.
 It affects the whole stream, including beyond a fetched page. A chat and each thread are
 independent. The result contains `readAt` and `readCount` (notifications, not messages).
 Without a personal context it returns `readCount: 0` without `readAt` and creates nothing.
@@ -185,9 +193,9 @@ For example, read unread replies under a root message:
 
 ```json
 {
-  "name": "chat.unread_messages",
+  "name": "chat_unread_messages",
   "arguments": {
-    "workspace": "<workspace-id-from-my.workspaces>",
+    "workspace": "<workspace-id-from-my_workspaces>",
     "target": {
       "class": "chunter:class:ChatMessage",
       "id": "<root-message-id>"
@@ -196,7 +204,7 @@ For example, read unread replies under a root message:
 }
 ```
 
-Use the same target in `chat.send` with Markdown `content` or in `chat.mark_read`.
+Use the same target in `chat_send` with Markdown `content` or in `chat_mark_read`.
 The actual root class comes from tool results; do not infer it from a document title.
 
 Sending to archived chats is rejected. Native reference mentions become text, while plain
@@ -210,13 +218,13 @@ without a URL. Workspace storage identity comes from the authenticated workspace
 
 ### Fulltext
 
-Use `fulltext.search` to search indexed workspace objects and return compact object references:
+Use `fulltext_search` to search indexed workspace objects and return compact object references:
 
 ```json
 {
-  "name": "fulltext.search",
+  "name": "fulltext_search",
   "arguments": {
-    "workspace": "<workspace-id-from-my.workspaces>",
+    "workspace": "<workspace-id-from-my_workspaces>",
     "query": "risk",
     "classes": ["card:class:Card"],
     "limit": 20
@@ -228,13 +236,13 @@ Optional filters include `classes`, `spaces`, and `includeClassDescendants`.
 
 ### Object Lookup
 
-Use `object.lookup` to list recent objects by class or mixin and return compact references:
+Use `object_lookup` to list recent objects by class or mixin and return compact references:
 
 ```json
 {
-  "name": "object.lookup",
+  "name": "object_lookup",
   "arguments": {
-    "workspace": "<workspace-id-from-my.workspaces>",
+    "workspace": "<workspace-id-from-my_workspaces>",
     "classId": "contact:mixin:Employee",
     "limit": 50
   }

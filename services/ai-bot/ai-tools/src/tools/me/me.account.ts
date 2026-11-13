@@ -60,9 +60,15 @@ const AccountOutputSchema = Type.Object(
 
 export const meAccountTool = createTool({
   name: meAccountToolId,
+  title: 'Get my profile',
   description: 'Get information about the current authenticated account.',
   inputSchema: AccountInputSchema,
   outputSchema: AccountOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (_args, toolCtx: PlatformContext) => {
     const { client } = toolCtx
 

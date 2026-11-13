@@ -5,17 +5,24 @@
 // you may not use this file except in compliance with the License. You may
 // obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 import { Type, type Static } from 'typebox'
+import { cardMasterTagDetailsToolId } from '../card/tool-ids'
 
 export const AttributeUpdateSchema = Type.Object(
   {
     key: Type.String({
-      description: 'Stable attribute key returned by card.master_tag_details.'
+      description: `Stable attribute key returned by ${cardMasterTagDetailsToolId}.`
     }),
     value: Type.Any({
-      description:
-        'Attribute value. The value shape must match the attribute type from card.master_tag_details. Collaborative content values are HTML when exposed by a tool.'
+      description: `Attribute value. The value shape must match the attribute type from ${cardMasterTagDetailsToolId}. Collaborative content values are HTML when exposed by a tool.`
     })
   },
   {

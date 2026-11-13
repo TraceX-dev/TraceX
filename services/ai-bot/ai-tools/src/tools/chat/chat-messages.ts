@@ -18,7 +18,7 @@ import { Type } from 'typebox'
 import { requireStream, summarizeStream } from './chats'
 import { readMessagePage, summarizeMessages } from './messages'
 import { ChatTargetSchema, ChatSummarySchema, ChatLimitSchema, ChatPageProperties, ChatMessageSchema } from './schemas'
-import { chatMessagesToolId } from './tool-ids'
+import { chatMessagesToolId, chatUnreadMessagesToolId } from './tool-ids'
 
 export const ChatMessagesInputSchema = Type.Object(
   {
@@ -45,10 +45,15 @@ export const ChatMessagesOutputSchema = Type.Object({
 
 export const chatMessagesTool = createTool({
   name: chatMessagesToolId,
-  description:
-    'Read history from target={class,id}. A chat target returns its main stream; a root chat message target returns its thread replies and a separate root. Use chat.unread_messages for unread history. Document comments are excluded. Never marks anything read.',
+  title: 'Read chat messages',
+  description: `Read history from target={class,id}. A chat target returns its main stream; a root chat message target returns its thread replies and a separate root. Use ${chatUnreadMessagesToolId} for unread history. Document comments are excluded. Never marks anything read.`,
   inputSchema: ChatMessagesInputSchema,
   outputSchema: ChatMessagesOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args, ctx: PlatformContext) => {
     const stream = await requireStream(ctx, args.target)
     const { messages, ...page } = await readMessagePage(ctx, stream, args)

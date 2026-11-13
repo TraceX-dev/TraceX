@@ -13,21 +13,25 @@
 // limitations under the License.
 //
 
+import { type MeasureContext } from '@hcengineering/core'
 import { fromJsonSchema, type McpServer } from '@modelcontextprotocol/server'
 
 import type { TraceXAuthInfo } from '../../auth'
 import { jsonStructuredText, jsonText } from '../../mcp'
 import type { WorkspaceManager } from '../../workspace'
+import { meWorkspacesToolId } from './tool-ids'
 
 /** Register account-level workspace discovery without requiring a selected workspace. */
 export function registerMeWorkspacesTool (
   server: McpServer,
   workspaceManager: WorkspaceManager,
-  auth: TraceXAuthInfo
+  auth: TraceXAuthInfo,
+  ctx: MeasureContext
 ): void {
   server.registerTool(
-    'my.workspaces',
+    meWorkspacesToolId,
     {
+      title: 'List accessible workspaces',
       description:
         'List accessible TraceX workspaces with stable IDs, names and URL names. Use an exact returned ID in every workspace tool call.',
       inputSchema: fromJsonSchema<Record<string, unknown>>({
@@ -39,9 +43,11 @@ export function registerMeWorkspacesTool (
     },
     async () => {
       try {
-        return jsonStructuredText({
-          installation: String(auth.resource),
-          workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken, auth.extra.workspaceId)
+        return await ctx.with('mcp-tool', { tool: meWorkspacesToolId }, async () => {
+          return jsonStructuredText({
+            installation: String(auth.resource),
+            workspaces: await workspaceManager.getWorkspaces(auth.extra.accountToken, auth.extra.workspaceId)
+          })
         })
       } catch {
         return jsonText(

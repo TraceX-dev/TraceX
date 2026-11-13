@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,8 @@
 //
 
 import { Blob, CollaborativeDoc, Markup, MarkupBlobRef, Ref, WorkspaceUuid, concatLink } from '@hcengineering/core'
+import { AgentClient } from './agent-client'
+import type { CollaboratorAgentClient } from './agent'
 import { encodeDocumentId } from './utils'
 
 /** @public */
@@ -46,7 +49,7 @@ export interface UpdateContentRequest {
 export interface UpdateContentResponse {}
 
 /** @public */
-export interface CollaboratorClient {
+export interface CollaboratorClient extends CollaboratorAgentClient {
   getMarkup: (document: CollaborativeDoc, source?: Ref<Blob> | null) => Promise<Markup>
   createMarkup: (document: CollaborativeDoc, markup: Markup) => Promise<MarkupBlobRef>
   updateMarkup: (document: CollaborativeDoc, markup: Markup) => Promise<void>
@@ -59,12 +62,14 @@ export function getClient (workspaceId: WorkspaceUuid, token: string, collaborat
   return new CollaboratorClientImpl(workspaceId, token, url)
 }
 
-class CollaboratorClientImpl implements CollaboratorClient {
+class CollaboratorClientImpl extends AgentClient implements CollaboratorClient {
   constructor (
     private readonly workspace: WorkspaceUuid,
     private readonly token: string,
     private readonly collaboratorUrl: string
-  ) {}
+  ) {
+    super(workspace, token, collaboratorUrl)
+  }
 
   private async rpc<P, R>(document: CollaborativeDoc, method: string, payload: P): Promise<R> {
     const workspace = this.workspace
