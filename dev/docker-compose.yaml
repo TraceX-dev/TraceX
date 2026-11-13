@@ -547,6 +547,7 @@ services:
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - ACCOUNTS_URL=http://tracex.local:3000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+      - QUEUE_CONFIG=${QUEUE_CONFIG}
     restart: unless-stopped
   datalake:
     image: tracexapp/datalake
@@ -702,6 +703,7 @@ services:
       - BUCKET_NAME=backups
       - STORAGE=minio|minio?accessKey=minioadmin&secretKey=minioadmin
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+      - QUEUE_CONFIG=${QUEUE_CONFIG}
     restart: unless-stopped
 
   jaeger:

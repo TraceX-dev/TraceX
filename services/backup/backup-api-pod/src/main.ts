@@ -17,7 +17,8 @@ import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { newMetrics } from '@hcengineering/core'
 import { setMetadata } from '@hcengineering/platform'
-import { initStatisticsContext } from '@hcengineering/server-core'
+import { initStatisticsContext, startAuditPublisher, type PlatformQueue } from '@hcengineering/server-core'
+import { getPlatformQueue } from '@hcengineering/kafka'
 import serverToken from '@hcengineering/server-token'
 import { join } from 'path'
 
@@ -49,12 +50,31 @@ export const main = async (): Promise<void> => {
       )
   })
 
+  // Backup downloads are published to the shared audit topic.
+  let queue: PlatformQueue | undefined
+  let closeAuditPublisher = async (): Promise<void> => {}
+  if (process.env.QUEUE_CONFIG !== undefined) {
+    queue = getPlatformQueue('backup-api')
+    closeAuditPublisher = startAuditPublisher(metricsContext, queue, 'backup-api')
+  } else {
+    metricsContext.error('QUEUE_CONFIG is not set; audit delivery is unavailable')
+  }
+
   const { app, close } = await createServer(metricsContext, config)
   const server = listen(app, config.Port)
 
   const shutdown = (): void => {
     close()
-    server.close(() => process.exit())
+    void closeAuditPublisher()
+      .then(async () => {
+        await queue?.shutdown()
+      })
+      .catch((err) => {
+        console.error('Failed to close audit publisher', err)
+      })
+      .finally(() => {
+        server.close(() => process.exit())
+      })
   }
 
   process.on('SIGINT', shutdown)

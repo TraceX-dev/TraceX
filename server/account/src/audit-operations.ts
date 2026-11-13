@@ -48,7 +48,23 @@ const VISIBLE_ATTRIBUTES = [
   'operation',
   'kind',
   'method',
-  'errorCode'
+  'errorCode',
+  // Data egress: export, cross-workspace transfer, backup download
+  'format',
+  'objectClass',
+  'attributesOnly',
+  'hasQuery',
+  'direction',
+  'sourceWorkspaceUuid',
+  'targetWorkspaceUuid',
+  'conflictStrategy',
+  'includeAttachments',
+  'includeChildren',
+  'exportedCount',
+  'skippedCount',
+  'errorCount',
+  'fileName',
+  'fileSize'
 ] as const
 
 function badRequest (): never {

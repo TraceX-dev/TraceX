@@ -19,7 +19,8 @@ import serverClient from '@hcengineering/server-client'
 import serverToken from '@hcengineering/server-token'
 import { storageConfigFromEnv } from '@hcengineering/server-storage'
 import builder, { getModelVersion } from '@hcengineering/model-all'
-import { initStatisticsContext } from '@hcengineering/server-core'
+import { initStatisticsContext, startAuditPublisher, type PlatformQueue } from '@hcengineering/server-core'
+import { getPlatformQueue } from '@hcengineering/kafka'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { join } from 'path'
 import {
@@ -72,13 +73,32 @@ export const main = async (): Promise<void> => {
   const model = JSON.parse(JSON.stringify(builder().getTxes())) as Tx[]
   metricsContext.info(`Loaded model transactions, version: ${JSON.stringify(getModelVersion())}`)
 
+  // Export and cross-workspace transfer events are published to the shared audit topic.
+  let queue: PlatformQueue | undefined
+  let closeAuditPublisher = async (): Promise<void> => {}
+  if (process.env.QUEUE_CONFIG !== undefined) {
+    queue = getPlatformQueue('export')
+    closeAuditPublisher = startAuditPublisher(metricsContext, queue, 'export')
+  } else {
+    metricsContext.error('QUEUE_CONFIG is not set; audit delivery is unavailable')
+  }
+
   const storageConfig = storageConfigFromEnv()
   const { app, close } = createServer(storageConfig, config.DbURL, model, metricsContext)
   const server = listen(app, config.Port, metricsContext)
 
   const shutdown = (): void => {
     close()
-    server.close(() => process.exit())
+    void closeAuditPublisher()
+      .then(async () => {
+        await queue?.shutdown()
+      })
+      .catch((err) => {
+        metricsContext.error('Failed to close audit publisher', { err })
+      })
+      .finally(() => {
+        server.close(() => process.exit())
+      })
   }
 
   process.on('SIGINT', shutdown)

@@ -17,8 +17,33 @@
 
 export type { StorageAdapter } from '@hcengineering/storage'
 export type * from './adapter'
-export { recordAuditEvent, withAuditEvent, hashAuditValue, setAuditEventWriter, startAuditPublisher } from './audit'
-export type { AuditEvent, AuditRecord, AuditEventWriter, AuditAttributeValue } from './audit'
+export {
+  recordAuditEvent,
+  withAuditEvent,
+  auditActorFromToken,
+  hashAuditValue,
+  setAuditEventWriter,
+  startAuditPublisher
+} from './audit'
+export type {
+  AuditEvent,
+  AuditRecord,
+  AuditEventWriter,
+  AuditAttributeValue,
+  AuditScope,
+  AuditDetails,
+  AuditOutcome,
+  AuditErrorClassifier,
+  AuditEventOptions
+} from './audit'
+export { ApiError, classifyApiError, type ApiErrorOptions } from './apiError'
+export {
+  withAuditedResponse,
+  sendApiError,
+  createErrorHandler,
+  notifyAfterCompletion,
+  accountLookupError
+} from './rest'
 export * from './base'
 export * from './benchmark'
 export type * from './configuration'

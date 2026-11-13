@@ -15,14 +15,21 @@
 
 import { Analytics } from '@hcengineering/analytics'
 import {
-  AccountRole,
   MeasureContext,
   metricsAggregate,
   type WorkspaceDataId,
   type WorkspaceIds,
   type WorkspaceUuid
 } from '@hcengineering/core'
-import { getCPUInfo, getMemoryInfo } from '@hcengineering/server-core'
+import {
+  ApiError,
+  auditActorFromToken,
+  getCPUInfo,
+  getMemoryInfo,
+  sendApiError,
+  withAuditedResponse,
+  type AuditScope
+} from '@hcengineering/server-core'
 import { decodeToken, readToken, Token, TokenError } from '@hcengineering/server-token'
 
 import cors from 'cors'
@@ -35,7 +42,7 @@ import { createStorageBackupStorage, type BackupInfo, type BackupStorage } from 
 import { createStorageFromConfig, storageConfigFromEnv } from '@hcengineering/server-storage'
 import { gunzipSync } from 'zlib'
 import { Config } from './config'
-import { ApiError } from './error'
+import { authorizeBackupAccess, sendBackupFile } from './backup-access'
 
 import { clearInterval } from 'timers'
 
@@ -137,7 +144,8 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
 
   app.use(morgan('short', { stream: new LogStream() }))
 
-  const wsInfoCache = new Map<WorkspaceUuid, WorkspaceIds>()
+  // See authorizeBackupAccess: keyed by account and workspace.
+  const wsInfoCache = new Map<string, WorkspaceIds>()
 
   const wsInfoCacheInterval = setInterval(
     () => {
@@ -146,59 +154,18 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
     15 * 60 * 1000
   )
 
-  async function handleBackup (request: Request<any>, res: Response<any>): Promise<void> {
+  async function handleBackup (
+    request: Request<any>,
+    res: Response<any>,
+    token: string,
+    decodedToken: Token,
+    audit: AuditScope
+  ): Promise<void> {
     const headers = request.headers
     const workspace = request.params.workspace ?? ''
     const file: string | undefined = request.params.file
 
-    let token: string | undefined
-    let decodedToken: Token | undefined
-
-    try {
-      token = readToken(headers)
-      if (token !== undefined) {
-        decodedToken = decodeToken(token)
-      }
-    } catch {}
-
-    if (decodedToken === undefined) {
-      res.status(401).end('Unauthorized')
-      return
-    }
-
-    const workspaceId = decodedToken.workspace
-    const isAdmin = decodedToken.extra?.admin === 'true'
-
-    let wsInfo: WorkspaceIds | undefined = wsInfoCache.get(workspaceId)
-    const accountClient = getClient(config.AccountsUrl, token)
-
-    if (wsInfo === undefined) {
-      try {
-        const info = await accountClient.getLoginWithWorkspaceInfo()
-        const winfo = info.workspaces[workspaceId]
-        if (!isAdmin) {
-          if (winfo === undefined) {
-            res.status(401).end('Invalid workspace')
-            return
-          } else {
-            if (winfo.role !== AccountRole.Owner) {
-              res.status(401).end('Not an owner of workspace')
-              return
-            }
-          }
-        }
-        const wssInfo = await accountClient.getWorkspaceInfo()
-        wsInfo = {
-          url: wssInfo.url,
-          dataId: wssInfo.dataId,
-          uuid: workspaceId
-        }
-        wsInfoCache.set(workspaceId, wsInfo)
-      } catch (err: any) {
-        res.status(401).end('Invalid workspace')
-        return
-      }
-    }
+    const wsInfo = await authorizeBackupAccess(decodedToken, getClient(config.AccountsUrl, token), wsInfoCache)
 
     const dataId = wsInfo.dataId ?? (wsInfo.uuid as unknown as WorkspaceDataId)
     const storage = await createStorageBackupStorage(
@@ -214,6 +181,7 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
     )
 
     if (file === undefined || file === '' || file === 'index.html') {
+      audit.skip()
       let backupInfoHTML = `Backup info for workspace ${workspace}.<br/>`
       let data: BackupInfo | undefined
       try {
@@ -243,6 +211,7 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
       return
     }
     if (file === 'index.json') {
+      audit.skip()
       const jsonData: {
         files: { name: string, size?: number }[]
         extraBlobs: { name: string, size: number, contentType: string }[]
@@ -292,62 +261,54 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
     }
 
     if (file.endsWith('.hash')) {
-      // Just serve the file
+      audit.skip()
       const fileInfo = await storage.statInfo(file.slice(0, file.length - 5))
-      if (fileInfo != null) {
-        res
-          .status(200)
-          .set({
-            headers: { 'content-type': 'text/plain' }
-          })
-          .end(fileInfo.etag)
+      if (fileInfo == null) {
+        throw new ApiError(404, 'Not found')
       }
-      res.status(401).end('Not found')
+      res.status(200).set({ 'content-type': 'text/plain' }).end(fileInfo.etag)
       return
     }
 
-    // Just serve the file
-    const fileInfo = await storage.statInfo(file)
-    if (fileInfo != null) {
-      const responseHeaders = {
-        'content-type': fileInfo.contentType ?? 'application/octet-stream',
-        'content-length': fileInfo.size.toString(),
-        etag: fileInfo.etag,
-        'last-modified': new Date(fileInfo.lastModified).toUTCString()
-      }
+    await sendBackupFile(storage, file, headers, res, audit)
+  }
 
-      // Check If-None-Match header
-      const ifNoneMatch = headers['If-None-Match']
-      if (ifNoneMatch === fileInfo.etag) {
-        res.status(304).set(responseHeaders).end()
-        return
+  /** Backup access is audited in one place: downloads and every denial, never the listings. */
+  async function handleAuditedBackup (request: Request<any>, res: Response<any>): Promise<void> {
+    let token: string | undefined
+    let decodedToken: Token | undefined
+    try {
+      token = readToken(request.headers)
+      if (token !== undefined) {
+        decodedToken = decodeToken(token)
       }
-
-      // Check If-Modified-Since header
-      const ifModifiedSince = headers['If-Modified-Since'] as string | undefined
-      if (ifModifiedSince !== undefined) {
-        const ifModifiedSinceDate = parseInt(ifModifiedSince)
-        if (fileInfo.lastModified <= ifModifiedSinceDate) {
-          res.status(304).set(responseHeaders).end()
-          return
-        }
-      }
-
-      // Forward the R2 object with original headers
-      // return new Response(fileInfo.body, {
-      //   headers: responseHeaders
-      // })
-      res.status(200).set(responseHeaders)
-      ;(await storage.load(file)).pipe(res)
-      return
+    } catch {}
+    if (token === undefined || decodedToken === undefined) {
+      // No verified caller: nothing to attribute the attempt to.
+      throw new ApiError(401, 'Unauthorized')
     }
-    res.status(404).end('Not found')
+    const verifiedToken = token
+    const verified = decodedToken
+    const event = {
+      event: 'workspace.backup.download',
+      ...auditActorFromToken(verifiedToken),
+      targetType: 'backup',
+      fileName: request.params.file ?? ''
+    } as const
+    await withAuditedResponse(ctx, event, res, async (audit) => {
+      try {
+        await handleBackup(request, res, verifiedToken, verified, audit)
+      } catch (err: unknown) {
+        if (err instanceof ApiError) throw err
+        throw new ApiError(500, 'Backup request failed', { cause: err })
+      }
+    })
   }
 
   app.get('/api/backup/:workspace/:file(*)', (req, res) => {
-    void handleBackup(req, res).catch((err) => {
-      console.error('request error', err)
-      res.status(500).end('Internal Server Error')
+    void handleAuditedBackup(req, res).catch((err) => {
+      if (!(err instanceof ApiError) || err.code >= 500) console.error('request error', err)
+      sendApiError(err, res)
     })
   })
 
