@@ -12,6 +12,7 @@
     "Forms": "Forms",
     "Enabled": "Activar formulario",
     "TargetSpace": "Create cards in",
+    "SelectSpaceToEnableForm": "Selecciona un espacio donde crear las tarjetas para habilitar el formulario.",
     "FormLink": "Form link",
     "Submit": "Submit",
     "Submitted": "Your response has been submitted",
