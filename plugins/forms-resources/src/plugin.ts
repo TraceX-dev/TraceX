@@ -58,6 +58,7 @@ export default mergeIds(formsId, forms, {
     PrivateAutoForm: '' as IntlString,
     PrivateHint: '' as IntlString,
     AccessDenied: '' as IntlString,
-    AutoSpace: '' as IntlString
+    AutoSpace: '' as IntlString,
+    SelectSpaceToEnableForm: '' as IntlString
   }
 })

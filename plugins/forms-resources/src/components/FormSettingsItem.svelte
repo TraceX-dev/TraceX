@@ -58,7 +58,8 @@
   $: mode = configuration.mode ?? 'public'
   $: targetSpace = configuration.targetSpace
   $: enabled = configuration.enabled === true
-  $: toggleDisabled = saving || (!enabled && (baseType || (mode !== 'private-auto' && targetSpace === undefined)))
+  $: missingTargetSpace = mode !== 'private-auto' && targetSpace === undefined
+  $: toggleDisabled = saving || (!enabled && (baseType || missingTargetSpace))
   $: link = concatLink(
     getMetadata(presentation.metadata.FrontUrl) || window.location.origin,
     `${formsId}/${encodeURIComponent(getCurrentWorkspaceUrl())}/${encodeURIComponent(configuration._id)}`
@@ -132,6 +133,9 @@
     <Toggle
       on={enabled}
       disabled={toggleDisabled}
+      showTooltip={!enabled && !baseType && missingTargetSpace
+        ? { label: forms.string.SelectSpaceToEnableForm }
+        : undefined}
       on:change={(event) => {
         void save(mode, targetSpace, event.detail)
       }}

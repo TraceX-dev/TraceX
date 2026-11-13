@@ -20,6 +20,7 @@
   import { AnyComponent, Component, Label } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
+  import { isRequiredValueFilled } from '../../required-value'
 
   export let key: string
   export let _class: Ref<Class<Doc>>
@@ -102,10 +103,12 @@
 </script>
 
 {#if attribute}
-  <div>
+  <div class:required-empty={!isRequiredValueFilled(value, attribute.type)}>
     <Label label={attribute.label} />:
+    <span class="required-asterisk">*</span>
   </div>
 {/if}
+
 {#if editor}
   <div class="w-full">
     <Component
@@ -130,3 +133,10 @@
     />
   </div>
 {/if}
+
+<style lang="scss">
+  .required-empty,
+  .required-asterisk {
+    color: var(--theme-error-color);
+  }
+</style>

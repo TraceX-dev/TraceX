@@ -57,7 +57,7 @@
     trackRenderResource
   } from '@hcengineering/ui'
   import view from '@hcengineering/view'
-  import { Editor, FocusPosition, mergeAttributes } from '@tiptap/core'
+  import { type Command, Editor, FocusPosition, mergeAttributes } from '@tiptap/core'
   import { isChangeOrigin } from '@tiptap/extension-collaboration'
   import { createEventDispatcher, getAllContexts, getContext, onDestroy, onMount, tick } from 'svelte'
   import { Doc as YDoc } from 'yjs'
@@ -80,6 +80,7 @@
   import { defaultEditorAttributes } from './editor/editorProps'
   import { SavedBoard } from './extension/drawingBoard'
   import { getDefaultImageDisplay } from './extension/imageDisplay'
+  import { insertEditableBlock, saveInsertionSelection } from './extension/insertion-selection'
   import { type FileAttachFunction } from './extension/types'
   import { inlineCommandsConfig } from './extensions'
 
@@ -244,57 +245,81 @@
   }
 
   let inputImage: HTMLInputElement
+  let imageInsertionSelection: Command | undefined
 
-  export function handleAttachImage (): void {
+  function selectImage (restoreSelection: Command): void {
+    imageInsertionSelection = restoreSelection
     inputImage.click()
   }
 
-  async function createInlineImage (file: File): Promise<void> {
+  export function handleAttachImage (): void {
+    const tiptap = editor
+    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
+    selectImage(saveInsertionSelection(tiptap))
+  }
+
+  async function createInlineImage (file: File, restoreSelection: Command): Promise<Command> {
     if (!file.type.startsWith('image/') || attachFile === undefined) {
-      return
+      return restoreSelection
     }
 
+    const tiptap = editor
+    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
     const attached = await attachFile(file)
     if (attached === undefined) {
-      return
+      return restoreSelection
     }
 
     const size = await getImageSize(file)
+    if (tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
 
-    editor.commands.insertContent(
-      {
-        type: 'image',
-        attrs: {
-          'file-id': attached.file,
-          width: imageSizeToRatio(size.width, size.pixelRatio),
-          display: getDefaultImageDisplay(editor.state.doc, editor.state.selection.from)
-        }
-      },
-      {
-        updateSelection: false
-      }
-    )
+    tiptap
+      .chain()
+      .focus()
+      .command(restoreSelection)
+      .command(({ tr, chain }) => {
+        return chain()
+          .insertContent({
+            type: 'image',
+            attrs: {
+              'file-id': attached.file,
+              width: imageSizeToRatio(size.width, size.pixelRatio),
+              display: getDefaultImageDisplay(tr.doc, tr.selection.from)
+            }
+          })
+          .run()
+      })
+      .run()
+    return saveInsertionSelection(tiptap)
   }
 
   async function fileSelected (): Promise<void> {
-    if (readonly) return
-    const list = inputImage.files
-    if (list === null || list.length === 0) return
-    for (let index = 0; index < list.length; index++) {
-      const file = list.item(index)
-      if (file !== null) {
-        await createInlineImage(file)
-      }
-    }
+    const tiptap = editor
+    const restoreSelection = imageInsertionSelection
+    imageInsertionSelection = undefined
+    const files = Array.from(inputImage.files ?? [])
     inputImage.value = ''
+    if (readonly || tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
+
+    try {
+      let nextSelection = restoreSelection ?? saveInsertionSelection(tiptap)
+      for (const file of files) {
+        nextSelection = await createInlineImage(file, nextSelection)
+      }
+    } catch (error) {
+      console.error('Failed to insert image:', error)
+    }
   }
 
   async function handleLeftMenuClick (id: string, pos: number, targetItem?: MouseEvent | HTMLElement): Promise<void> {
-    editor.commands.focus(pos, { scrollIntoView: false })
+    const tiptap = editor
+    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
+    const restoreSelection = saveInsertionSelection(tiptap, pos)
+    const insertion = (): ReturnType<typeof tiptap.chain> => tiptap.chain().focus().command(restoreSelection)
 
     switch (id) {
       case 'image':
-        handleAttachImage()
+        selectImage(restoreSelection)
         break
       case 'table': {
         let position: PopupAlignment | undefined = undefined
@@ -303,30 +328,38 @@
             targetItem instanceof MouseEvent ? getEventPositionElement(targetItem) : getPopupPositionElement(targetItem)
         }
 
-        // We need to trigger it asynchronously in order for the editor to finish its focus event
-        // Otherwise, it hoggs the focus from the popup and keyboard navigation doesn't work
-        setTimeout(() => {
-          // addTableHandler opens popup so the editor loses focus so in the callback we need to refocus again
-          void addTableHandler((options: { rows?: number, cols?: number, withHeaderRow?: boolean }) => {
-            editor.chain().focus(pos).insertTable(options).run()
-          }, position)
-        }, 0)
+        await addTableHandler((options) => {
+          if (!tiptap.isDestroyed && tiptap.isEditable) insertion().insertTable(options).run()
+        }, position)
         break
       }
       case 'code-block':
-        editor.commands.insertContentAt(pos, { type: 'codeBlock' })
+        insertion()
+          .command(insertEditableBlock({ type: 'codeBlock' }))
+          .run()
         break
       case 'todo-list':
-        editor.chain().insertContentAt(pos, { type: 'paragraph' }).toggleTaskList().run()
+        insertion()
+          .command(
+            insertEditableBlock({
+              type: 'todoList',
+              content: [{ type: 'todoItem', content: [{ type: 'paragraph' }] }]
+            })
+          )
+          .run()
         break
       case 'separator-line':
-        editor.commands.setHorizontalRule()
+        insertion().setHorizontalRule().run()
         break
       case 'drawing-board':
-        editor.commands.insertContentAt(pos, { type: 'drawingBoard', attrs: { id: generateId() } })
+        insertion()
+          .insertContent({ type: 'drawingBoard', attrs: { id: generateId() } })
+          .run()
         break
       case 'mermaid':
-        editor.commands.insertContentAt(pos, { type: 'mermaid' })
+        insertion()
+          .command(insertEditableBlock({ type: 'mermaid' }))
+          .run()
         break
     }
   }
