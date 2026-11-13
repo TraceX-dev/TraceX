@@ -15,7 +15,7 @@
 
 import type { Awareness } from '../schema'
 import { Fragment, Slice } from '@tiptap/pm/model'
-import type { Node as PMNode } from '@tiptap/pm/model'
+import type { Node as PMNode, NodeType } from '@tiptap/pm/model'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { ReplaceStep } from '@tiptap/pm/transform'
 import { canonicalAgentJSON, fingerprintAgentNode, indexAgentDocument, resolveAgentTarget } from './references'
@@ -50,6 +50,18 @@ export type AgentPreparedBatch = AgentPreparedSuccess | AgentPreparedFailure
 export interface AgentPreparedTarget {
   opIndex: number
   target: AgentTarget
+}
+
+interface OperationContext {
+  readonly awareness: Awareness
+  readonly tr: Transaction
+  readonly policy: AgentPolicy
+  readonly targets: Map<string, AgentTarget>
+}
+
+interface ResolvedTarget {
+  target: AgentTarget
+  node: PMNode
 }
 
 function validateOperation (op: AgentOperation): void {
@@ -183,111 +195,142 @@ function markEditable (name: string, policy: AgentPolicy): void {
   }
 }
 
-function applyOne (
-  awareness: Awareness,
-  tr: Transaction,
-  op: AgentOperation,
-  policy: AgentPolicy,
-  targets: Map<string, AgentTarget>
-): AgentTarget {
-  if (op.op === 'insert_node') {
-    canonicalAgentJSON(op.node)
-    const node = parseAgentNode(awareness, op.node, true)
-    assertInsertable(node, policy)
-    if (node.isText || node.type === tr.doc.type) {
-      throw new AgentOperationFailure('INVALID_OPERATION', 'Insert a non-text child node, not a document root.')
-    }
-    const from = insertPosition(tr, op.at, targets)
-    const position = tr.doc.resolve(from)
-    const parent = position.parent
-    const index = position.index()
-    if (!parent.canReplaceWith(index, index, node.type, node.marks)) {
-      const allowed = Object.values(awareness.schema.nodes)
-        .filter((type) => parent.canReplaceWith(index, index, type))
-        .map((type) => type.name)
-      throw new AgentOperationFailure(
-        'POSITION_INVALID',
-        `Cannot insert ${node.type.name} into ${parent.type.name} here. Allowed node types: ${allowed.join(', ') || '(none)'}.`
-      )
-    }
-    exactReplace(tr, from, from, Fragment.from(node))
-    return { from, to: from + node.nodeSize, type: node.type.name, deleted: false }
-  }
-  const target = targets.get(op.ref)
+function resolveTarget (ctx: OperationContext, ref: string): ResolvedTarget {
+  const target = ctx.targets.get(ref)
   if (target === undefined) throw new AgentOperationFailure('STALE_REFERENCE', 'Unknown target ref.')
-  const node = currentNode(tr, target)
-  const nodePolicy = own(policy.nodes, node.type.name)
-  switch (op.op) {
-    case 'delete_node':
-      if (nodePolicy?.deletable !== true) throw new AgentOperationFailure('FORBIDDEN', 'Deletion is not enabled.')
-      exactReplace(tr, target.from, target.to, Fragment.empty)
-      break
-    case 'update_attrs': {
-      canonicalAgentJSON(op.attrs)
-      for (const name of Object.keys(op.attrs)) {
-        if (!Object.hasOwn(node.type.spec.attrs ?? {}, name)) {
-          throw new AgentOperationFailure('UNSUPPORTED_SCHEMA', `Unknown attribute ${name}.`)
-        }
-        if (
-          attributeReadonly(awareness, node.type, name) ||
-          (nodePolicy?.protectedAttrs?.includes(name) ?? false) ||
-          !(nodePolicy?.editableAttrs?.includes(name) ?? false)
-        ) {
-          throw new AgentOperationFailure('FORBIDDEN', `Attribute ${name} cannot be edited.`)
-        }
-      }
-      tr.setNodeMarkup(target.from, undefined, { ...node.attrs, ...op.attrs }, node.marks)
-      break
-    }
-    case 'replace_text': {
-      for (const match of selectedText(tr, target, op, policy)) {
-        const initial = match.spans[0].marks
-        // Ordinary formatting comes from the start. Only anchors covering the whole match are inherited.
-        const marks = initial.filter(
-          (mark) =>
-            own(policy.marks, mark.type.name)?.editable === true ||
-            match.spans.every((span) => span.marks.some((candidate) => candidate.eq(mark)))
-        )
-        const content =
-          op.replace.length === 0 ? Fragment.empty : Fragment.from(tr.doc.type.schema.text(op.replace, marks))
-        exactReplace(tr, match.from, match.to, content)
-      }
-      break
-    }
-    case 'add_mark': {
-      markEditable(op.mark.type, policy)
-      const parsed = parseAgentNode(awareness, { type: 'text', text: 'x', marks: [op.mark] }, true)
-      const mark = parsed.marks[0]
-      if (mark === undefined) throw new AgentOperationFailure('SCHEMA_INVALID', 'Invalid mark.')
-      for (const match of selectedText(tr, target, op, policy)) {
-        for (const span of match.spans) {
-          const after = mark.addToSet(span.marks)
-          const protectedMarks = span.marks.filter(
-            (existing) => own(policy.marks, existing.type.name)?.editable !== true
-          )
-          if (protectedMarks.some((existing) => !after.some((candidate) => candidate.eq(existing)))) {
-            throw new AgentOperationFailure('FORBIDDEN', 'This mark would remove protected comment anchors.')
-          }
-          const parent = tr.doc.resolve(Math.max(span.from, match.from)).parent
-          if (!parent.type.allowsMarkType(mark.type) || !after.some((candidate) => candidate.eq(mark))) {
-            throw new AgentOperationFailure('SCHEMA_INVALID', 'The mark is not allowed in this text range.')
-          }
-        }
-        tr.addMark(match.from, match.to, mark)
-      }
-      break
-    }
-    case 'remove_mark': {
-      markEditable(op.mark, policy)
-      const type = own(tr.doc.type.schema.marks, op.mark)
-      if (type === undefined) throw new AgentOperationFailure('UNSUPPORTED_SCHEMA', `Unknown mark ${op.mark}.`)
-      for (const match of selectedText(tr, target, op, policy)) tr.removeMark(match.from, match.to, type)
-      break
-    }
-    default:
-      throw new AgentOperationFailure('INVALID_OPERATION', 'Unsupported operation.')
+  return { target, node: currentNode(ctx.tr, target) }
+}
+
+function assertAttributeEditable (ctx: OperationContext, type: NodeType, name: string): void {
+  if (!Object.hasOwn(type.spec.attrs ?? {}, name)) {
+    throw new AgentOperationFailure('UNSUPPORTED_SCHEMA', `Unknown attribute ${name}.`)
+  }
+  const nodePolicy = own(ctx.policy.nodes, type.name)
+  if (
+    attributeReadonly(ctx.awareness, type, name) ||
+    (nodePolicy?.protectedAttrs?.includes(name) ?? false) ||
+    !(nodePolicy?.editableAttrs?.includes(name) ?? false)
+  ) {
+    throw new AgentOperationFailure('FORBIDDEN', `Attribute ${name} cannot be edited.`)
+  }
+}
+
+function insertNode (ctx: OperationContext, op: Extract<AgentOperation, { op: 'insert_node' }>): AgentTarget {
+  const { awareness, tr, policy, targets } = ctx
+  canonicalAgentJSON(op.node)
+  const node = parseAgentNode(awareness, op.node, true)
+  assertInsertable(node, policy)
+  if (node.isText || node.type === tr.doc.type) {
+    throw new AgentOperationFailure('INVALID_OPERATION', 'Insert a non-text child node, not a document root.')
+  }
+  const from = insertPosition(tr, op.at, targets)
+  const position = tr.doc.resolve(from)
+  const parent = position.parent
+  const index = position.index()
+  if (!parent.canReplaceWith(index, index, node.type, node.marks)) {
+    const allowed = Object.values(awareness.schema.nodes)
+      .filter((type) => parent.canReplaceWith(index, index, type))
+      .map((type) => type.name)
+    throw new AgentOperationFailure(
+      'POSITION_INVALID',
+      `Cannot insert ${node.type.name} into ${parent.type.name} here. Allowed node types: ${allowed.join(', ') || '(none)'}.`
+    )
+  }
+  exactReplace(tr, from, from, Fragment.from(node))
+  return { from, to: from + node.nodeSize, type: node.type.name, deleted: false }
+}
+
+function deleteNode (ctx: OperationContext, op: Extract<AgentOperation, { op: 'delete_node' }>): AgentTarget {
+  const { tr, policy } = ctx
+  const { target, node } = resolveTarget(ctx, op.ref)
+  if (own(policy.nodes, node.type.name)?.deletable !== true) {
+    throw new AgentOperationFailure('FORBIDDEN', 'Deletion is not enabled.')
+  }
+  exactReplace(tr, target.from, target.to, Fragment.empty)
+  return target
+}
+
+function updateAttrs (ctx: OperationContext, op: Extract<AgentOperation, { op: 'update_attrs' }>): AgentTarget {
+  const { tr } = ctx
+  const { target, node } = resolveTarget(ctx, op.ref)
+  canonicalAgentJSON(op.attrs)
+  for (const name of Object.keys(op.attrs)) assertAttributeEditable(ctx, node.type, name)
+  tr.setNodeMarkup(target.from, undefined, { ...node.attrs, ...op.attrs }, node.marks)
+  return target
+}
+
+function replaceText (ctx: OperationContext, op: Extract<AgentOperation, { op: 'replace_text' }>): AgentTarget {
+  const { tr, policy } = ctx
+  const { target } = resolveTarget(ctx, op.ref)
+  for (const match of selectedText(tr, target, op, policy)) {
+    const initial = match.spans[0].marks
+    // Ordinary formatting comes from the start. Only anchors covering the whole match are inherited.
+    const marks = initial.filter(
+      (mark) =>
+        own(policy.marks, mark.type.name)?.editable === true ||
+        match.spans.every((span) => span.marks.some((candidate) => candidate.eq(mark)))
+    )
+    const content = op.replace.length === 0 ? Fragment.empty : Fragment.from(tr.doc.type.schema.text(op.replace, marks))
+    exactReplace(tr, match.from, match.to, content)
   }
   return target
+}
+
+function addMark (ctx: OperationContext, op: Extract<AgentOperation, { op: 'add_mark' }>): AgentTarget {
+  const { awareness, tr, policy } = ctx
+  const { target } = resolveTarget(ctx, op.ref)
+  markEditable(op.mark.type, policy)
+  const parsed = parseAgentNode(awareness, { type: 'text', text: 'x', marks: [op.mark] }, true)
+  const mark = parsed.marks[0]
+  if (mark === undefined) throw new AgentOperationFailure('SCHEMA_INVALID', 'Invalid mark.')
+  for (const match of selectedText(tr, target, op, policy)) {
+    for (const span of match.spans) {
+      const after = mark.addToSet(span.marks)
+      const protectedMarks = span.marks.filter((existing) => own(policy.marks, existing.type.name)?.editable !== true)
+      if (protectedMarks.some((existing) => !after.some((candidate) => candidate.eq(existing)))) {
+        throw new AgentOperationFailure('FORBIDDEN', 'This mark would remove protected comment anchors.')
+      }
+      const parent = tr.doc.resolve(Math.max(span.from, match.from)).parent
+      if (!parent.type.allowsMarkType(mark.type) || !after.some((candidate) => candidate.eq(mark))) {
+        throw new AgentOperationFailure('SCHEMA_INVALID', 'The mark is not allowed in this text range.')
+      }
+    }
+    tr.addMark(match.from, match.to, mark)
+  }
+  return target
+}
+
+function removeMark (ctx: OperationContext, op: Extract<AgentOperation, { op: 'remove_mark' }>): AgentTarget {
+  const { tr, policy } = ctx
+  const { target } = resolveTarget(ctx, op.ref)
+  markEditable(op.mark, policy)
+  const type = own(tr.doc.type.schema.marks, op.mark)
+  if (type === undefined) throw new AgentOperationFailure('UNSUPPORTED_SCHEMA', `Unknown mark ${op.mark}.`)
+  for (const match of selectedText(tr, target, op, policy)) tr.removeMark(match.from, match.to, type)
+  return target
+}
+
+function assertNever (_op: never): never {
+  throw new AgentOperationFailure('INVALID_OPERATION', 'Unsupported operation.')
+}
+
+function applyOne (ctx: OperationContext, op: AgentOperation): AgentTarget {
+  switch (op.op) {
+    case 'insert_node':
+      return insertNode(ctx, op)
+    case 'delete_node':
+      return deleteNode(ctx, op)
+    case 'update_attrs':
+      return updateAttrs(ctx, op)
+    case 'replace_text':
+      return replaceText(ctx, op)
+    case 'add_mark':
+      return addMark(ctx, op)
+    case 'remove_mark':
+      return removeMark(ctx, op)
+    default:
+      return assertNever(op)
+  }
 }
 
 function updateTargets (tr: Transaction, start: number, targets: Set<AgentTarget>): void {
@@ -345,9 +388,10 @@ export function prepareAgentOperations (
     const tracked = new Set(targets.values())
     const pending: AgentPreparedTarget[] = []
     const tr = state.tr
+    const ctx: OperationContext = { awareness, tr, policy, targets }
     for (opIndex = 0; opIndex < ops.length; opIndex++) {
       const mapStart = tr.mapping.maps.length
-      const target = applyOne(awareness, tr, ops[opIndex], policy, targets)
+      const target = applyOne(ctx, ops[opIndex])
       tr.doc.check()
       updateTargets(tr, mapStart, tracked)
       tracked.add(target)

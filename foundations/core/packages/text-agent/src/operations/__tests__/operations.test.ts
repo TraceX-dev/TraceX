@@ -222,6 +222,137 @@ describe('agent document refs and schema', () => {
   })
 })
 
+describe('individual agent operations', () => {
+  it('insert_node inserts content at the requested position and preserves both neighbors', () => {
+    const input = state(paragraph('left'), paragraph('right'))
+    const operation: AgentOperation = {
+      op: 'insert_node',
+      at: { ref: refAt(input.doc), where: 'after' },
+      node: { type: 'paragraph', content: [{ type: 'text', text: 'new' }] }
+    }
+    const result = success(prepareAgentOperations(input, [operation], scope, policy))
+    expect(result.transaction.doc.toJSON()).toEqual(
+      state(paragraph('left'), paragraph('new'), paragraph('right')).doc.toJSON()
+    )
+  })
+
+  it('delete_node removes only the referenced block', () => {
+    const input = state(paragraph('left'), paragraph('remove'), paragraph('right'))
+    const result = success(prepareAgentOperations(input, [deleteOp(input.doc, '1')], scope, policy))
+    expect(result.transaction.doc.toJSON()).toEqual(state(paragraph('left'), paragraph('right')).doc.toJSON())
+  })
+
+  it('update_attrs changes the requested attribute and preserves identity, text and formatting', () => {
+    const original = schema.nodes.paragraph.create(
+      { uid: 'stable' },
+      schema.text('hello', [schema.marks.bold.create()])
+    )
+    const input = state(original)
+    const operation: AgentOperation = { op: 'update_attrs', ref: refAt(input.doc), attrs: { align: 'center' } }
+    const result = success(prepareAgentOperations(input, [operation], scope, policy))
+    const updated = result.transaction.doc.child(0)
+    expect(updated.attrs).toEqual({ uid: 'stable', align: 'center' })
+    expect(updated.content.eq(original.content)).toBe(true)
+  })
+
+  it.each([
+    ['x', 'x + x'],
+    ['a longer replacement', 'a longer replacement + a longer replacement'],
+    ['', ' + ']
+  ])('replace_text replaces all matches with "%s" without shifting later matches', (replacement, expected) => {
+    const input = state(paragraph('one + one'))
+    const operation: AgentOperation = {
+      op: 'replace_text',
+      ref: refAt(input.doc),
+      search: 'one',
+      replace: replacement,
+      all: true
+    }
+    const result = success(prepareAgentOperations(input, [operation], scope, policy))
+    expect(result.transaction.doc.toJSON()).toEqual(state(paragraph(expected)).doc.toJSON())
+  })
+
+  it('add_mark formats only the matching text', () => {
+    const input = state(paragraph('before target after'))
+    const operation: AgentOperation = {
+      op: 'add_mark',
+      ref: refAt(input.doc),
+      search: 'target',
+      mark: { type: 'bold' }
+    }
+    const result = success(prepareAgentOperations(input, [operation], scope, policy))
+    const expected = state(
+      schema.nodes.paragraph.create(null, [
+        schema.text('before '),
+        schema.text('target', [schema.marks.bold.create()]),
+        schema.text(' after')
+      ])
+    )
+    expect(result.transaction.doc.toJSON()).toEqual(expected.doc.toJSON())
+  })
+
+  it('remove_mark removes only the requested mark in the matching text and preserves comment anchors', () => {
+    const comment = schema.marks.comment.create({ thread: 'thread' })
+    const italic = schema.marks.italic.create()
+    const originalMarks = [schema.marks.bold.create(), italic, comment]
+    const input = state(schema.nodes.paragraph.create(null, schema.text('before target after', originalMarks)))
+    const operation: AgentOperation = {
+      op: 'remove_mark',
+      ref: refAt(input.doc),
+      search: 'target',
+      mark: 'bold'
+    }
+    const result = success(prepareAgentOperations(input, [operation], scope, policy))
+    const expected = state(
+      schema.nodes.paragraph.create(null, [
+        schema.text('before ', originalMarks),
+        schema.text('target', [italic, comment]),
+        schema.text(' after', originalMarks)
+      ])
+    )
+    expect(result.transaction.doc.toJSON()).toEqual(expected.doc.toJSON())
+  })
+})
+
+describe('operation permissions', () => {
+  const input = state(paragraph('hello'), paragraph('keep'))
+  const ref = refAt(input.doc)
+  const deniedPolicy: AgentPolicy = { nodes: {}, marks: {} }
+  const operations: AgentOperation[] = [
+    { op: 'insert_node', at: { ref: 'root', where: 'end' }, node: { type: 'paragraph' } },
+    deleteOp(input.doc),
+    { op: 'update_attrs', ref, attrs: { align: 'center' } },
+    { op: 'replace_text', ref, search: 'hello', replace: 'world' },
+    { op: 'add_mark', ref, search: 'hello', mark: { type: 'bold' } },
+    { op: 'remove_mark', ref, search: 'hello', mark: 'bold' }
+  ]
+
+  it.each(operations)('$op is forbidden unless its capability is enabled', (operation) => {
+    const before = input.doc.toJSON()
+    expect(prepareAgentOperations(input, [operation], scope, deniedPolicy)).toMatchObject({
+      ok: false,
+      opIndex: 0,
+      error: { code: 'FORBIDDEN' }
+    })
+    expect(input.doc.toJSON()).toEqual(before)
+  })
+
+  it('keeps protected attributes forbidden even when they are listed as editable', () => {
+    const permissions: AgentPolicy = {
+      ...policy,
+      nodes: {
+        ...policy.nodes,
+        paragraph: { ...policy.nodes.paragraph, editableAttrs: ['uid', 'align'] }
+      }
+    }
+    const operation: AgentOperation = { op: 'update_attrs', ref, attrs: { uid: 'changed' } }
+    expect(prepareAgentOperations(input, [operation], scope, permissions)).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN', message: 'Attribute uid cannot be edited.' }
+    })
+  })
+})
+
 describe('preparing agent operation batches', () => {
   it('stages all changes without dispatch or input mutation', () => {
     const input = state(paragraph('hello'))
