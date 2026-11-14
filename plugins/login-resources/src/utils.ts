@@ -61,6 +61,7 @@ import {
 } from '@hcengineering/ui'
 import { getInviteLinkUrl } from '@hcengineering/setting-resources'
 import { logIn, workbenchId } from '@hcengineering/workbench'
+import { resumeOAuthLogin } from './oauth'
 
 import { LoginEvents } from './analytics'
 import { type Pages } from './index'
@@ -1090,6 +1091,7 @@ export async function doLoginNavigate (
 
     if (result.token != null) {
       await logIn(result)
+      if (resumeOAuthLogin()) return
     }
 
     if (result.token != null && navigateToPublicForm(navigateUrl)) return

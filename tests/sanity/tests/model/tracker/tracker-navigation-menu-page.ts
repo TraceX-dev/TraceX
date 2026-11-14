@@ -1,3 +1,17 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 import { expect, type Locator, type Page } from '@playwright/test'
 import { CommonPage } from '../common-page'
 
@@ -12,17 +26,20 @@ export class TrackerNavigationMenuPage extends CommonPage {
   yoursProjectsMenuSelector = '#navGroup-tree-projects'
   starredProjectsMenuSelector = '#navGroup-tree-stared'
 
-  buttonCreateProject = (): Locator => this.page.locator(this.yoursProjectsMenuSelector).locator('xpath=../button[1]')
-  buttonProjectsParent = (): Locator => this.page.locator('button.hulyNavGroup-header span')
+  buttonCreateProject = (): Locator =>
+    this.page.locator(this.yoursProjectsMenuSelector).locator('xpath=../div[contains(@class, "hulyNavGroup-header")]')
+
+  buttonProjectsParent = (): Locator => this.page.locator('.hulyNavGroup-header__toggle')
   templateLinkForProject = (projectName: string): Locator =>
     this.page.locator(`a[href$="templates"][href*="${projectName}"]`)
 
-  starredProjectsInMenu = (): Locator => this.page.locator(`${this.starredProjectsMenuSelector} span`)
+  starredProjectsInMenu = (): Locator =>
+    this.page.locator(`${this.starredProjectsMenuSelector} .hulyNavGroup-header__toggle`)
 
   issuesLinkForProject = (projectName: string): Locator =>
     this.page
       .getByRole('button', { name: projectName, exact: true })
-      .locator('xpath=following-sibling::div[1]/a[contains(@href, "issues")]', { hasText: 'Issues' })
+      .locator('xpath=../following-sibling::div[1]/a[contains(@href, "issues")]', { hasText: 'Issues' })
 
   milestonesLinkForProject = (projectName: string): Locator =>
     this.page.locator(`a[href$="milestones"][href*="${projectName}"] > button[class*="hulyNavItem-container"] > span`, {
@@ -90,8 +107,9 @@ export class TrackerNavigationMenuPage extends CommonPage {
     await this.buttonProjectsParent().filter({ hasText: projectName }).hover()
     await this.buttonProjectsParent()
       .filter({ hasText: projectName })
-      .locator('xpath=../..')
-      .locator('div[class*="tools"] button')
+      .locator('xpath=..')
+      .locator('.hulyNavGroup-header__actions button')
+      .last()
       .click()
     await this.selectFromDropdown(this.page, action)
   }
@@ -100,8 +118,9 @@ export class TrackerNavigationMenuPage extends CommonPage {
     await this.starredProjectsInMenu().filter({ hasText: projectName }).hover()
     await this.starredProjectsInMenu()
       .filter({ hasText: projectName })
-      .locator('xpath=../..')
-      .locator('div[class*="tools"] button')
+      .locator('xpath=..')
+      .locator('.hulyNavGroup-header__actions button')
+      .last()
       .click()
     await this.selectFromDropdown(this.page, action)
   }

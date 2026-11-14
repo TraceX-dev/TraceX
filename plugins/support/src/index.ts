@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -21,9 +22,11 @@ import { SupportClientFactory, SupportConversation, SupportSystem } from './type
 export type * from './types'
 export { deleteSupportConversation, updateSupportConversation } from './utils'
 
-export const supportLink = 'https://link.huly.io/slack'
-export const reportBugLink = 'https://github.com/hcengineering/platform/issues/new'
-export const docsLink = 'http://docs.huly.io/'
+export const supportLink = 'https://app.tracex.co/login/join?workspace=tracex-ws'
+export const reportBugLink = 'https://app.tracex.co/login/join?workspace=tracex-ws'
+export const docsLink = 'https://docs.tracex.co'
+export const contactUsLink = 'https://tracex.co/contact-us'
+// TODO: Replace privacy policy link
 export const privacyPolicyLink = 'https://v1.huly.io/legal/privacy/'
 
 /**

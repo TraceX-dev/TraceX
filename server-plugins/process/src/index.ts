@@ -22,6 +22,7 @@ import { TriggerFunc } from '@hcengineering/server-core'
 import { ExecuteFunc, ProcessControl, RollbackFunc, TransformFunc } from './types'
 
 export type * from './types'
+export { reportProcessDiagnostic } from './diagnostics'
 
 /**
  * @public
@@ -112,6 +113,7 @@ export default plugin(serverProcessId, {
   transform: {
     ArrayLength: '' as Resource<TransformFunc>,
     RelationCount: '' as Resource<TransformFunc>,
+    FindObjects: '' as Resource<TransformFunc>,
     FirstValue: '' as Resource<TransformFunc>,
     LastValue: '' as Resource<TransformFunc>,
     Random: '' as Resource<TransformFunc>,

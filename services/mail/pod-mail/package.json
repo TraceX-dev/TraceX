@@ -43,7 +43,7 @@
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "jest": "^30.4.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "@types/jest": "^30.0.0",
     "@tsconfig/node16": "^1.0.4",
     "@types/cors": "^2.8.19",
@@ -64,6 +64,6 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "lru-cache": "^11.1.0",
-    "nodemailer": "^9.1.1"
+    "nodemailer": "^10.1.4"
   }
 }

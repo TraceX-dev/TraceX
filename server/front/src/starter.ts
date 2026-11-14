@@ -1,6 +1,7 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -124,6 +125,8 @@ export function startFront (ctx: MeasureContext, extraConfig?: Record<string, st
 
   const githubNextUrl = process.env.GITHUB_NEXT_URL
 
+  const oauthUrl = process.env.OPENAUTH_PUBLIC_URL
+
   setMetadata(serverToken.metadata.Secret, serverSecret)
   setMetadata(serverToken.metadata.Service, 'front')
 
@@ -134,6 +137,7 @@ export function startFront (ctx: MeasureContext, extraConfig?: Record<string, st
     storageAdapter,
     accountsUrl,
     accountsUrlInternal,
+    oauthUrl,
     uploadUrl,
     filesUrl,
     modelVersion,

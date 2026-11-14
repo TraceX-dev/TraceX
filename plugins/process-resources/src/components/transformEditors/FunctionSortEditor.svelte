@@ -21,7 +21,7 @@
     SortingOrder,
     type SortingQuery
   } from '@hcengineering/core'
-  import { getClient } from '@hcengineering/presentation'
+  import presentation, { getClient } from '@hcengineering/presentation'
   import process from '../../plugin'
   import { Button, type DropdownIntlItem, DropdownLabelsIntl, IconClose } from '@hcengineering/ui'
   import view from '@hcengineering/view-resources/src/plugin'
@@ -35,7 +35,7 @@
 
   function getAttributes (): AnyAttribute[] {
     return Array.from(hierarchy.getAllAttributes(_class).values()).filter(
-      (attr) => attr.name !== '_id' && attr.name !== '_class' && attr.hidden !== true
+      (attr) => attr.name !== '_class' && attr.hidden !== true
     )
   }
 
@@ -46,51 +46,69 @@
 
   $: attributes = getAttributes()
   $: items = attributes.map((attr) => ({ id: attr.name, label: attr.label }))
-  $: selected = sort == null ? undefined : Object.keys(sort)[0]
-  $: sortOrder = selected == null ? undefined : sort?.[selected]
-  $: order = typeof sortOrder === 'number' ? sortOrder : SortingOrder.Ascending
+  $: fields = sort == null ? [] : Object.keys(sort)
+  $: availableItems = items.filter((item) => !fields.includes(item.id))
 
-  function update (field: string | number): void {
+  function update (previous: string | undefined, field: string | number): void {
     if (typeof field !== 'string') return
-    sort = { [field]: order }
+    if (previous === undefined) {
+      sort = { ...sort, [field]: SortingOrder.Ascending }
+    } else {
+      sort = Object.fromEntries(
+        Object.entries(sort ?? {}).map(([key, order]) => [key === previous ? field : key, order])
+      )
+    }
     dispatch('change', sort)
   }
 
-  function updateOrder (value: string | number): void {
-    if (selected == null || typeof value !== 'number') return
-    const selectedOrder = value === SortingOrder.Descending ? SortingOrder.Descending : SortingOrder.Ascending
-    sort = { [selected]: selectedOrder }
+  function updateOrder (field: string, value: string | number): void {
+    if (typeof value !== 'number') return
+    const order = value === SortingOrder.Descending ? SortingOrder.Descending : SortingOrder.Ascending
+    sort = { ...sort, [field]: order }
     dispatch('change', sort)
   }
 
-  function clear (): void {
-    sort = undefined
+  function remove (field: string): void {
+    const entries = Object.entries(sort ?? {}).filter(([key]) => key !== field)
+    sort = entries.length === 0 ? undefined : Object.fromEntries(entries)
     dispatch('change', sort)
   }
 </script>
 
-{#if items.length > 0}
-  <div class="flex-row-center flex-gap-2">
+<div class="flex-col flex-gap-2">
+  {#each fields as field}
+    {@const value = sort?.[field]}
+    <div class="flex-row-center flex-gap-2">
+      <DropdownLabelsIntl
+        label={view.string.Ordering}
+        items={items.filter((item) => item.id === field || !fields.includes(item.id))}
+        selected={field}
+        shouldUpdateUndefined={false}
+        width={'100%'}
+        justify={'left'}
+        on:selected={(event) => update(field, event.detail)}
+      />
+      <DropdownLabelsIntl
+        items={orders}
+        selected={typeof value === 'number' ? value : SortingOrder.Ascending}
+        on:selected={(event) => updateOrder(field, event.detail)}
+      />
+      <Button
+        icon={IconClose}
+        kind={'ghost'}
+        showTooltip={{ label: presentation.string.Remove }}
+        on:click={() => remove(field)}
+      />
+    </div>
+  {/each}
+  {#if availableItems.length > 0}
     <DropdownLabelsIntl
-      label={view.string.Ordering}
-      {items}
-      {selected}
+      label={fields.length === 0 ? view.string.Ordering : presentation.string.Add}
+      items={availableItems}
       shouldUpdateUndefined={false}
       width={'100%'}
       justify={'left'}
-      on:selected={(event) => {
-        update(event.detail)
-      }}
+      on:selected={(event) => update(undefined, event.detail)}
     />
-    {#if selected != null}
-      <DropdownLabelsIntl
-        items={orders}
-        selected={order}
-        on:selected={(event) => {
-          updateOrder(event.detail)
-        }}
-      />
-      <Button icon={IconClose} kind={'ghost'} on:click={clear} />
-    {/if}
-  </div>
-{/if}
+  {/if}
+</div>

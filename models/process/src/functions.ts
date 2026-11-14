@@ -22,6 +22,19 @@ export function defineFunctions (builder: Builder): void {
     process.class.ProcessFunction,
     core.space.Model,
     {
+      of: core.class.RefTo,
+      category: 'array',
+      label: process.string.FindObjects,
+      type: 'context',
+      editor: process.component.FindObjectsEditor
+    },
+    process.function.FindObjects
+  )
+
+  builder.createDoc(
+    process.class.ProcessFunction,
+    core.space.Model,
+    {
       of: core.class.ArrOf,
       to: core.class.TypeNumber,
       category: 'attribute',

@@ -1,5 +1,12 @@
 {
   "string": {
+    "YamlEditor": "YAML editor",
+    "YamlSource": "YAML source",
+    "YamlOpenFile": "Open YAML file",
+    "YamlDownload": "Download YAML",
+    "YamlValid": "Valid YAML definition",
+    "YamlSaveCurrent": "Save current process",
+    "YamlCreateNew": "Create new definition",
     "Card": "Karta",
     "CardApplication": "Karty",
     "Cards": "Karty",
@@ -81,6 +88,7 @@
     "Import": "Importuj",
     "Export": "Eksportuj",
     "CardUpdated": "Karta zaktualizowana",
+    "AssignedToMe": "Przypisane do mnie",
     "CardCreated": "Karta utworzona",
     "MyCards": "Moje karty",
     "GotoMyCards": "Przejdź do moich kart",

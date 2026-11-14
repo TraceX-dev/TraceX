@@ -17,6 +17,7 @@
   "LAST_NAME_FIRST": "true",
   "PRINT_URL": "http://tracex.local:4005",
   "SIGN_URL": "http://tracex.local:4006",
+  "MARKETPLACE_URL": "http://tracex.local:4008",
   "AI_URL": "http://tracex.local:4010",
   "BRANDING_URL": "/branding.json",
   "VERSION": null,

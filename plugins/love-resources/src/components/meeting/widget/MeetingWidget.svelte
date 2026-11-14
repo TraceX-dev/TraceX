@@ -33,6 +33,7 @@
   import ShareScreenButton from '../controls/ShareScreenButton.svelte'
 
   export let widgetState: WidgetState | undefined
+  // svelte-ignore unused-export-let
   export let height: string
   export let width: string
 
@@ -64,7 +65,7 @@
   </div>
   <div style="height: 100%; overflow: scroll" bind:clientHeight={contentHeight}>
     {#if widgetState.tab === 'video'}
-      <VideoTab {room} doc={meetingMinutes} on:close={handleClose} />
+      <VideoTab {room} on:close={handleClose} />
     {:else if widgetState.tab === 'chat'}
       {#if meetingMinutes == null}
         <Loading />
@@ -75,14 +76,7 @@
       {#if meetingMinutes == null}
         <Loading />
       {:else if meetingMinutes}
-        <TranscriptionTab
-          {meetingMinutes}
-          {room}
-          {widgetState}
-          height={contentHeight + 'px'}
-          {width}
-          on:close={handleClose}
-        />
+        <TranscriptionTab {meetingMinutes} height={contentHeight + 'px'} {width} on:close={handleClose} />
       {/if}
     {/if}
   </div>

@@ -1,0 +1,7 @@
+bundle
+lib
+types
+.build
+.validate
+.format
+.rush

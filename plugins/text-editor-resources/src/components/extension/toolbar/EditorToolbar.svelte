@@ -113,21 +113,6 @@
 {/if}
 
 <style lang="scss">
-  .link {
-    padding: 0 0.5rem;
-    padding-right: 0;
-    max-width: 20rem;
-    font-weight: 400;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--theme-link-color);
-
-    &:hover {
-      color: var(--theme-link-color);
-    }
-  }
-
   .toolbar {
     position: relative;
     padding: 0.25rem;

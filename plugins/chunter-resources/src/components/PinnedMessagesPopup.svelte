@@ -19,12 +19,11 @@
   import { ActionIcon, IconClose, Loading } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { ThreadMessage } from '@hcengineering/chunter'
-  import { Class, Doc, Ref, SortingOrder, Space } from '@hcengineering/core'
+  import { Doc, Ref, SortingOrder, Space } from '@hcengineering/core'
 
   import chunter from '../plugin'
 
   export let attachedTo: Ref<Doc>
-  export let attachedToClass: Ref<Class<Doc>>
   export let space: Ref<Space>
   export let withRefs = false
 

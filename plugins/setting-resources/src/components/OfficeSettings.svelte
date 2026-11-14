@@ -118,10 +118,3 @@
     {/if}
   </div>
 </div>
-
-<style lang="scss">
-  .title {
-    font-weight: 500;
-    font-size: 1rem;
-  }
-</style>

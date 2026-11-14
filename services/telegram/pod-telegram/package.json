@@ -41,7 +41,7 @@
     "esbuild": "^0.25.10",
     "prettier": "^3.6.2",
     "jest": "^30.4.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "@types/jest": "^30.0.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3",

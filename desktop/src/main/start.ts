@@ -15,11 +15,10 @@
 //
 
 import { config as dotenvConfig } from 'dotenv'
-import { globalShortcut, Event, BrowserWindow, CookiesSetDetails, Notification, app, desktopCapturer, dialog, ipcMain, nativeImage, session, shell, systemPreferences, nativeTheme } from 'electron'
+import { globalShortcut, Event, BrowserWindow, CookiesSetDetails, Notification, app, desktopCapturer, ipcMain, nativeImage, session, shell, systemPreferences, nativeTheme } from 'electron'
 import contextMenu from 'electron-context-menu'
 import log from 'electron-log'
 import Store from 'electron-store'
-import { ProgressInfo, UpdateInfo } from 'electron-updater'
 import WinBadge from 'electron-windows-badge'
 import * as path from 'path'
 
@@ -30,7 +29,7 @@ import { dispatchMenuBarAction } from './customMenu'
 import { registerFindInPageIpcHandlers } from './findInPage'
 import { setupFindInPageOverlayForWindow } from './findInPageOverlayHost'
 import { addPermissionHandlers } from './permissions'
-import autoUpdater from './updater'
+import { setupUpdateManager } from './updateManager'
 import { generateId } from '@hcengineering/core'
 import { DownloadItem } from '@hcengineering/desktop-downloads'
 import { rebuildJumpList, setupWindowsSpecific } from './windowsSpecificSetup'
@@ -454,12 +453,7 @@ function runTheApp (): void {
     log.info('updates channels', updatesChannels)
     log.info('updates channel', updatesChannelKey, updatesChannel)
 
-    autoUpdater.setFeedURL({
-      provider: 'generic',
-      url: updatesUrl,
-      channel: updatesChannel
-    })
-    void autoUpdater.checkForUpdatesAndNotify()
+    updateManager.start({ url: updatesUrl, channel: updatesChannel })
   })
 
   ipcMain.handle(IpcMessage.GetMainConfig, (_event: any, _path: any) => {
@@ -594,47 +588,5 @@ function runTheApp (): void {
     }
   })
 
-  // Note: it is reset when the app is relaunched after update
-  let isUpdating = false
-
-  autoUpdater.on('update-available', (info: UpdateInfo) => {
-    if (isUpdating) return
-
-    void dialog
-      .showMessageBox({
-        type: 'info',
-        buttons: ['Update & Restart', 'Quit'],
-        defaultId: 0,
-        message: `A new version ${info.version} is available and it is required to continue. It will be downloaded and installed automatically.`
-      })
-      .then(({ response }: any) => {
-        log.info(`Update dialog exit code: ${response}`) // eslint-disable-line no-console
-
-        if (response !== 0) {
-          quitApplication()
-        }
-        isUpdating = true
-        setDownloadProgress(0)
-      })
-  })
-
-  autoUpdater.on('download-progress', (progressObj: ProgressInfo) => {
-    setDownloadProgress(progressObj.percent)
-  })
-
-  function setDownloadProgress (percent: number): void {
-    if (mainWindow === undefined) {
-      return
-    }
-    mainWindow.setProgressBar(percent / 100)
-    mainWindow.webContents.send(IpcMessage.HandleUpdateDownloadProgress, percent)
-  }
-
-  autoUpdater.on('update-downloaded', (_info: any) => {
-    // We have listeners that prevents the app from being exited on mac
-    app.removeAllListeners('window-all-closed')
-    mainWindow?.removeAllListeners('close')
-
-    autoUpdater.quitAndInstall()
-  })
+  const updateManager = setupUpdateManager({ getMainWindow: () => mainWindow, quitApplication })
 }

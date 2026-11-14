@@ -27,7 +27,6 @@
     NavGroup,
     ButtonIcon
   } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
 
   export let _id: Ref<Doc> | string | undefined = undefined
   export let icon: Asset | AnySvelteComponent | undefined = undefined
@@ -36,6 +35,7 @@
   export let iconSize: IconSize = 'small'
   export let label: IntlString | undefined = undefined
   export let title: string | undefined = undefined
+  // svelte-ignore unused-export-let
   export let notifications = 0
   export let parent: boolean = false
   export let type: 'default' | 'nested' | 'nested-selectable' = 'default'
@@ -52,6 +52,7 @@
   export let shouldTooltip: boolean = false
   export let showMenu: boolean = false
   export let noDivider: boolean = false
+  // svelte-ignore unused-export-let
   export let showNotify: boolean = false
   export let forciblyCollapsed: boolean = false
   export let actions: (originalEvent?: MouseEvent) => Promise<Action[]> = async () => []
@@ -102,9 +103,10 @@
     {visible}
     {forciblyCollapsed}
     {shouldTooltip}
-    showMenu={showMenu || pressed}
+    {showMenu}
     {noDivider}
     {draggable}
+    {actions}
     on:click
     on:dragstart
     on:dragover
@@ -115,40 +117,6 @@
     }}
   >
     <svelte:fragment slot="extra"><slot name="extra" /></svelte:fragment>
-    <svelte:fragment slot="tools">
-      {#if inlineActions.length > 0}
-        {#each inlineActions as action}
-          <ButtonIcon
-            icon={action.icon ?? ActionIcon}
-            size={'extra-small'}
-            kind={'tertiary'}
-            tooltip={{ label: action.label, direction: 'top' }}
-            on:click={(ev) => onInlineClick(ev, action)}
-          />
-        {/each}
-      {/if}
-      {#if popupMenuActions.length === 1 && popupMenuActions[0].icon}
-        <ButtonIcon
-          id={_id}
-          icon={popupMenuActions[0].icon}
-          size={'extra-small'}
-          kind={'tertiary'}
-          tooltip={{ label: popupMenuActions[0].label, direction: 'top' }}
-          on:click={async (ev) => {
-            void popupMenuActions[0].action(_id, ev)
-          }}
-        />
-      {:else if popupMenuActions.length > 0}
-        <ButtonIcon
-          icon={IconMoreH}
-          size={'extra-small'}
-          kind={'tertiary'}
-          tooltip={{ label: view.string.MoreActions, direction: 'top' }}
-          {pressed}
-          on:click={onMenuClick}
-        />
-      {/if}
-    </svelte:fragment>
     <svelte:fragment slot="visible"><slot name="visible" /></svelte:fragment>
     <slot />
   </NavGroup>
@@ -188,8 +156,8 @@
         {#each inlineActions as action}
           <ButtonIcon
             icon={action.icon ?? ActionIcon}
-            size={'extra-small'}
-            kind={'tertiary'}
+            size="extra-small"
+            kind="tertiary"
             tooltip={{ label: action.label, direction: 'bottom' }}
             on:click={(ev) => onInlineClick(ev, action)}
           />
@@ -199,15 +167,15 @@
         <ButtonIcon
           id={_id}
           icon={popupMenuActions[0].icon}
-          size={'extra-small'}
-          kind={'tertiary'}
+          size="extra-small"
+          kind="tertiary"
           tooltip={{ label: popupMenuActions[0].label, direction: 'top' }}
           on:click={async (ev) => {
             void popupMenuActions[0].action(_id, ev)
           }}
         />
       {:else if popupMenuActions.length > 0}
-        <ButtonIcon icon={IconMoreH} size={'extra-small'} kind={'tertiary'} {pressed} on:click={onMenuClick} />
+        <ButtonIcon icon={IconMoreH} size="extra-small" kind="tertiary" {pressed} on:click={onMenuClick} />
       {/if}
     </svelte:fragment>
     <svelte:fragment slot="notify">

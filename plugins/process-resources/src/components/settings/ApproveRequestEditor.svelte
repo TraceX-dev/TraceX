@@ -106,6 +106,14 @@
     step.params = params
     dispatch('change', step)
   }
+
+  $: completeAll = params.completionMode !== 'any'
+
+  function changeCompletionMode (e: CustomEvent<boolean>): void {
+    params.completionMode = e.detail ? 'all' : 'any'
+    step.params = params
+    dispatch('change', step)
+  }
 </script>
 
 <div class="grid">
@@ -121,6 +129,10 @@
     on:remove
     on:change={onChange}
   />
+  <Label label={plugin.string.RequireAllApprovals} />
+  <Toggle on={completeAll} on:change={changeCompletionMode} />
+  <span />
+  <Label label={completeAll ? plugin.string.AllApprovalsRequiredHint : plugin.string.OneApprovalEnoughHint} />
   <div>
     <Label label={plugin.string.SyncWithField} />
   </div>

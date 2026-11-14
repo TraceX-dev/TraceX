@@ -30,6 +30,11 @@
     },
     {
       "operationName": "_phase:validate",
+      "dependsOnAdditionalFiles": [
+        "node_modules/@hcengineering/platform-rig/native-validation.json",
+        "node_modules/@hcengineering/platform-rig/bin/compile.js",
+        "node_modules/@hcengineering/platform-rig/bin/native-validation.js"
+      ],
       "outputFolderNames": ["types", ".validate"]
     },
     {

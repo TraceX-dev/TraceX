@@ -72,7 +72,7 @@
   function openMessagesPopup (ev: MouseEvent): void {
     showPopup(
       PinnedMessagesPopup,
-      { attachedTo: _id, attachedToClass: _class, space: channelSpace, withRefs },
+      { attachedTo: _id, space: channelSpace, withRefs },
       eventToHTMLElement(ev),
       (result) => {
         if (result == null) return

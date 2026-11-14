@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,6 +19,7 @@
   import { getClient } from '@hcengineering/presentation'
   import { Label } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
+  import { isRequiredValueFilled } from '../../required-value'
 
   export let _class: Ref<Class<Doc>>
   export let value: any | undefined = undefined
@@ -34,8 +36,9 @@
 </script>
 
 {#if attribute}
-  <div>
+  <div class:required-empty={!isRequiredValueFilled(value, attribute.type)}>
     <Label label={attribute.label} />:
+    <span class="required-asterisk">*</span>
   </div>
 {/if}
 <div class="w-full">
@@ -52,3 +55,10 @@
     }}
   />
 </div>
+
+<style lang="scss">
+  .required-empty,
+  .required-asterisk {
+    color: var(--theme-error-color);
+  }
+</style>

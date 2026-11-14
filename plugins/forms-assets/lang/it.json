@@ -12,6 +12,7 @@
     "Forms": "Forms",
     "Enabled": "Abilita modulo",
     "TargetSpace": "Create cards in",
+    "SelectSpaceToEnableForm": "Seleziona uno spazio in cui creare le schede per abilitare il modulo.",
     "FormLink": "Form link",
     "Submit": "Submit",
     "Submitted": "Your response has been submitted",

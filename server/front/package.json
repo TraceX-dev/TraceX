@@ -38,7 +38,7 @@
     "cross-env": "~7.0.3",
     "ts-node": "^10.9.2",
     "jest": "^30.4.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "@types/jest": "^30.0.0",
     "@types/morgan": "~1.9.9",
     "eslint-plugin-svelte": "^3.23.0",

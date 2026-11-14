@@ -21,6 +21,7 @@ import {
   type FindResult,
   type MeasureContext,
   type Ref,
+  type SessionData,
   clone,
   toFindResult
 } from '@hcengineering/core'
@@ -48,6 +49,10 @@ export class LookupMiddleware extends BaseMiddleware implements Middleware {
     options?: FindOptions<T>
   ): Promise<FindResult<T>> {
     const result = await this.provideFindAll(ctx, _class, query, options)
+    if ((ctx as MeasureContext<SessionData>).contextData?.inProcess === true) {
+      // No network between us and the caller: nothing to compact, return documents as is
+      return result
+    }
     // Fill lookup map to make more compact representation
 
     if (options?.lookup !== undefined) {

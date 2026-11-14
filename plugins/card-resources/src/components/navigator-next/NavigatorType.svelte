@@ -15,7 +15,7 @@
 
 <script lang="ts">
   import view from '@hcengineering/view'
-  import { IconAdd, NavGroup, Action, NavItem, ButtonIcon, showPopup, languageStore } from '@hcengineering/ui'
+  import { IconAdd, NavGroup, Action, NavItem, showPopup, languageStore } from '@hcengineering/ui'
   import { Ref } from '@hcengineering/core'
   import { createEventDispatcher } from 'svelte'
   import { CardSpace, MasterTag } from '@hcengineering/card'
@@ -37,7 +37,6 @@
   export let showIcon: boolean = false
 
   const dispatch = createEventDispatcher()
-  let activeAction: string | undefined = undefined
 
   async function handleCreateCard (): Promise<void> {
     showPopup(
@@ -64,8 +63,8 @@
         id: 'create-card',
         label: getEmbeddedLabel(`${createString} ${typeString}`),
         icon: IconAdd,
+        inline: true,
         action: async (): Promise<void> => {
-          activeAction = 'create-card'
           await handleCreateCard()
         }
       })
@@ -122,22 +121,6 @@
   >
     <div class="mt-0-5" />
     <slot />
-    <svelte:fragment slot="actions">
-      {#each actions as action}
-        <ButtonIcon
-          icon={action.icon ?? view.icon.Edit}
-          size="extra-small"
-          kind="tertiary"
-          pressed={activeAction === action.id}
-          tooltip={{ label: action.label }}
-          on:click={(e) => {
-            e.stopPropagation()
-            e.preventDefault()
-            void action.action(action.props, e)
-          }}
-        />
-      {/each}
-    </svelte:fragment>
     <svelte:fragment slot="visible" let:isOpen>
       <div class="mt-0-5" />
       <slot name="visible" {isOpen} />

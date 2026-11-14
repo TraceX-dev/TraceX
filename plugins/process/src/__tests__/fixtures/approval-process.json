@@ -1,0 +1,477 @@
+[
+  {
+    "name": "Approve w/o review",
+    "rank": "0|i0000v:",
+    "context": {
+      "__CONTEXT_0__": {
+        "name": "",
+        "index": 7,
+        "value": {
+          "id": "__CONTEXT_0__",
+          "key": "",
+          "type": "context"
+        },
+        "_class": "process:class:ApproveRequest",
+        "action": "__ACTION_11__",
+        "producer": "__TRANSITION_6__"
+      },
+      "__CONTEXT_1__": {
+        "name": "Set approvers",
+        "index": 3,
+        "value": {
+          "id": "__CONTEXT_1__",
+          "key": "",
+          "type": "context"
+        },
+        "_class": "process:class:ProcessToDo",
+        "action": "__ACTION_5__",
+        "producer": "__TRANSITION_3__"
+      },
+      "__CONTEXT_7__": {
+        "name": "Approvers",
+        "type": {
+          "of": {
+            "to": "contact:mixin:Employee",
+            "icon": "core:icon:TypeRef",
+            "label": "core:string:Ref",
+            "_class": "core:class:RefTo"
+          },
+          "icon": "core:icon:TypeArray",
+          "label": "core:string:Array",
+          "_class": "core:class:ArrOf"
+        },
+        "index": 4,
+        "value": {
+          "id": "__CONTEXT_7__",
+          "key": "",
+          "type": "context"
+        },
+        "_class": "contact:mixin:Employee",
+        "action": "__ACTION_5__",
+        "isResult": true,
+        "producer": "__TRANSITION_3__"
+      },
+      "__CONTEXT_3__": {
+        "name": "Send for approval",
+        "index": 5,
+        "value": {
+          "id": "__CONTEXT_3__",
+          "key": "",
+          "type": "context"
+        },
+        "_class": "process:class:ProcessToDo",
+        "action": "__ACTION_7__",
+        "producer": "__TRANSITION_4__"
+      },
+      "__CONTEXT_4__": {
+        "name": "",
+        "index": 1,
+        "value": {
+          "id": "__CONTEXT_4__",
+          "key": "",
+          "type": "context"
+        },
+        "_class": "process:class:Execution",
+        "action": "__ACTION_2__",
+        "producer": "__TRANSITION_0__"
+      },
+      "__CONTEXT_5__": {
+        "name": "",
+        "index": 2,
+        "value": {
+          "id": "__CONTEXT_5__",
+          "key": "",
+          "type": "context"
+        },
+        "_class": "__SLOT_embedded:embedded:Approved__",
+        "action": "__ACTION_3__",
+        "producer": "__TRANSITION_1__"
+      },
+      "__CONTEXT_6__": {
+        "name": "",
+        "index": 6,
+        "value": {
+          "id": "__CONTEXT_6__",
+          "key": "",
+          "type": "context"
+        },
+        "_class": "process:class:Execution",
+        "action": "__ACTION_10__",
+        "producer": "__TRANSITION_5__"
+      }
+    },
+    "masterTag": "__SLOT_embedded:embedded:(new) Test Case__",
+    "description": "",
+    "automationOnly": true,
+    "parallelExecutionForbidden": true,
+    "_id": "__PROCESS__",
+    "_class": "process:class:Process",
+    "space": "core:space:Model",
+    "requiredSlots": {
+      "embedded:embedded:(new) Test Case": {
+        "slotKind": "class",
+        "_class": "card:class:MasterTag",
+        "label": "embedded:embedded:(new) Test Case"
+      },
+      "Lock steps": {
+        "slotKind": "process",
+        "_class": "process:class:Process",
+        "name": "Lock steps"
+      },
+      "embedded:embedded:Approved": {
+        "slotKind": "class",
+        "_class": "card:class:Tag",
+        "label": "embedded:embedded:Approved"
+      },
+      "slot4": {
+        "slotKind": "attribute",
+        "_class": "core:class:RefTo",
+        "type": {
+          "to": "contact:mixin:Employee",
+          "icon": "core:icon:TypeRef",
+          "label": "core:string:Ref",
+          "_class": "core:class:RefTo"
+        },
+        "label": "embedded:embedded:Owner"
+      },
+      "slot5": {
+        "slotKind": "attribute",
+        "_class": "core:class:ArrOf",
+        "type": {
+          "of": {
+            "to": "contact:mixin:Employee",
+            "icon": "core:icon:TypeRef",
+            "label": "core:string:Ref",
+            "_class": "core:class:RefTo"
+          },
+          "icon": "core:icon:TypeArray",
+          "label": "core:string:Array",
+          "_class": "core:class:ArrOf"
+        },
+        "label": "embedded:embedded:Approvers"
+      },
+      "Unlock steps": {
+        "slotKind": "process",
+        "_class": "process:class:Process",
+        "name": "Unlock steps"
+      }
+    },
+    "bindings": {
+      "embedded:embedded:(new) Test Case": "__SLOT_embedded:embedded:(new) Test Case__",
+      "Lock steps": "__SLOT_Lock steps__",
+      "embedded:embedded:Approved": "__SLOT_embedded:embedded:Approved__",
+      "slot4": "__SLOT_slot4__",
+      "slot5": "__SLOT_slot5__",
+      "Unlock steps": "__SLOT_Unlock steps__"
+    }
+  },
+  {
+    "rank": "0|hzzzzz:",
+    "title": "Waiting",
+    "process": "__PROCESS__",
+    "_id": "__STATE_0__",
+    "_class": "process:class:State",
+    "space": "core:space:Model"
+  },
+  {
+    "rank": "0|i00007:",
+    "title": "Send to approval",
+    "process": "__PROCESS__",
+    "_id": "__STATE_1__",
+    "_class": "process:class:State",
+    "space": "core:space:Model"
+  },
+  {
+    "rank": "0|i0000f:",
+    "title": "Approved",
+    "process": "__PROCESS__",
+    "_id": "__STATE_2__",
+    "_class": "process:class:State",
+    "space": "core:space:Model"
+  },
+  {
+    "rank": "0|hzzzzr:",
+    "title": "Init",
+    "process": "__PROCESS__",
+    "_id": "__STATE_3__",
+    "_class": "process:class:State",
+    "space": "core:space:Model"
+  },
+  {
+    "rank": "0|i00005:",
+    "title": "Approvers set",
+    "process": "__PROCESS__",
+    "_id": "__STATE_4__",
+    "_class": "process:class:State",
+    "space": "core:space:Model"
+  },
+  {
+    "rank": "0|i000zz:",
+    "title": "Locking",
+    "process": "__PROCESS__",
+    "_id": "__STATE_5__",
+    "_class": "process:class:State",
+    "space": "core:space:Model"
+  },
+  {
+    "rank": "0|i000zz:",
+    "title": "Unlocking",
+    "process": "__PROCESS__",
+    "_id": "__STATE_6__",
+    "_class": "process:class:State",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_5__",
+    "from": "__STATE_4__",
+    "rank": "0|i00007:",
+    "actions": [
+      {
+        "_id": "__ACTION_0__",
+        "params": {
+          "_id": "__SLOT_embedded:embedded:(new) Test Case__"
+        },
+        "context": null,
+        "methodId": "process:method:LockSection"
+      },
+      {
+        "_id": "__ACTION_1__",
+        "params": {},
+        "context": null,
+        "methodId": "process:method:LockCard"
+      },
+      {
+        "_id": "__ACTION_2__",
+        "params": {
+          "_id": "__SLOT_Lock steps__"
+        },
+        "context": {
+          "_id": "__CONTEXT_4__",
+          "_class": "process:class:Execution"
+        },
+        "methodId": "process:method:RunSubProcess"
+      }
+    ],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnToDoClose",
+    "triggerParams": {
+      "_id": "${$context(__CONTEXT_3__)}",
+      "result": {}
+    },
+    "_id": "__TRANSITION_0__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_2__",
+    "from": "__STATE_1__",
+    "rank": "0|i0000f:",
+    "actions": [
+      {
+        "_id": "__ACTION_3__",
+        "params": {
+          "_id": "__SLOT_embedded:embedded:Approved__",
+          "props": {}
+        },
+        "context": {
+          "_id": "__CONTEXT_5__",
+          "_class": "__SLOT_embedded:embedded:Approved__"
+        },
+        "methodId": "process:method:AddTag"
+      },
+      {
+        "_id": "__ACTION_4__",
+        "params": {},
+        "context": null,
+        "methodId": "process:method:LockCard"
+      }
+    ],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnApproveRequestApproved",
+    "triggerParams": {
+      "_id": "${$context(__CONTEXT_0__)}"
+    },
+    "_id": "__TRANSITION_1__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_3__",
+    "from": null,
+    "rank": "0|hzzzzz:",
+    "actions": [],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnExecutionStart",
+    "triggerParams": {},
+    "_id": "__TRANSITION_2__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_0__",
+    "from": "__STATE_3__",
+    "rank": "0|i00003:",
+    "actions": [
+      {
+        "_id": "__ACTION_5__",
+        "params": {
+          "user": "${@__SLOT_slot4__}",
+          "field": "__SLOT_slot4__",
+          "title": "Set approvers",
+          "withRollback": false
+        },
+        "context": {
+          "_id": "__CONTEXT_1__",
+          "_class": "process:class:ProcessToDo"
+        },
+        "results": [
+          {
+            "_id": "__CONTEXT_7__",
+            "key": "__SLOT_slot5__",
+            "name": "Approvers",
+            "type": {
+              "of": {
+                "to": "contact:mixin:Employee",
+                "icon": "core:icon:TypeRef",
+                "label": "core:string:Ref",
+                "_class": "core:class:RefTo"
+              },
+              "icon": "core:icon:TypeArray",
+              "label": "core:string:Array",
+              "_class": "core:class:ArrOf"
+            }
+          }
+        ],
+        "methodId": "process:method:CreateToDo"
+      }
+    ],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnCardUpdate",
+    "triggerParams": {
+      "__SLOT_slot4__": {
+        "$exists": true
+      }
+    },
+    "_id": "__TRANSITION_3__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_4__",
+    "from": "__STATE_0__",
+    "rank": "0|i00006:",
+    "actions": [
+      {
+        "_id": "__ACTION_6__",
+        "params": {
+          "_id": "${$context(__CONTEXT_1__)}"
+        },
+        "context": null,
+        "methodId": "process:method:CancelToDo"
+      },
+      {
+        "_id": "__ACTION_7__",
+        "params": {
+          "user": "${@__SLOT_slot4__}",
+          "field": "__SLOT_slot4__",
+          "title": "Send for approval",
+          "withRollback": false
+        },
+        "context": {
+          "_id": "__CONTEXT_3__",
+          "_class": "process:class:ProcessToDo"
+        },
+        "methodId": "process:method:CreateToDo"
+      }
+    ],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnCardUpdate",
+    "triggerParams": {
+      "__SLOT_slot5__": {
+        "$size": {
+          "$gt": 0
+        }
+      }
+    },
+    "_id": "__TRANSITION_4__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_6__",
+    "from": "__STATE_1__",
+    "rank": "0|i0000n:",
+    "actions": [
+      {
+        "_id": "__ACTION_8__",
+        "params": {
+          "_id": "__SLOT_embedded:embedded:(new) Test Case__"
+        },
+        "context": null,
+        "methodId": "process:method:UnlockSection"
+      },
+      {
+        "_id": "__ACTION_9__",
+        "params": {},
+        "context": null,
+        "methodId": "process:method:UnlockCard"
+      },
+      {
+        "_id": "__ACTION_10__",
+        "params": {
+          "_id": "__SLOT_Unlock steps__"
+        },
+        "context": {
+          "_id": "__CONTEXT_6__",
+          "_class": "process:class:Execution"
+        },
+        "methodId": "process:method:RunSubProcess"
+      }
+    ],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnApproveRequestRejected",
+    "triggerParams": {
+      "_id": "${$context(__CONTEXT_0__)}"
+    },
+    "_id": "__TRANSITION_5__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_1__",
+    "from": "__STATE_5__",
+    "rank": "0|i000zz:",
+    "actions": [
+      {
+        "_id": "__ACTION_11__",
+        "params": {
+          "user": "${@__SLOT_slot5__}",
+          "field": "__SLOT_slot5__"
+        },
+        "context": {
+          "_id": "__CONTEXT_0__",
+          "_class": "process:class:ApproveRequest"
+        },
+        "methodId": "process:method:RequestApproval"
+      }
+    ],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnSubProcessesDone",
+    "triggerParams": {},
+    "_id": "__TRANSITION_6__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  },
+  {
+    "to": "__STATE_0__",
+    "from": "__STATE_6__",
+    "rank": "0|i000zz:",
+    "actions": [],
+    "process": "__PROCESS__",
+    "trigger": "process:trigger:OnSubProcessesDone",
+    "triggerParams": {},
+    "_id": "__TRANSITION_7__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model"
+  }
+]

@@ -250,6 +250,10 @@ export function createModel (builder: Builder): void {
     func: serverProcess.func.UnlockField
   })
 
+  builder.mixin(process.function.FindObjects, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
+    func: serverProcess.transform.FindObjects
+  })
+
   builder.mixin(process.function.ArrayLength, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.ArrayLength
   })

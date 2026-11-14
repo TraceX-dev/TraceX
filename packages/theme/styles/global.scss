@@ -1,5 +1,6 @@
 //
 // Copyright © 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 // 
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -145,6 +146,7 @@
 .small-font { font-size: 14px; }
 
 body {
+  margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

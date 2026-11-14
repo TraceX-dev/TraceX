@@ -119,6 +119,7 @@ import {
   FirstMatchValue,
   ArrayLength,
   RelationCount,
+  FindObjects,
   FirstValue,
   FirstWorkingDayAfter,
   Floor,
@@ -178,6 +179,7 @@ async function putEventToQueue (value: Omit<ProcessMessage, 'account'>, control:
     ])
   } catch (err) {
     control.ctx.error('Could not queue process event', { err, value })
+    throw err
   }
 }
 
@@ -192,12 +194,17 @@ export async function OnProcessToDoClose (txes: Tx[], control: TriggerControl): 
       await control.findAll(control.ctx, process.class.ProcessToDo, { _id: updateTx.objectId }, { limit: 1 })
     )[0]
     if (todo === undefined) continue
-    if (todo.completionMode === 'all') {
+    if (todo._class === process.class.ProcessToDo && todo.completionMode === 'all') {
       todo = { ...todo, results: [] }
     }
     const cancelledToDos: ProcessToDo[] = []
-    if (todo._class === process.class.ProcessToDo && todo.group !== undefined && todo.completionMode === 'any') {
-      const pending = await control.findAll(control.ctx, process.class.ProcessToDo, {
+    const approvalCompleted = todo._class === process.class.ApproveRequest && (todo as ApproveRequest).approved === true
+    if (
+      (todo._class === process.class.ProcessToDo || approvalCompleted) &&
+      todo.group !== undefined &&
+      todo.completionMode === 'any'
+    ) {
+      const pending = await control.findAll(control.ctx, todo._class, {
         execution: todo.execution,
         group: todo.group,
         doneOn: null
@@ -303,7 +310,7 @@ export async function OnRelationChange (txes: Tx[], control: TriggerControl): Pr
 
     const assoc = control.modelDb.findObject(relation.association)
     if (assoc === undefined) continue
-    if (control.hierarchy.isDerived(assoc.classA, core.class.Association)) {
+    if (control.hierarchy.isDerived(assoc.classA, cardPlugin.class.Card)) {
       await putEventToQueue(
         {
           event: [process.trigger.WhenRelationChanges],
@@ -315,7 +322,7 @@ export async function OnRelationChange (txes: Tx[], control: TriggerControl): Pr
         control
       )
     }
-    if (control.hierarchy.isDerived(assoc.classB, core.class.Association)) {
+    if (control.hierarchy.isDerived(assoc.classB, cardPlugin.class.Card)) {
       await putEventToQueue(
         {
           event: [process.trigger.WhenRelationChanges],
@@ -981,6 +988,7 @@ export default async () => ({
     CurrentUser,
     ArrayLength,
     RelationCount,
+    FindObjects,
     FirstValue,
     LastValue,
     Random,

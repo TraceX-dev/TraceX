@@ -240,15 +240,3 @@
     />
   </div>
 </div>
-
-<style lang="scss">
-  .title {
-    padding: 1.75rem 2rem;
-    font-size: 1.25rem;
-    color: var(--theme-caption-color);
-  }
-
-  .tools {
-    padding: 0 2rem 0.75rem;
-  }
-</style>

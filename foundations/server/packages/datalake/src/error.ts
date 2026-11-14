@@ -21,7 +21,10 @@ export class NetworkError extends Error {
 }
 
 export class DatalakeError extends Error {
-  constructor (message: string) {
+  constructor (
+    message: string,
+    readonly status?: number
+  ) {
     super(message)
     this.name = 'DatalakeError'
   }
@@ -29,7 +32,7 @@ export class DatalakeError extends Error {
 
 export class NotFoundError extends DatalakeError {
   constructor (message = 'Not Found') {
-    super(message)
+    super(message, 404)
     this.name = 'NotFoundError'
   }
 }

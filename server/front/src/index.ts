@@ -257,6 +257,7 @@ export function start (
     storageAdapter: StorageAdapter
     accountsUrl: string
     accountsUrlInternal?: string
+    oauthUrl?: string
     uploadUrl: string
     filesUrl: string
     modelVersion: string
@@ -350,6 +351,7 @@ export function start (
   app.get('/config.json', async (req, res) => {
     const data = {
       ACCOUNTS_URL: config.accountsUrl,
+      OPENAUTH_URL: config.oauthUrl,
       UPLOAD_URL: config.uploadUrl,
       FILES_URL: config.filesUrl,
       MODEL_VERSION: config.modelVersion,

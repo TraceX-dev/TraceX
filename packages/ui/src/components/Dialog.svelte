@@ -1,7 +1,7 @@
-<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -33,8 +33,10 @@
   export let label: IntlString | undefined = undefined
   export let isFullSize: boolean = false
   export let padding: string = '1rem'
+  export let width: string | undefined = undefined
+  export let height: string | undefined = undefined
 
-  const dispatch = createEventDispatcher()
+  const dispatch = createEventDispatcher<{ close: void, fullsize: boolean, changeContent: void }>()
 
   export function maximize (): void {
     toggleFullSize = true
@@ -52,6 +54,9 @@
 <form
   class="antiDialog"
   class:fullsize={fullSize}
+  style:width={fullSize ? undefined : width}
+  style:height={fullSize ? undefined : height}
+  style:min-width={width === undefined ? undefined : '0'}
   on:submit|preventDefault={() => {}}
   use:resizeObserver={() => {
     dispatch('changeContent')
@@ -59,7 +64,7 @@
 >
   <div class="flex-between header">
     <div class="flex-row-center gap-1-5">
-      <Button icon={IconClose} kind={'ghost'} size={'medium'} on:click={() => dispatch('close')} />
+      <Button icon={IconClose} kind="ghost" size="medium" on:click={() => dispatch('close')} />
       {#if label}
         <span class="title" use:tooltip={{ label }}><Label {label} /></span>
       {/if}
@@ -76,10 +81,10 @@
         <Button
           focusIndex={100010}
           icon={fullSize ? IconMinimize : IconMaximize}
-          kind={'ghost'}
-          size={'medium'}
+          kind="ghost"
+          size="medium"
           selected={fullSize}
-          id={'btnDialogFullScreen'}
+          id="btnDialogFullScreen"
           showTooltip={{ label: fullSize ? ui.string.NormalSize : ui.string.FullSize }}
           noFocus
           on:click={() => (toggleFullSize = !toggleFullSize)}
@@ -91,14 +96,14 @@
     <slot />
   </div>
   {#if $$slots.footerLeft || $$slots.footerRight}
-    <div class="footer">
+    <div class="footer flex-wrap flex-gap-2">
       {#if $$slots.footerLeft}
-        <div class="flex-row-center gap-2">
+        <div class="flex-row-center flex-wrap gap-2">
           <slot name="footerLeft" />
         </div>
       {:else}<div />{/if}
       {#if $$slots.footerRight}
-        <div class="flex-row-center gap-2">
+        <div class="flex-row-center flex-wrap flex-grow justify-end gap-2">
           <slot name="footerRight" />
         </div>
       {:else}<div />{/if}

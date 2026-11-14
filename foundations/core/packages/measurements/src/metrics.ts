@@ -276,6 +276,7 @@ export function metricsAggregate (m: Metrics, limit: number = -1, roundMath: boo
     value: sumVal,
     topResult: m.topResult,
     namedParams: m.namedParams,
+    series: m.series,
     opLog: m.opLog
   }
 }
@@ -361,6 +362,9 @@ function toJson (m: Metrics): any {
   }
   if (Object.keys(m.params).length > 0) {
     obj.params = m.params
+  }
+  if (m.series !== undefined) {
+    obj.series = m.series
   }
   for (const [k, v] of sortedMeasurements(m.measurements ?? {})) {
     obj[`${k} ${v.value} ${v.operations} ${v.operations > 1 ? avg2(v.value, v.operations) : ''}`] = toJson(v)

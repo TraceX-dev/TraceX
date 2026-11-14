@@ -13,8 +13,6 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { Card } from '@hcengineering/card'
-  import { Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { ApproveRequest } from '@hcengineering/process'
   import { Button, eventToHTMLElement, showPopup } from '@hcengineering/ui'
@@ -22,7 +20,6 @@
   import process from '../plugin'
 
   export let todo: ApproveRequest
-  export let card: Ref<Card>
 
   const client = getClient()
 

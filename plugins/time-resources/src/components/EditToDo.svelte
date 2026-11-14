@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -32,6 +33,7 @@
   // export let object: ToDo
   export let _id: Ref<ToDo>
   export let _class: Ref<Class<ToDo>>
+  // svelte-ignore unused-export-let
   export let embedded: boolean = false
 
   let object: ToDo
@@ -70,8 +72,7 @@
   }
 
   async function markDone () {
-    object.doneOn = object.doneOn == null ? Date.now() : null
-    await client.update(object, { doneOn: object.doneOn })
+    await client.update(object, { doneOn: object.doneOn == null ? Date.now() : null })
   }
 
   async function dueDateChange (value: Date | null) {
@@ -227,38 +228,5 @@
     padding: var(--spacing-2) var(--spacing-4);
     min-width: 0;
     border-top: 1px solid var(--theme-divider-color);
-  }
-  .eventPopup-container {
-    display: flex;
-    flex-direction: column;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 40rem;
-    min-width: 40rem;
-    min-height: 0;
-    background: var(--theme-popup-color);
-    border-radius: 1rem;
-    box-shadow: var(--theme-popup-shadow);
-
-    .header {
-      flex-shrink: 0;
-      padding-right: 2rem;
-      padding-left: 2rem;
-    }
-
-    .block {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      min-height: 0;
-      padding-top: 1rem;
-      padding-bottom: 1rem;
-      padding-right: 2rem;
-      padding-left: 2rem;
-
-      &:not(.end) {
-        border-bottom: 1px solid var(--theme-divider-color);
-      }
-    }
   }
 </style>

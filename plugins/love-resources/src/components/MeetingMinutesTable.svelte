@@ -7,6 +7,7 @@
 
   import lovePlg from '../plugin'
 
+  // svelte-ignore unused-export-let
   export let floor: Floor
   export let rooms: Room[] = []
 

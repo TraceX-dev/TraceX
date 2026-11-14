@@ -53,6 +53,7 @@ import presence, { presenceId } from '@hcengineering/presence'
 import { pulseId } from '@hcengineering/pulse'
 import print, { printId } from '@hcengineering/print'
 import { processId } from '@hcengineering/process'
+import marketplace, { marketplaceId } from '@hcengineering/marketplace'
 import { productsId } from '@hcengineering/products'
 import { questionsId } from '@hcengineering/questions'
 import { recruitId } from '@hcengineering/recruit'
@@ -149,6 +150,8 @@ import '@hcengineering/print-assets'
 import * as PrintLang from '@hcengineering/print-assets/lang'
 import '@hcengineering/process-assets'
 import * as ProcessLang from '@hcengineering/process-assets/lang'
+import '@hcengineering/marketplace-assets'
+import * as MarketplaceLang from '@hcengineering/marketplace-assets/lang'
 import '@hcengineering/products-assets'
 import * as ProductsLang from '@hcengineering/products-assets/lang'
 import '@hcengineering/questions-assets'
@@ -244,6 +247,7 @@ export interface Config {
   LIVEKIT_WS?: string
   SIGN_URL?: string
   PRINT_URL?: string
+  MARKETPLACE_URL?: string
   ANALYTICS_COLLECTOR_URL?: string
   BRANDING_URL?: string
   TELEGRAM_BOT_URL?: string
@@ -267,6 +271,7 @@ export interface Config {
   MAIL_URL?: string
   BILLING_URL?: string
   PAYMENT_URL?: string
+  OPENAUTH_URL?: string
   EXCLUDED_APPLICATIONS_FOR_ANONYMOUS?: string
   HULYLAKE_URL?: string
   DISABLED_FEATURES?: string
@@ -401,6 +406,7 @@ function configureI18n(): void {
   addStringsLoader(formsId, FormsLang.loadLang)
   addStringsLoader(mailId, MailLang.loadLang)
   addStringsLoader(processId, ProcessLang.loadLang)
+  addStringsLoader(marketplaceId, MarketplaceLang.loadLang)
   addStringsLoader(achievementId, AchievementLang.loadLang)
   addStringsLoader(emojiId, EmojiLang.loadLang)
   addStringsLoader(billingId, BillingLang.loadLang)
@@ -467,6 +473,7 @@ export async function configurePlatform(): Promise<void> {
   // tryOpenInDesktopApp(config.APP_PROTOCOL ?? 'huly://')
 
   setMetadata(login.metadata.AccountsUrl, config.ACCOUNTS_URL)
+  setMetadata(login.metadata.OAuthURL, config.OPENAUTH_URL)
   setMetadata(login.metadata.DisableSignUp, config.DISABLE_SIGNUP === 'true')
   setMetadata(login.metadata.HideLocalLogin, config.HIDE_LOCAL_LOGIN === 'true')
 
@@ -522,6 +529,7 @@ export async function configurePlatform(): Promise<void> {
   setMetadata(love.metadata.WebSocketURL, config.LIVEKIT_WS)
   setMetadata(print.metadata.PrintURL, config.PRINT_URL)
   setMetadata(sign.metadata.SignURL, config.SIGN_URL)
+  setMetadata(marketplace.metadata.Url, config.MARKETPLACE_URL)
   setMetadata(presence.metadata.PresenceUrl, config.PRESENCE_URL ?? '')
   setMetadata(exportPlugin.metadata.ExportUrl, config.EXPORT_URL ?? '')
 
@@ -551,6 +559,7 @@ export async function configurePlatform(): Promise<void> {
       [onboardId, onboard.component.OnboardApp],
       [calendarId, calendar.component.ConnectApp],
       [guestId, guest.component.GuestApp],
+      [printId, print.component.PrintApp],
       [globalProfileRoute, globalProfile.component.GlobalProfileApp],
       ['meetings', love.component.GuestMeetingApp]
     ])
@@ -688,6 +697,7 @@ export async function configurePlatform(): Promise<void> {
   )
   addLocation(cardId, async () => await import(/* webpackChunkName: "card" */ '@hcengineering/card-resources'))
   addLocation(processId, async () => await import(/* webpackChunkName: "process" */ '@hcengineering/process-resources'))
+  addLocation(marketplaceId, async () => await import(/* webpackChunkName: "marketplace" */ '@hcengineering/marketplace-resources'))
   addLocation(
     integrationId,
     async () => await import(/* webpackChunkName: "integration" */ '@hcengineering/integration-resources')

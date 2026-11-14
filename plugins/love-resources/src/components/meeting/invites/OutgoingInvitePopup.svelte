@@ -134,19 +134,6 @@
       justify-content: center;
       padding-top: var(--spacing-1);
       gap: var(--spacing-1);
-
-      .debug-btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-        background: var(--theme-button-default);
-        border: 1px solid var(--theme-button-border);
-        border-radius: var(--small-BorderRadius);
-        cursor: pointer;
-
-        &:hover {
-          background: var(--theme-button-hovered);
-        }
-      }
     }
   }
 </style>

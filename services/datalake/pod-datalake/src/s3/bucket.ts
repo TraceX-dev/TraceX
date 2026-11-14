@@ -45,6 +45,25 @@ export async function createBucket (
   return impl
 }
 
+export function isNotFound (err: any): boolean {
+  return err?.name === 'NoSuchBucket'
+    ? false
+    : err?.$metadata?.httpStatusCode === 403 ||
+        err?.$metadata?.httpStatusCode === 404 ||
+        err?.name === 'NotFound' ||
+        err?.name === 'NoSuchKey'
+}
+
+export function isStorageUnavailable (err: any): boolean {
+  const status = err?.$metadata?.httpStatusCode
+  return (
+    err?.$fault === 'server' ||
+    (typeof status === 'number' && status >= 500) ||
+    err?.name === 'TimeoutError' ||
+    ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN'].includes(err?.code)
+  )
+}
+
 class S3BucketImpl implements S3Bucket {
   private availabilityInterval?: ReturnType<typeof setInterval>
   private isCheckingAvailability = false
@@ -73,6 +92,7 @@ class S3BucketImpl implements S3Bucket {
       }
     }
 
+    await this.client.putObject({ Bucket: this.bucket, Key: AVAILABILITY_CANARY_OBJECT, Body: '' })
     this.startAvailabilityMonitoring(ctx)
   }
 
@@ -89,21 +109,10 @@ class S3BucketImpl implements S3Bucket {
     }
 
     const monitoringCtx = ctx.newChild('datalake.s3', { bucket: this.bucket }, { span: 'disable' })
-    void this.initializeAvailabilityMonitoring(monitoringCtx)
+    void this.recordAvailability(monitoringCtx)
     this.availabilityInterval = setInterval(() => {
       void this.recordAvailability(monitoringCtx)
     }, this.availabilityCheckInterval)
-  }
-
-  private async initializeAvailabilityMonitoring (ctx: MeasureContext): Promise<void> {
-    try {
-      await this.client.putObject({ Bucket: this.bucket, Key: AVAILABILITY_CANARY_OBJECT, Body: '' })
-    } catch {
-      ctx.gauge(AVAILABILITY_GAUGE_NAME, 0)
-      return
-    }
-
-    await this.recordAvailability(ctx)
   }
 
   private async recordAvailability (ctx: MeasureContext): Promise<void> {
@@ -141,10 +150,18 @@ class S3BucketImpl implements S3Bucket {
         cacheControl: result.CacheControl
       }
     } catch (err: any) {
-      if (err?.$metadata?.httpStatusCode !== 404) {
-        ctx.warn('no object found', { error: err, bucket: this.bucket, key })
+      if (isNotFound(err)) {
+        return null
       }
-      return null
+
+      ctx.error('s3 request failed', {
+        op: 'head',
+        error: err,
+        status: err?.$metadata?.httpStatusCode,
+        bucket: this.bucket,
+        key
+      })
+      throw err
     }
   }
 
@@ -179,10 +196,18 @@ class S3BucketImpl implements S3Bucket {
         cacheControl: result.CacheControl
       }
     } catch (err: any) {
-      if (err?.$metadata?.httpStatusCode !== 404) {
-        ctx.warn('no object found', { error: err, bucket: this.bucket, key })
+      if (isNotFound(err)) {
+        return null
       }
-      return null
+
+      ctx.error('s3 request failed', {
+        op: 'get',
+        error: err,
+        status: err?.$metadata?.httpStatusCode,
+        bucket: this.bucket,
+        key
+      })
+      throw err
     }
   }
 

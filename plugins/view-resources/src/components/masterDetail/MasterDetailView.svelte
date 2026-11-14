@@ -24,7 +24,6 @@
 
   export let space: Ref<Space> | undefined = undefined
   export let query: DocumentQuery<Doc> = {}
-  export let parentQuery: DocumentQuery<Doc> = {}
   export let options: FindOptions<Doc> | undefined = undefined
   export let viewlet: WithLookup<Viewlet>
   export let compactMode: boolean = false

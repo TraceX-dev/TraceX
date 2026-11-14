@@ -32,6 +32,7 @@
 
   export let _class: Ref<Class<Doc>>
   export let space: Ref<Space> | undefined = undefined
+  // svelte-ignore unused-export-let
   export let label: IntlString
   export let createLabel: IntlString | undefined
   export let createComponent: AnyComponent | undefined
@@ -39,6 +40,7 @@
   export let isCreationDisabled = false
   export let descriptors: Ref<ViewletDescriptor>[] | undefined = undefined
   export let baseQuery: DocumentQuery<Doc> | undefined = undefined
+  // svelte-ignore unused-export-let
   export let descriptor: Ref<ProjectTypeDescriptor>
 
   let search = ''

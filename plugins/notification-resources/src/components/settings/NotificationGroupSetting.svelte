@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -184,7 +185,7 @@
       {#each filteredProviders as provider (provider._id)}
         {#if !isIgnored(type._id, provider)}
           {@const status = getStatus(settings, type._id, provider._id)}
-          <div class="toggle">
+          <div class="toggle" data-id={`notification-toggle-${type._id}-${provider._id}`}>
             <ModernToggle
               size="small"
               label={provider.label}

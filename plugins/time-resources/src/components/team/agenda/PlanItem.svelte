@@ -7,6 +7,7 @@
   import { DateRangeMode } from '@hcengineering/core'
 
   export let item: WorkSlotMapping
+  // svelte-ignore unused-export-let
   export let showAssignee: boolean = false
   export let showSlots = false
 

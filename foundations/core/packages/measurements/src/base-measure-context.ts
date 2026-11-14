@@ -33,6 +33,12 @@ import {
   type WithOptions
 } from './types'
 
+interface OperationCounter {
+  readonly owner: BaseMeasureContext
+  readonly name: string
+  readonly attributes: Readonly<ParamsType>
+}
+
 /**
  * Shared implementation for the built-in measurement contexts.
  * This is not a supported extension API for external consumers.
@@ -46,6 +52,7 @@ export abstract class BaseMeasureContext implements MeasureContext {
   st = platformNow()
   isDone = false
   private duration = 0
+  private operationCounter?: OperationCounter
 
   protected constructor (
     protected readonly name: string,
@@ -119,30 +126,80 @@ export abstract class BaseMeasureContext implements MeasureContext {
     fullParams?: FullParamsType | (() => FullParamsType),
     opt?: WithOptions
   ): Promise<T> {
+    return this.withOperation(name, params, op, fullParams, opt)
+  }
+
+  withCounter<T>(
+    name: string,
+    params: ParamsType,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
+    fullParams?: FullParamsType | (() => FullParamsType),
+    opt?: WithOptions
+  ): Promise<T> {
+    return this.withOperation(name, params, op, fullParams, opt, true)
+  }
+
+  private withOperation<T>(
+    name: string,
+    params: ParamsType,
+    op: (ctx: MeasureContext) => T | PromiseLike<T>,
+    fullParams: FullParamsType | (() => FullParamsType) | undefined,
+    opt: WithOptions | undefined,
+    count = false
+  ): Promise<T> {
     const child = this.operationChild(name, params, fullParams, opt)
+    if (count) {
+      const attributes = this.snapshotCounterAttributes(params)
+      this.recordCounter(name, 1, attributes)
+      child.operationCounter = { owner: this, name, attributes }
+      this.recordCounter(name + '-active', 1, attributes, true)
+    }
     let result: T | PromiseLike<T>
     let asynchronous: boolean
     try {
       result = child.runOperation(op)
       asynchronous = isThenable(result)
     } catch (error) {
-      child.onFinish(opt, true, error)
+      child.finishOperation(opt, true, error)
       throw error
     }
     if (!asynchronous) {
-      child.onFinish(opt, false)
+      child.finishOperation(opt, false)
       return result == null ? (nullPromise as Promise<T>) : Promise.resolve(result)
     }
     return Promise.resolve(result).then(
       (value) => {
-        child.onFinish(opt, false)
+        child.finishOperation(opt, false)
         return value
       },
       (error: unknown) => {
-        child.onFinish(opt, true, error)
+        child.finishOperation(opt, true, error)
         throw error
       }
     )
+  }
+
+  protected snapshotCounterAttributes (params: ParamsType): Readonly<ParamsType> {
+    return { ...params }
+  }
+
+  private recordCounter (name: string, delta: number, attributes: Readonly<ParamsType>, active = false): void {
+    try {
+      if (active) this.recordActive(name, delta, attributes)
+      else this.counter(name, delta, attributes)
+    } catch (error) {
+      reportTelemetryFailure(error)
+    }
+  }
+
+  private finishOperation (opt: WithOptions | undefined, failed: boolean, error?: unknown): void {
+    const counter = this.operationCounter
+    if (counter !== undefined) {
+      this.operationCounter = undefined
+      counter.owner.recordCounter(counter.name + '-active', -1, counter.attributes, true)
+      counter.owner.recordCounter(counter.name + (failed ? '-failed' : '-completed'), 1, counter.attributes)
+    }
+    this.onFinish(opt, failed, error)
   }
 
   withSync<T>(
@@ -242,6 +299,7 @@ export abstract class BaseMeasureContext implements MeasureContext {
   }
 
   abstract extractMeta (): Record<string, string | number | boolean>
-  abstract gauge (name: string, value: number): void
-  abstract counter (name: string, value: number): void
+  protected abstract recordActive (name: string, delta: number, attributes: Readonly<ParamsType>): void
+  abstract gauge (name: string, value: number, attributes?: Readonly<ParamsType>): void
+  abstract counter (name: string, value: number, attributes?: Readonly<ParamsType>): void
 }

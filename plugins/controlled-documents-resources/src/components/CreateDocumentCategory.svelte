@@ -217,10 +217,6 @@
 </Card>
 
 <style lang="scss">
-  .category-warning-message {
-    color: var(--highlight-red);
-  }
-
   .title-editbox {
     padding: 0rem 0.5rem 0.5rem 0.75rem;
   }

@@ -198,12 +198,6 @@
     }
   }
 
-  .timeline-resource-header__title {
-    white-space: nowrap;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
   .timeline-resource-header__subtitle {
     white-space: nowrap;
     font-size: 0.6875rem;
@@ -281,10 +275,6 @@
       background-color: $timeline-bg-color;
     }
 
-    &.timeline-cell--holiday {
-      background-color: transparent;
-    }
-
     &.timeline-cell--weekend {
       background-color: transparent;
     }
@@ -306,14 +296,5 @@
     width: 100%;
     height: 100%;
     padding: 1rem 2rem;
-  }
-
-  .timeline-event-wrapper {
-    position: absolute;
-    height: 1.5rem;
-    padding-left: 0.125rem;
-    padding-right: 0.125rem;
-
-    pointer-events: all;
   }
 </style>

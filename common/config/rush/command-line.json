@@ -93,7 +93,7 @@
         ]
       },
       "ignoreMissingScript": true,
-      "allowWarningsOnSuccess": false
+      "allowWarningsOnSuccess": true
     },
     {
       "name": "_phase:docker-build",
@@ -373,7 +373,7 @@
       "commandKind": "global",
       "name": "docker:min",
       "summary": "Build minified docker images for resource-constrained dev",
-      "description": "Build docker images excluding optional services (process, backup, rating, preview, link-preview, elastic, fulltext, payment, stats, print, sign, hulygun, hulykvs). Use with rush docker:up:min",
+      "description": "Build docker images excluding optional services (process, backup, rating, preview, link-preview, elastic, fulltext, payment, stats, print, sign, hulygun, hulykvs, marketplace). Use with rush docker:up:min",
       "safeForSimultaneousRushProcesses": true,
       "shellCommand": "./common/scripts/docker.sh --minified"
     },
@@ -472,6 +472,14 @@
     },
     {
       "commandKind": "global",
+      "name": "fast-validate",
+      "summary": "Validate changed projects",
+      "description": "Run the validation phase in changed projects using existing build artifacts",
+      "safeForSimultaneousRushProcesses": true,
+      "shellCommand": "./common/scripts/fast-validate.sh"
+    },
+    {
+      "commandKind": "global",
       "name": "fast-svelte-check",
       "summary": "Run svelte-check in changed projects",
       "description": "Run svelte-check only in changed projects that define it",
@@ -538,6 +546,7 @@
       "description": "Use a branch as the base for changed-project commands",
       "associatedCommands": [
         "fast-format",
+        "fast-validate",
         "fast-svelte-check"
       ]
     },

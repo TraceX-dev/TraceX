@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,16 +15,38 @@
 -->
 <script lang="ts">
   import { clearSettingsStore } from '@hcengineering/setting-resources'
+  import { setPlatformStatus, unknownError } from '@hcengineering/platform'
+  import { isDefinitionPackageSource } from '@hcengineering/marketplace'
+  import { DefinitionPackageInstallPopup } from '@hcengineering/marketplace-resources'
   import {
     ButtonIcon,
     getCurrentResolvedLocation,
     IconAdd,
     IconAttachment,
+    IconEdit,
     navigate,
     showPopup
   } from '@hcengineering/ui'
   import card from '../../plugin'
   import CreateTag from '../CreateTag.svelte'
+  import DefinitionYamlEditor from './DefinitionYamlEditor.svelte'
+  import { newDefinitionYaml } from '../../authoring-utils'
+
+  function handleYaml (): void {
+    showPopup(
+      DefinitionYamlEditor,
+      {
+        kind: 'card',
+        source: newDefinitionYaml('card'),
+        onApply: async (source: string) => {
+          const { importModule } = await import('../../exporter')
+          await importModule(source, true)
+          return true
+        }
+      },
+      'centered'
+    )
+  }
 
   function handleAdd (): void {
     showPopup(
@@ -50,7 +73,7 @@
     const { importModule } = await import('../../exporter')
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'application/json'
+    input.accept = '.json,.yaml,.yml'
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement
       if (target.files && target.files.length > 0) {
@@ -59,9 +82,11 @@
         reader.onload = async (event: ProgressEvent<FileReader>) => {
           if (event.target?.result !== undefined && typeof event.target.result === 'string') {
             try {
-              await importModule(event.target.result)
-            } catch (err: any) {
-              console.error('Failed to import module:', err)
+              if (isDefinitionPackageSource(event.target.result)) {
+                showPopup(DefinitionPackageInstallPopup, { source: event.target.result }, 'centered')
+              } else await importModule(event.target.result)
+            } catch (err: unknown) {
+              await setPlatformStatus(unknownError(err))
             }
           }
         }
@@ -81,3 +106,10 @@
   on:click={handleImprot}
 />
 <ButtonIcon id={'new-master-tag'} icon={IconAdd} kind={'tertiary'} size={'extra-small'} on:click={handleAdd} />
+<ButtonIcon
+  icon={IconEdit}
+  tooltip={{ label: card.string.YamlEditor }}
+  kind="tertiary"
+  size="extra-small"
+  on:click={handleYaml}
+/>

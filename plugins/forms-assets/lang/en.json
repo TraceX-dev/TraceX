@@ -12,6 +12,7 @@
     "Forms": "Forms",
     "Enabled": "Enable form",
     "TargetSpace": "Create cards in",
+    "SelectSpaceToEnableForm": "Select a space for creating cards to enable the form.",
     "FormLink": "Form link",
     "Submit": "Submit",
     "Submitted": "Your response has been submitted",

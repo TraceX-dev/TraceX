@@ -176,17 +176,17 @@
   .calendar {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-
-    .weekdays,
-    .day {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 2rem;
-      height: 2rem;
-      margin: 0.125rem;
-      color: var(--content-color);
-    }
+  }
+  .caption .weekdays,
+  .calendar .weekdays,
+  .calendar .day {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 2rem;
+    height: 2rem;
+    margin: 0.125rem;
+    color: var(--content-color);
   }
   .caption {
     padding: 0 var(--spacing-2);

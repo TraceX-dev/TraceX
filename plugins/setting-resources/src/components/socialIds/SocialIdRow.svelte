@@ -33,6 +33,7 @@
 
   export let socialId: SocialId
   export let socialIdProvider: SocialIdentityProvider
+  // svelte-ignore unused-export-let
   export let canRelease: boolean = false
   export let socialIdRating: number | undefined = undefined
   export let socialIdRatingTotal: number | undefined = undefined

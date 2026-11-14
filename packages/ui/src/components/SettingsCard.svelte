@@ -61,11 +61,13 @@
     padding: 1.25rem 1.25rem 0;
   }
   h2 {
+    min-width: 0;
     margin: 0;
     font-size: 1rem;
     font-weight: 500;
     line-height: 1.5rem;
     letter-spacing: 0;
+    overflow-wrap: anywhere;
   }
   .settings-card__actions {
     display: flex;

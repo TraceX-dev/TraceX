@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,7 +19,7 @@ import { message } from 'telegraf/filters'
 import telegram from '@hcengineering/telegram'
 import { htmlToMarkup, isEmptyMarkup, jsonToMarkup, MarkupNodeType } from '@hcengineering/text'
 import { toHTML } from '@telegraf/entity'
-import { CallbackQuery, Message, Update } from 'telegraf/typings/core/types/typegram'
+import type { CallbackQuery, Message, Update } from 'telegraf/types'
 import { translate } from '@hcengineering/platform'
 import { AccountUuid, WorkspaceUuid } from '@hcengineering/core'
 
@@ -120,7 +121,7 @@ async function handleSelectChannel (
 
   if (channel === undefined) return ['', false]
 
-  const file = await toTelegramFileInfo(ctx as TgContext, userMessage)
+  const file = await toTelegramFileInfo(ctx, userMessage)
   let text = htmlToMarkup(toHTML(userMessage as Message.TextMessage))
 
   if (isEmptyMarkup(text) && 'caption' in userMessage) {

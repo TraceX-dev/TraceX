@@ -32,7 +32,7 @@
     "svelte-eslint-parser": "^1.8.1",
     "svelte-loader": "^3.2.0",
     "svelte-preprocess": "^5.1.4",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "@types/jest": "^30.0.0",
     "sass": "^1.80.0",
     "eslint-plugin-svelte": "^3.23.0",

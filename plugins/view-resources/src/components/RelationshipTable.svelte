@@ -63,6 +63,7 @@
   export let highlightRows: boolean = false
   export let hiddenHeader: boolean = false
   export let options: FindOptions<Doc> | undefined = undefined
+  // svelte-ignore unused-export-let
   export let baseMenuClass: Ref<Class<Doc>> | undefined = undefined
   export let config: Array<BuildModelKey | string>
   export let tableId: string | undefined = undefined
@@ -147,6 +148,8 @@
   ) {
     const p = await getResultQuery(hierarchy, query, viewOptionsConfig, viewOptions)
     resultQuery = mergeQueries(p, query)
+    // Lets "copy table" repeat exactly the rows shown, view options included.
+    dispatch('source', { query: resultQuery, options: { ...options, sort: getSort(sortKey), lookup, associations } })
     loading += q.query(
       _class,
       resultQuery,

@@ -25,7 +25,6 @@
   import CameraButton from '../meeting/controls/CameraButton.svelte'
   import ShareScreenButton from '../meeting/controls/ShareScreenButton.svelte'
 
-  export let canMaximize: boolean = true
   export let fullScreen: boolean = false
   export let onFullScreen: (() => void) | undefined = undefined
   export let leaveGuest: () => Promise<void>

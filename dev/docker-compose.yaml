@@ -48,7 +48,7 @@ services:
       - 4041:4041
     restart: unless-stopped
   postgres:
-    image: postgres:16
+    image: postgres:18.1
     extra_hosts:
       - "tracex.local:host-gateway"
     command: ["postgres", "-p", "5432"]
@@ -58,7 +58,7 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - postgres_db:/var/lib/postgresql/data
+      - postgres_db:/var/lib/postgresql
     ports:
       - 5432:5432
     environment:
@@ -67,7 +67,7 @@ services:
       - POSTGRES_DB=postgres
     restart: unless-stopped
   redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
+    image: redpandadata/redpanda:v24.3.6
     extra_hosts:
       - 'tracex.local:host-gateway'
     command:
@@ -92,13 +92,13 @@ services:
       - 19092:19092
       - 19644:9644
     healthcheck:
-      test: ['CMD', 'rpk', 'cluster', 'info', '-X', 'user=superuser', '-X', 'pass=secretpassword']
+      test: ['CMD', 'rpk', 'cluster', 'info']
       interval: 10s
       timeout: 5s
       retries: 10
     restart: unless-stopped
   redpanda_console:
-    image: docker.redpanda.com/redpandadata/console:v2.8.3
+    image: redpandadata/console:v2.8.3
     extra_hosts:
       - 'tracex.local:host-gateway'
     entrypoint: /bin/sh
@@ -162,6 +162,23 @@ services:
       resources:
         limits:
           memory: 1024m
+  marketplace:
+    image: tracexapp/marketplace
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      account:
+        condition: service_started
+    ports:
+      - 4008:4008
+    environment:
+      - PORT=4008
+      - SERVER_SECRET=${SECRET}
+      - ACCOUNTS_URL=http://account:3000
+      - DB_URL=${DB_URL_PG}
+    restart: unless-stopped
   account:
     image: tracexapp/account
     extra_hosts:
@@ -256,12 +273,32 @@ services:
       - STATS_URL=http://tracex.local:4900
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
     restart: unless-stopped
+  openauth:
+    image: tracexapp/openauth
+    extra_hosts:
+      - 'tracex.local:host-gateway'
+    depends_on:
+      - account
+      - postgres
+    ports:
+      - 3001:3001
+    environment:
+      - ACCOUNTS_URL=http://tracex.local:3000
+      - SERVER_SECRET=${SECRET}
+      - OPENAUTH_DATABASE_URL=${DB_URL_PG}
+      - OPENAUTH_PUBLIC_URL=http://tracex.local:3001
+      - OPENAUTH_MCP_RESOURCE_URL=http://tracex.local:4020/mcp
+      - OPENAUTH_LOGIN_URL=http://tracex.local:8087/login/oauth
+      - OPENAUTH_ALLOW_HTTP=true
+      - PORT=3001
+    restart: unless-stopped
   mcp:
     image: tracexapp/mcp
     extra_hosts:
       - 'tracex.local:host-gateway'
     depends_on:
       - account
+      - openauth
       - collaborator
       - transactor_pg
     ports:
@@ -274,6 +311,10 @@ services:
       - SERVICE_ID=mcp-service
       - WORKSPACE_CLIENT_CACHE_MS=0
       - STORAGE_CONFIG=${STORAGE_CONFIG}
+      - OPENAUTH_ISSUER_URL=http://tracex.local:3001
+      - OPENAUTH_INTERNAL_URL=http://openauth:3001
+      - OPENAUTH_MCP_RESOURCE_URL=http://tracex.local:4020/mcp
+      - OPENAUTH_ALLOW_HTTP=true
     restart: unless-stopped
   front:
     image: tracexapp/front
@@ -288,6 +329,7 @@ services:
       - SERVER_PORT=8080
       - SERVER_SECRET=${SECRET}
       - ACCOUNTS_URL=http://tracex.local:3000
+      - OPENAUTH_PUBLIC_URL=http://tracex.local:3001
       - STATS_URL=http://tracex.local:4900
       - FILES_URL=http://tracex.local:4030/blob/:workspace/:blobId/:filename
       - UPLOAD_URL=/files
@@ -300,6 +342,7 @@ services:
       - STORAGE_CONFIG=${STORAGE_CONFIG}
       - PRINT_URL=http://tracex.local:4005
       - SIGN_URL=http://tracex.local:4006
+      - MARKETPLACE_URL=http://tracex.local:4008
       #      - ANALYTICS_COLLECTOR_URL=http://tracex.local:4017
       - DESKTOP_UPDATES_URL=https://dist.tracex.co
       - DESKTOP_UPDATES_CHANNEL=dev

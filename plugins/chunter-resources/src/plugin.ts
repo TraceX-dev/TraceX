@@ -41,7 +41,9 @@ export default mergeIds(chunterId, chunter, {
     DiscussionPresenter: '' as AnyComponent,
     DiscussionStatusPresenter: '' as AnyComponent,
     DiscussionParticipantsPresenter: '' as AnyComponent,
-    DiscussionVisibilityPresenter: '' as AnyComponent
+    DiscussionVisibilityPresenter: '' as AnyComponent,
+    MessageSearch: '' as AnyComponent,
+    FilesBrowser: '' as AnyComponent
   },
   viewlet: {
     DiscussionList: '' as Ref<Viewlet>
@@ -53,7 +55,6 @@ export default mergeIds(chunterId, chunter, {
     GetDmName: '' as Resource<(client: Client, space: Space) => Promise<string>>,
     DirectTitleProvider: '' as Resource<(client: Client, id: Ref<Doc>) => Promise<string>>,
     ChannelTitleProvider: '' as Resource<(client: Client, id: Ref<Doc>) => Promise<string>>,
-    ChunterBrowserVisible: '' as Resource<(spaces: Space[]) => Promise<boolean>>,
     GetUnreadThreadsCount: '' as Resource<
       (inboxNotificationsByContext: Map<Ref<DocNotifyContext>, InboxNotification[]>) => number
     >
@@ -105,7 +106,6 @@ export default mergeIds(chunterId, chunter, {
     ChannelBrowser: '' as IntlString,
     Saved: '' as IntlString,
     MessagesBrowser: '' as IntlString,
-    ChunterBrowser: '' as IntlString,
     Messages: '' as IntlString,
     NoResults: '' as IntlString,
     CopyLink: '' as IntlString,

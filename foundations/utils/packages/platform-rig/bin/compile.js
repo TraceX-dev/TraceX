@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 const { join, dirname, basename } = require('path')
 const {
   readFileSync,
@@ -11,13 +26,7 @@ const {
 } = require('fs')
 const { spawn } = require('child_process')
 
-const esbuild = require('esbuild')
-const { copy } = require('esbuild-plugin-copy')
 const fs = require('fs')
-const ts = require('typescript')
-const sveltePlugin = require('esbuild-svelte')
-const { svelte2tsx } = require('svelte2tsx')
-const sveltePreprocess = require('svelte-preprocess')
 
 async function execProcess(cmd, logFile, args, buildDir = '.build') {
   let compileRoot = dirname(dirname(process.argv[1]))
@@ -162,6 +171,9 @@ switch (args[0]) {
     let st = performance.now()
     validateTSC(st).then(() => {
       console.log('Validate time: ', Math.round((performance.now() - st) * 100) / 100)
+    }).catch((error) => {
+      console.error(error)
+      process.exitCode = 1
     })
     break
   }
@@ -170,11 +182,17 @@ switch (args[0]) {
     const filesToTranspile = collectFiles(join(process.cwd(), 'src'))
     Promise.all([performESBuild(filesToTranspile), validateTSC()]).then(() => {
       console.log('Full build time: ', Math.round((performance.now() - st) * 100) / 100)
+    }).catch((error) => {
+      console.error(error)
+      process.exitCode = 1
     })
     break
   }
 }
 async function performESBuild(filesToTranspile) {
+  const esbuild = require('esbuild')
+  const { copy } = require('esbuild-plugin-copy')
+
   await esbuild.build({
     entryPoints: filesToTranspile,
     bundle: false,
@@ -201,12 +219,16 @@ async function performESBuild(filesToTranspile) {
 }
 
 async function performESBuildWithSvelte(filesToTranspile) {
+  const esbuild = require('esbuild')
+
   // Separate Svelte and non-Svelte files
   const svelteFiles = filesToTranspile.filter((f) => f.endsWith('.svelte'))
   const nonSvelteFiles = filesToTranspile.filter((f) => !f.endsWith('.svelte'))
 
   // Build non-Svelte files
   if (nonSvelteFiles.length > 0) {
+    const { copy } = require('esbuild-plugin-copy')
+
     await esbuild.build({
       entryPoints: nonSvelteFiles,
       bundle: false,
@@ -234,6 +256,9 @@ async function performESBuildWithSvelte(filesToTranspile) {
 
   // Build Svelte files
   if (svelteFiles.length > 0) {
+    const sveltePlugin = require('esbuild-svelte')
+    const sveltePreprocess = require('svelte-preprocess')
+
     await esbuild.build({
       entryPoints: svelteFiles,
       bundle: false,
@@ -273,6 +298,10 @@ async function generateSvelteTypes() {
   }
 
   const svelteFiles = collectFiles(srcDir).filter((f) => f.endsWith('.svelte'))
+  if (svelteFiles.length === 0) {
+    return
+  }
+  const { svelte2tsx } = require('svelte2tsx')
 
   for (const svelteFile of svelteFiles) {
     try {
@@ -301,6 +330,17 @@ async function generateSvelteTypes() {
 }
 
 async function validateTSC(st) {
+  const nativeValidation = require('../native-validation.json')
+  const packagePath = join(process.cwd(), 'package.json')
+  const packageName = existsSync(packagePath) ? JSON.parse(readFileSync(packagePath, 'utf8')).name : undefined
+  if (nativeValidation.packages.includes(packageName)) {
+    console.log(`Validating with native TypeScript ${nativeValidation.compilerVersion}`)
+    await require('./native-validation').validateNative()
+    return
+  }
+
+  const ts = require('typescript')
+
   const buildDir = '.validate'
   const typesDir = join(process.cwd(), 'types')
 

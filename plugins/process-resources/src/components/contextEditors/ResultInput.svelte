@@ -80,10 +80,6 @@
 
   void fillValues()
 
-  export function canClose (): boolean {
-    return false
-  }
-
   function getEditor (result: ResolvedUserResult): AnyComponent | undefined {
     const target = getAttributePresenterClass(h, result.type)
     if (
@@ -121,7 +117,6 @@
   label={plugin.string.Result}
   canSave={canSaveValue}
   okAction={save}
-  hideClose
   okLabel={presentation.string.Save}
 >
   {#if description !== undefined && description.trim() !== ''}
@@ -134,11 +129,13 @@
       {@const editor = getEditor(result)}
       <span
         class="labelOnPanel"
+        class:required-empty={!loading && !isRequiredValueFilled(values[result._id], result.type)}
         use:tooltip={{
           props: { text: result.name }
         }}
       >
         {result.name}
+        <span class="required-asterisk">*</span>
       </span>
       {#if editor && !loading}
         <div class="w-full">
@@ -166,6 +163,11 @@
 </Card>
 
 <style lang="scss">
+  .required-empty,
+  .required-asterisk {
+    color: var(--theme-error-color);
+  }
+
   .grid {
     display: grid;
     grid-template-columns: 1fr 1.5fr;

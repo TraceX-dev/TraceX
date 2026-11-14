@@ -37,7 +37,6 @@
 
   export let object: WithReferences<Doc>
   export let showCommenInput: boolean = true
-  export let transparent: boolean = false
   export let focusIndex: number = -1
   export let boundary: HTMLElement | undefined = undefined
 
@@ -385,10 +384,6 @@
     &:not(.newest-first) {
       margin: 1.75rem 0;
     }
-  }
-
-  .invisible {
-    display: none;
   }
 
   :global(.grid .msgactivity-container.showIcon:last-child::after) {

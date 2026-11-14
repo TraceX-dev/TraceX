@@ -66,9 +66,11 @@ import { isError } from './errors'
 import { getClient, releaseClient, SERVICE_NAME } from './utils'
 import config from './config'
 import { instrumentClient, type ProcessMeasurements } from './telemetry'
+import { copyExecutionReason, createExecutionDiagnostics, saveExecutionDiagnostics } from './diagnostics'
 
 const activeExecutions = new Set<Ref<Execution>>()
 const processedMessages = new Map<string, number>()
+const processingMessages = new Map<string, Promise<void>>()
 const MAX_PROCESSED_MESSAGES = 1000
 
 export async function messageHandler (record: ProcessMessage, ws: WorkspaceUuid, ctx: MeasureContext): Promise<void> {
@@ -103,53 +105,65 @@ async function handleMessage (
     measurements.outcome = 'ignored'
     return
   }
-  if (record._id !== undefined) {
-    if (processedMessages.has(record._id)) {
-      measurements.outcome = 'duplicate'
-      ctx.counter('process_duplicate_events', 1)
-      ctx.debug('Skipping duplicate message', { _id: record._id, ws })
-      return
-    }
-    processedMessages.set(record._id, Date.now())
-    if (processedMessages.size > MAX_PROCESSED_MESSAGES) {
-      const first = processedMessages.keys().next().value
-      if (first !== undefined) {
-        processedMessages.delete(first)
-      }
-    }
+  const key = record._id === undefined ? undefined : `${ws}:${record._id}`
+  if (key !== undefined && processedMessages.has(key)) {
+    measurements.outcome = 'duplicate'
+    ctx.counter('process_duplicate_events', 1)
+    ctx.debug('Skipping duplicate message', { _id: record._id, ws })
+    return
   }
+  const pending = key === undefined ? undefined : processingMessages.get(key)
+  const operation = pending ?? processMessage(record, ws, ctx, measurements)
+  if (key !== undefined && pending === undefined) processingMessages.set(key, operation)
   try {
-    const cachedClient = await ctx.with('process.get-client', {}, async (clientCtx) => await getClient(ws, clientCtx))
-    const client = new TxOperations(instrumentClient(cachedClient, ctx, measurements), record.account)
-    try {
-      const control: ProcessControl = {
-        ctx,
-        client,
-        collaboratorFactory: () => createCollaboratorClient(ws),
-        cache: new Map<string, any>(),
-        messageContext: record.context,
-        workspace: ws,
-        modifiedBy: record.account,
-        modifiedOn: record.createdOn
+    await operation
+    if (key !== undefined) {
+      processedMessages.set(key, Date.now())
+      if (processedMessages.size > MAX_PROCESSED_MESSAGES) {
+        const first = processedMessages.keys().next().value
+        if (first !== undefined) processedMessages.delete(first)
       }
-      ctx.debug('Processing event', { event: record.event, ws, messageId: record._id })
-      if (record.execution !== undefined) {
-        const execution = await control.client.findOne(process.class.Execution, { _id: record.execution })
-        if (execution !== undefined) {
-          await processExecution(control, record, execution)
-        }
-      } else if (record.card !== undefined) {
-        await processCardExecutions(control, record)
-      } else {
-        await processBroadcast(control, record)
-      }
-    } finally {
-      await releaseClient(ws)
     }
   } catch (error) {
     measurements.outcome = 'error'
     ctx.counter('process_event_errors', 1)
     ctx.error('Error processing event', { error, ws, record })
+    throw error
+  } finally {
+    if (key !== undefined && processingMessages.get(key) === operation) processingMessages.delete(key)
+  }
+}
+
+async function processMessage (
+  record: ProcessMessage,
+  ws: WorkspaceUuid,
+  ctx: MeasureContext,
+  measurements: ProcessMeasurements
+): Promise<void> {
+  const cachedClient = await ctx.with('process.get-client', {}, async (clientCtx) => await getClient(ws, clientCtx))
+  try {
+    const client = new TxOperations(instrumentClient(cachedClient, ctx, measurements), record.account)
+    const control: ProcessControl = {
+      ctx,
+      client,
+      collaboratorFactory: () => createCollaboratorClient(ws),
+      cache: new Map<string, any>(),
+      messageContext: record.context,
+      workspace: ws,
+      modifiedBy: record.account,
+      modifiedOn: record.createdOn
+    }
+    ctx.debug('Processing event', { event: record.event, ws, messageId: record._id })
+    if (record.execution !== undefined) {
+      const execution = await control.client.findOne(process.class.Execution, { _id: record.execution })
+      if (execution !== undefined) await processExecution(control, record, execution)
+    } else if (record.card !== undefined) {
+      await processCardExecutions(control, record)
+    } else {
+      await processBroadcast(control, record)
+    }
+  } finally {
+    await releaseClient(ws)
   }
 }
 
@@ -238,7 +252,17 @@ async function findTransitions (
       _id: transition,
       process: execution.process
     })[0]
-    if (res.from === execution.currentState || res.from === null) {
+    if (res !== undefined && (res.from === execution.currentState || res.from === null)) {
+      if (execution.error?.[0].phase === 'trigger') {
+        const previousErrors = execution.error
+        execution.error = null
+        const next = await pickTransition(control, execution, [res], record.context)
+        if (execution.error == null) {
+          if (next === undefined) await control.client.update(execution, { error: null })
+          else execution.error = previousErrors
+        }
+        return next
+      }
       return res
     }
   }
@@ -374,7 +398,8 @@ async function rollback (control: ProcessControl, execution: Execution): Promise
     clearTimeout(timeout)
   }
   await control.client.update(execution, {
-    rollback: execution.rollback
+    rollback: execution.rollback,
+    diagnostics: null
   })
 }
 
@@ -416,6 +441,7 @@ async function execute (execution: Execution, transition: Transition, control: P
       execution: execution._id,
       transition: transition._id
     })
+    throw err
   } finally {
     activeExecutions.delete(execution._id)
   }
@@ -577,6 +603,7 @@ async function runTransitions (execution: Execution, _transition: Transition, co
       error: null
     })
     executionUpdate.context = execution.context
+    executionUpdate.diagnostics = null
     executionUpdate.rollback = execution.rollback.length > 30 ? execution.rollback.slice(-30) : execution.rollback
     res.push(client.txFactory.createTxUpdateDoc(execution._class, execution.space, execution._id, executionUpdate))
     res.push(
@@ -619,7 +646,7 @@ async function runTransitions (execution: Execution, _transition: Transition, co
         async (ctx) => await checkNext({ ...control, ctx }, execution, context)
       )
       nested = true
-      if (transition === undefined) {
+      if (transition === undefined && execution.error == null) {
         await control.ctx.with('process.set-timers', {}, async (ctx) => {
           await setNextTimers({ ...control, ctx }, execution)
         })
@@ -754,14 +781,23 @@ async function executeAction<T extends Doc> (
   execution: Execution,
   control: ProcessControl
 ): Promise<ExecuteResult> {
+  let parameter: string | undefined
   try {
     const method = control.client.getModel().findObject(action.methodId)
     if (method === undefined) throw processError(process.error.MethodNotFound, { methodId: action.methodId }, {}, true)
     const impl = control.client.getHierarchy().as(method, serverProcess.mixin.MethodImpl) as MethodImpl<T>
     if (impl === undefined) throw processError(process.error.MethodNotFound, { methodId: action.methodId }, {}, true)
-    const params = await fillParams(action.params, execution, control)
+    const params = await fillParams(action.params, execution, control, (key) => {
+      parameter = key
+    })
+    parameter = undefined
+    const inputSources: NonNullable<ProcessControl['inputSources']> = {}
+    for (const [key, value] of Object.entries(action.params)) {
+      const source = parseContext(value)
+      if (source !== undefined) inputSources[key] = source
+    }
     const f = await getResource(impl.func)
-    const res = await f(params, execution, control, action.results)
+    const res = await f(params, execution, { ...control, inputSources }, action.results)
     if (!isError(res) && res.results !== undefined) {
       for (const result of res.results) {
         execution.context[result._id as ContextId] = result.value
@@ -774,17 +810,22 @@ async function executeAction<T extends Doc> (
         control.cache.set(ctx._id, ctx.value)
       }
     }
-    return res
+    return isError(res) ? { ...res, step: action._id, method: action.methodId } : res
   } catch (err) {
     if (err instanceof ProcessError) {
       if (err.shouldLog) {
         control.ctx.error(err.message, { props: err.props })
       }
-      return parseError(err, transition)
+      return { ...parseError(err, transition), step: action._id, method: action.methodId, parameter }
     } else {
       const errorId = generateId()
       control.ctx.error(err instanceof Error ? err.message : String(err), { errorId })
-      return parseError(processError(process.error.InternalServerError, { errorId }), transition)
+      return {
+        ...parseError(processError(process.error.InternalServerError, { errorId }), transition),
+        step: action._id,
+        method: action.methodId,
+        parameter
+      }
     }
   }
 }
@@ -792,7 +833,8 @@ async function executeAction<T extends Doc> (
 async function fillParams<T extends Doc> (
   params: MethodParams<T>,
   execution: Execution,
-  control: ProcessControl
+  control: ProcessControl,
+  onParameter?: (key: string) => void
 ): Promise<MethodParams<T>> {
   if (!control.cache.has(execution.card)) {
     const card = await control.client.findOne(cardPlugin.class.Card, { _id: execution.card })
@@ -802,6 +844,7 @@ async function fillParams<T extends Doc> (
   }
   const res: MethodParams<T> = {}
   for (const key in params) {
+    onParameter?.(key)
     const value = control.client.getHierarchy().clone((params as any)[key])
     const valueResult = await getContextValue(value, control, execution)
     ;(res as any)[key] = valueResult
@@ -872,6 +915,7 @@ async function checkNext (
       return transition
     }
   }
+  await saveExecutionDiagnostics(control, execution, createExecutionDiagnostics(control, execution, []))
 }
 
 export async function pickTransition (
@@ -880,15 +924,50 @@ export async function pickTransition (
   transitions: Transition[],
   context: Record<string, any>
 ): Promise<Transition | undefined> {
+  const diagnostics = createExecutionDiagnostics(control, execution, transitions)
   for (const tr of transitions) {
+    const diagnostic = diagnostics.checks.find((check) => check.transition === tr._id)
+    if (diagnostic === undefined) continue
+    diagnostic.checkedAt = Date.now()
     const trigger = control.client.getModel().findObject(tr.trigger)
     if (trigger === undefined) continue
     const impl = control.client.getHierarchy().as(trigger, serverProcess.mixin.TriggerImpl)
-    if (impl?.serverCheckFunc === undefined) return tr
-    const filled = await fillParams(tr.triggerParams, execution, control)
-    const checkFunc = await getResource(impl.serverCheckFunc)
-    if (checkFunc === undefined) continue
-    const res = await checkFunc(control, execution, filled, context)
-    if (res) return tr
+    if (impl?.serverCheckFunc === undefined) {
+      diagnostic.status = 'matched'
+      await saveExecutionDiagnostics(control, execution, diagnostics)
+      return tr
+    }
+    const observedControl: ProcessControl = {
+      ...control,
+      diagnostics: (reason) => {
+        if (diagnostic.reasons.length < 20) {
+          try {
+            diagnostic.reasons.push(copyExecutionReason(reason))
+          } catch {
+            // Malformed extension evidence must not change the actual check result.
+          }
+        }
+      }
+    }
+    try {
+      const filled = await fillParams(tr.triggerParams, execution, observedControl)
+      const checkFunc = await getResource(impl.serverCheckFunc)
+      if (checkFunc === undefined) continue
+      const res = await checkFunc(observedControl, execution, filled, context)
+      diagnostic.status = res ? 'matched' : 'waiting'
+      if (res) {
+        await saveExecutionDiagnostics(control, execution, diagnostics)
+        return tr
+      }
+    } catch (error) {
+      if (!(error instanceof ProcessError)) throw error
+      const errors: ExecutionError[] = [{ ...parseError(error, tr._id), phase: 'trigger' }]
+      diagnostic.status = 'error'
+      await control.client.update(execution, { error: errors })
+      execution.error = errors
+      await saveExecutionDiagnostics(control, execution, diagnostics)
+      return undefined
+    }
   }
+  await saveExecutionDiagnostics(control, execution, diagnostics)
 }

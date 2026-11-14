@@ -1,5 +1,12 @@
 {
   "string": {
+    "YamlEditor": "YAML editor",
+    "YamlSource": "YAML source",
+    "YamlOpenFile": "Open YAML file",
+    "YamlDownload": "Download YAML",
+    "YamlValid": "Valid YAML definition",
+    "YamlSaveCurrent": "Save current process",
+    "YamlCreateNew": "Create new definition",
     "Card": "Card",
     "CardApplication": "Cards",
     "Cards": "Cards",
@@ -81,6 +88,7 @@
     "Import": "Import",
     "Export": "Export",
     "CardUpdated": "Card updated",
+    "AssignedToMe": "Assigned to me",
     "CardCreated": "Card created",
     "MyCards": "My cards",
     "GotoMyCards": "Go to my cards",

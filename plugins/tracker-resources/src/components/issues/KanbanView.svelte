@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -253,12 +254,12 @@
     }
   }
 
-  async function shouldShowFooter (
+  function shouldShowFooter (
     config: (string | BuildModelKey)[],
     reports: number,
     estimations: number,
     issue: WithLookup<Issue>
-  ): Promise<boolean> {
+  ): boolean {
     if (enabledConfig(config, 'estimation') && (reports > 0 || estimations > 0)) return true
     if (enabledConfig(config, 'comments')) {
       if ((issue.comments ?? 0) > 0) return true
@@ -469,28 +470,26 @@
               />
             </div>
           {/if}
-          {#await shouldShowFooter(config, reports, estimations, object) then withFooter}
-            {#if withFooter}
-              <div class="card-footer flex-between">
-                {#if enabledConfig(config, 'estimation')}
-                  <EstimationEditor kind={'list'} size={'small'} value={issue} />
+          {#if shouldShowFooter(config, reports, estimations, object)}
+            <div class="card-footer flex-between">
+              {#if enabledConfig(config, 'estimation')}
+                <EstimationEditor kind={'list'} size={'small'} value={issue} />
+              {/if}
+              <div class="flex-row-center gap-3 reverse">
+                {#if enabledConfig(config, 'attachments') && (object.attachments ?? 0) > 0}
+                  <AttachmentsPresenter value={object.attachments} {object} />
                 {/if}
-                <div class="flex-row-center gap-3 reverse">
-                  {#if enabledConfig(config, 'attachments') && (object.attachments ?? 0) > 0}
-                    <AttachmentsPresenter value={object.attachments} {object} />
-                  {/if}
-                  <ChatMessagesPresenter value={object.comments} {object} />
-                  <ChatMessagesPresenter
-                    object={object.$lookup?.attachedTo}
-                    value={object.$lookup?.attachedTo?.comments}
-                    withInput={false}
-                  />
-                </div>
+                <ChatMessagesPresenter value={object.comments} {object} />
+                <ChatMessagesPresenter
+                  object={object.$lookup?.attachedTo}
+                  value={object.$lookup?.attachedTo?.comments}
+                  withInput={false}
+                />
               </div>
-            {:else}
-              <div class="min-h-4 max-h-4 h-4" />
-            {/if}
-          {/await}
+            </div>
+          {:else}
+            <div class="min-h-4 max-h-4 h-4" />
+          {/if}
         </div>
       {/key}
     </svelte:fragment>

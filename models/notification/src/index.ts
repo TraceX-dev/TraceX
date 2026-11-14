@@ -859,7 +859,7 @@ export function createModel (builder: Builder): void {
       label: notification.string.Sound,
       description: notification.string.SoundNotificationsDescription,
       depends: notification.providers.PushNotificationProvider,
-      defaultEnabled: true,
+      defaultEnabled: false,
       canDisable: true,
       order: 250
     },

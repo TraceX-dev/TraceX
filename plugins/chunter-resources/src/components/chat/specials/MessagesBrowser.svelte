@@ -26,18 +26,12 @@
   export let withHeader: boolean = true
   export let search: string = ''
 
-  let searchQuery: DocumentQuery<ChatMessage> = { $search: search }
-
-  function updateSearchQuery (search: string): void {
-    searchQuery = { $search: search }
-  }
-
-  $: updateSearchQuery(search)
-
   const client = getClient()
   let messages: ChatMessage[] = []
+  let filterQuery: DocumentQuery<ChatMessage> = {}
 
-  let resultQuery: DocumentQuery<ChatMessage> = { ...searchQuery }
+  $: searchQuery = search === '' ? {} : { $search: search }
+  $: resultQuery = { ...filterQuery, ...searchQuery }
 
   async function updateMessages (resultQuery: DocumentQuery<ChatMessage>) {
     messages = await client.findAll(
@@ -52,7 +46,7 @@
     )
   }
 
-  $: updateMessages(resultQuery)
+  $: void updateMessages(resultQuery)
 </script>
 
 {#if withHeader}
@@ -60,20 +54,14 @@
     <div class="ac-header__wrap-title">
       <span class="ac-header__title"><Label label={plugin.string.MessagesBrowser} /></span>
     </div>
-    <SearchEdit
-      value={search}
-      on:change={() => {
-        updateSearchQuery(search)
-        updateMessages(resultQuery)
-      }}
-    />
+    <SearchEdit bind:value={search} />
   </div>
 {/if}
 <FilterBar
   _class={chunter.class.ChatMessage}
   space={undefined}
   query={searchQuery}
-  on:change={(e) => (resultQuery = e.detail)}
+  on:change={(e) => (filterQuery = e.detail)}
 />
 {#if messages.length > 0}
   <Scroller padding={'1rem 0'} bottomPadding={'1rem'}>

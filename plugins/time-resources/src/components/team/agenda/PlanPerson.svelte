@@ -82,14 +82,4 @@
     color: var(--theme-caption-color);
     font-weight: 500;
   }
-
-  .divider {
-    border-top: 1px solid var(--theme-table-border-color);
-  }
-
-  .container {
-    margin-top: 0.75rem;
-    border: 1px solid var(--theme-table-border-color);
-    border-radius: 0.5rem;
-  }
 </style>

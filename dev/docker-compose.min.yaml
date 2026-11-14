@@ -3,10 +3,12 @@
 # (rush docker:up:min)
 # Excluded: preview, link-preview, elastic, redis, stats, payment, billing, fulltext_pg,
 #           print, sign, hulykvs, hulygun, process-service, backup-pg,
-#           backup-api, rating_pg
+#           backup-api, rating_pg, marketplace
 # Overrides below remove dependencies on excluded services so the min project validates.
 
 services:
+  marketplace:
+    profiles: ["full"]
   preview:
     profiles: ["full"]
   link-preview:
@@ -51,6 +53,8 @@ services:
       - transactor_pg
   front:
     links: !override []
+    environment:
+      MARKETPLACE_URL: ""
   transactor_pg:
     links: !override
       - postgres

@@ -52,7 +52,7 @@
     "@types/mime-types": "~2.1.1",
     "@types/request": "~2.48.13",
     "jest": "^30.4.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
     "eslint-plugin-svelte": "^3.23.0",

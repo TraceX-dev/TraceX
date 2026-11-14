@@ -34,7 +34,7 @@
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "jest": "^30.4.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "@types/jest": "^30.0.0",
     "@types/markdown-it": "~13.0.0",
     "jest-environment-jsdom": "^30.4.1",

@@ -22,6 +22,7 @@ import RequestUserInput from './components/contextEditors/RequestUserInput.svelt
 import ResultInput from './components/contextEditors/ResultInput.svelte'
 import SelectionSpaceEditor from './components/settings/SelectionSpaceEditor.svelte'
 import RoleEditor from './components/contextEditors/RoleEditor.svelte'
+import FindObjectsEditor from './components/contextEditors/FindObjectsEditor.svelte'
 import RelationTableEditor from './components/contextEditors/RelationTableEditor.svelte'
 import ErrorPresenter from './components/ErrorPresenter.svelte'
 import ExecutionMyToDos from './components/ExecutionMyToDos.svelte'
@@ -162,6 +163,7 @@ export default async (): Promise<Resources> => ({
     ResultInput,
     SelectionSpaceEditor,
     RoleEditor,
+    FindObjectsEditor,
     RelationTableEditor,
     ActionsPresenter,
     StatePresenter,

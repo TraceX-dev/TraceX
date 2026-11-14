@@ -81,7 +81,6 @@
   let gridStyle = ''
   let columns: number = 0
   let rows: number = 0
-  const guestRoomPlaceholder: any = undefined
 
   function updateStyle (count: number, screenSharing: boolean): void {
     columns = screenSharing ? 1 : Math.min(Math.ceil(Math.sqrt(count)), 8)
@@ -442,7 +441,6 @@
             </div>
             <div class="videoGrid" style={withScreenSharing ? '' : gridStyle} class:scroll-m-0={withScreenSharing}>
               <GuestParticipantsListView
-                room={guestRoomPlaceholder}
                 on:participantsCount={(evt) => {
                   updateStyle(evt.detail, withScreenSharing)
                 }}
@@ -476,7 +474,6 @@
             meetingId={guestInfo.meetingId}
             {guestToken}
             workspaceId={guestInfo.workspace ?? undefined}
-            workspaceName={guestInfo.workspaceUrl ?? undefined}
           />
         </div>
       {/if}
@@ -490,11 +487,6 @@
 </LoginAppBase>
 
 <style lang="scss">
-  .error {
-    font-weight: 500;
-    font-size: 1.5rem;
-    align-items: center;
-  }
   .duration {
     color: var(--accent-color-base);
   }
@@ -516,15 +508,6 @@
       min-height: 0;
       width: 100%;
       border-radius: 0.75rem;
-
-      .screen {
-        object-fit: contain;
-        max-width: 100%;
-        max-height: 100%;
-        height: 100%;
-        width: 100%;
-        border-radius: 0.75rem;
-      }
     }
     &:not(.sharing) {
       gap: 0;
@@ -558,27 +541,6 @@
         max-width: 15rem;
       }
     }
-
-    &.many {
-      padding: 0.5rem;
-
-      &:not(.sharing) .videoGrid,
-      &.sharing {
-        gap: 0.5rem;
-      }
-    }
-
-    &.mobile {
-      padding: var(--spacing-0_5);
-
-      &:not(.sharing) .videoGrid,
-      &.sharing {
-        gap: var(--spacing-0_5);
-      }
-    }
-  }
-  .hidden {
-    display: none;
   }
   /* Main heading (title above tabs/signup/login) */
   .main-heading {

@@ -115,10 +115,6 @@
   .block {
     display: flex;
     gap: 0.5rem;
-
-    &.vertical {
-      flex-direction: column;
-    }
   }
 
   .title {

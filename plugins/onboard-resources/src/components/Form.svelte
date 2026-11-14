@@ -231,31 +231,14 @@
         grid-column-end: 3;
       }
 
-      .hint {
-        margin-top: 1rem;
-        font-size: 0.8rem;
-        color: var(--theme-content-color);
-      }
-
       .send {
         margin-top: 0rem;
       }
-    }
-    .grow-separator {
-      flex-grow: 1;
     }
     .footer {
       margin-top: 1.75rem;
       font-size: 0.8rem;
       color: var(--theme-content-color);
-      span {
-        color: var(--theme-darker-color);
-      }
-      a {
-        font-weight: 500;
-        text-decoration: underline;
-        color: var(--theme-content-color);
-      }
     }
   }
 </style>

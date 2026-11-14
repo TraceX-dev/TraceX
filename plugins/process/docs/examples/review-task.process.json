@@ -1,0 +1,127 @@
+[
+  {
+    "_id": "__PROCESS__",
+    "_class": "process:class:Process",
+    "space": "core:space:Model",
+    "masterTag": "__MASTER_TAG__",
+    "rank": "0|hzzzzz:",
+    "name": "Review card",
+    "description": "Create review tasks for all reviewers and mark the card reviewed when all tasks finish.",
+    "autoStart": false,
+    "showInHeader": true,
+    "parallelExecutionForbidden": true,
+    "context": {
+      "__CONTEXT_0__": {
+        "name": "Review tasks",
+        "_class": "process:class:ProcessToDo",
+        "action": "__ACTION_1__",
+        "index": 1,
+        "producer": "__TRANSITION_0__",
+        "value": {
+          "type": "context",
+          "id": "__CONTEXT_0__",
+          "key": ""
+        }
+      }
+    },
+    "requiredSlots": {
+      "reviewers": {
+        "slotKind": "attribute",
+        "_class": "core:class:Attribute",
+        "name": "reviewers",
+        "type": {
+          "_class": "core:class:ArrOf",
+          "label": "core:string:Array",
+          "of": {
+            "_class": "core:class:RefTo",
+            "label": "core:string:Ref",
+            "to": "contact:mixin:Employee"
+          }
+        }
+      },
+      "status": {
+        "slotKind": "attribute",
+        "_class": "core:class:Attribute",
+        "name": "status",
+        "type": {
+          "_class": "core:class:TypeString",
+          "label": "core:string:String"
+        }
+      }
+    }
+  },
+  {
+    "_id": "__STATE_0__",
+    "_class": "process:class:State",
+    "space": "core:space:Model",
+    "process": "__PROCESS__",
+    "title": "Under review",
+    "rank": "0|hzzzzz:"
+  },
+  {
+    "_id": "__STATE_1__",
+    "_class": "process:class:State",
+    "space": "core:space:Model",
+    "process": "__PROCESS__",
+    "title": "Reviewed",
+    "rank": "0|i00007:"
+  },
+  {
+    "_id": "__TRANSITION_0__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "__PROCESS__",
+    "from": null,
+    "to": "__STATE_0__",
+    "trigger": "process:trigger:OnExecutionStart",
+    "triggerParams": {},
+    "rank": "0|hzzzzz:",
+    "actions": [
+      {
+        "_id": "__ACTION_0__",
+        "methodId": "process:method:UpdateCard",
+        "context": null,
+        "params": {
+          "__SLOT_status__": "Under review"
+        }
+      },
+      {
+        "_id": "__ACTION_1__",
+        "methodId": "process:method:CreateToDo",
+        "context": {
+          "_id": "__CONTEXT_0__"
+        },
+        "params": {
+          "title": "Review card",
+          "user": "${@__SLOT_reviewers__}",
+          "completionMode": "all",
+          "withRollback": true
+        }
+      }
+    ]
+  },
+  {
+    "_id": "__TRANSITION_1__",
+    "_class": "process:class:Transition",
+    "space": "core:space:Model",
+    "process": "__PROCESS__",
+    "from": "__STATE_0__",
+    "to": "__STATE_1__",
+    "trigger": "process:trigger:OnToDoClose",
+    "triggerParams": {
+      "_id": "${$context(__CONTEXT_0__)}"
+    },
+    "rank": "0|i00007:",
+    "actions": [
+      {
+        "_id": "__ACTION_2__",
+        "methodId": "process:method:UpdateCard",
+        "context": null,
+        "params": {
+          "__SLOT_status__": "Reviewed"
+        }
+      }
+    ]
+  }
+]
+

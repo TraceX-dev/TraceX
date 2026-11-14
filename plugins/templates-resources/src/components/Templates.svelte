@@ -283,10 +283,6 @@
 </div>
 
 <style lang="scss">
-  .template-container {
-    padding: 2.25rem 2.5rem 1.75rem;
-    background-color: var(--theme-panel-color);
-  }
   .separator {
     flex-shrink: 0;
     margin: 1.5rem 0;

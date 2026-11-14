@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,7 +23,7 @@ import {
   toIdMap,
   WorkspaceIds
 } from '@hcengineering/core'
-import { Class, Doc, Ref, Space } from '@hcengineering/core/types/classes'
+import type { Class, Doc, Ref, Space } from '@hcengineering/core'
 import { type TransformConfig } from '@hcengineering/export'
 import core from '@hcengineering/model-core'
 import { StorageAdapter } from '@hcengineering/server-core'

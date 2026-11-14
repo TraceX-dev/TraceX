@@ -27,7 +27,7 @@ services:
       retries: 10
     restart: unless-stopped
   redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v24.3.6
+    image: redpandadata/redpanda:v24.3.6
     extra_hosts:
       - 'tracex.local:host-gateway'
     command:
@@ -49,12 +49,12 @@ services:
       - 19093:19093
       - 19645:9644
     healthcheck:
-      test: ['CMD', 'rpk', 'cluster', 'info', '-X', 'user=superuser', '-X', 'pass=secretpassword']
+      test: ['CMD', 'rpk', 'cluster', 'info']
       interval: 10s
       timeout: 5s
       retries: 10
   redpanda_console:
-    image: docker.redpanda.com/redpandadata/console:v2.8.3
+    image: redpandadata/console:v2.8.3
     extra_hosts:
       - 'tracex.local:host-gateway'
     entrypoint: /bin/sh

@@ -719,11 +719,3 @@
     />
   </svelte:fragment>
 </Card>
-
-<style lang="scss">
-  .color {
-    width: 1rem;
-    height: 1rem;
-    border-radius: 0.25rem;
-  }
-</style>

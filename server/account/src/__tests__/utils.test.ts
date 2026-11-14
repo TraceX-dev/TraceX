@@ -50,6 +50,7 @@ import {
   generateUniqueOtp,
   getEmailSocialId,
   confirmEmail,
+  EMAIL_CONFIRMATION_TTL_SEC,
   sendEmailConfirmation,
   selectWorkspace,
   signUpByEmail,
@@ -1171,6 +1172,24 @@ describe('account utils', () => {
           )
         })
 
+        test('should issue an expiring confirmation token', async () => {
+          const now = 1_700_000_000_000
+          const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now)
+          try {
+            await sendEmailConfirmation(mockCtx, mockBranding, account, email, { inviteId: 'invite-id' })
+          } finally {
+            dateNowSpy.mockRestore()
+          }
+
+          expect(generateToken).toHaveBeenCalledWith(
+            account,
+            undefined,
+            { confirmEmail: email, inviteId: 'invite-id' },
+            undefined,
+            { exp: now / 1000 + EMAIL_CONFIRMATION_TTL_SEC }
+          )
+        })
+
         test('should throw error if MAIL_URL is missing', async () => {
           ;(getMetadata as jest.Mock).mockReturnValue(undefined)
 
@@ -1205,6 +1224,7 @@ describe('account utils', () => {
         test('should confirm unverified email', async () => {
           const mockSocialId = {
             _id: '1000000001' as PersonId,
+            personUuid: account,
             key: 'email:test@example.com',
             type: SocialIdType.EMAIL,
             value: email,
@@ -1233,8 +1253,10 @@ describe('account utils', () => {
           )
         })
 
-        test('should throw error if email already confirmed', async () => {
+        test('should return the social id without updating an already confirmed email', async () => {
           const mockSocialId = {
+            _id: '1000000001' as PersonId,
+            personUuid: account,
             key: 'email:test@example.com',
             type: SocialIdType.EMAIL,
             value: email,
@@ -1242,7 +1264,21 @@ describe('account utils', () => {
           }
           ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue(mockSocialId)
 
-          await expect(confirmEmail(mockCtx, mockDb, account, email)).rejects.toThrow(
+          await expect(confirmEmail(mockCtx, mockDb, account, email)).resolves.toBe(mockSocialId._id)
+          expect(mockDb.socialId.update).not.toHaveBeenCalled()
+        })
+
+        test('should reject an already confirmed email when repeated confirmation is not allowed', async () => {
+          ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue({
+            _id: '1000000001' as PersonId,
+            personUuid: account,
+            key: 'email:test@example.com',
+            type: SocialIdType.EMAIL,
+            value: email,
+            verifiedOn: 1
+          })
+
+          await expect(confirmEmail(mockCtx, mockDb, account, email, false)).rejects.toThrow(
             new PlatformError(
               new Status(Severity.ERROR, platform.status.SocialIdAlreadyConfirmed, {
                 socialId: email,
@@ -1250,10 +1286,28 @@ describe('account utils', () => {
               })
             )
           )
+          expect(mockDb.socialId.update).not.toHaveBeenCalled()
+        })
+
+        test.each([null, 1])('should reject an email owned by another account (verifiedOn: %s)', async (verifiedOn) => {
+          ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue({
+            _id: '1000000001' as PersonId,
+            personUuid: 'another-account',
+            key: 'email:test@example.com',
+            type: SocialIdType.EMAIL,
+            value: email,
+            verifiedOn
+          })
+
+          await expect(confirmEmail(mockCtx, mockDb, account, email)).rejects.toMatchObject({
+            status: { code: platform.status.Forbidden }
+          })
+          expect(mockDb.socialId.update).not.toHaveBeenCalled()
         })
 
         test('should normalize email before confirmation', async () => {
           const mockSocialId = {
+            personUuid: account,
             key: 'email:test@example.com',
             type: SocialIdType.EMAIL,
             value: 'test@example.com',

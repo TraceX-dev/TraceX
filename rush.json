@@ -551,6 +551,11 @@
       "shouldPublish": true
     },
     {
+      "packageName": "@hcengineering/mermaid",
+      "projectFolder": "packages/mermaid",
+      "shouldPublish": true
+    },
+    {
       "packageName": "@hcengineering/api-tests",
       "projectFolder": "ws-tests/api-tests",
       "shouldPublish": false
@@ -658,6 +663,11 @@
     {
       "packageName": "@hcengineering/payment-client",
       "projectFolder": "packages/payment-client",
+      "shouldPublish": true
+    },
+    {
+      "packageName": "@hcengineering/openauth-client",
+      "projectFolder": "packages/openauth-client",
       "shouldPublish": true
     },
     {
@@ -983,6 +993,16 @@
     {
       "packageName": "@hcengineering/import-tool",
       "projectFolder": "dev/import-tool",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/pod-marketplace",
+      "projectFolder": "pods/marketplace",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/pod-openauth",
+      "projectFolder": "pods/openauth",
       "shouldPublish": false
     },
     {
@@ -2454,6 +2474,26 @@
     {
       "packageName": "@hcengineering/pod-mail",
       "projectFolder": "services/mail/pod-mail",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/marketplace",
+      "projectFolder": "plugins/marketplace",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/marketplace-assets",
+      "projectFolder": "plugins/marketplace-assets",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/marketplace-resources",
+      "projectFolder": "plugins/marketplace-resources",
+      "shouldPublish": false
+    },
+    {
+      "packageName": "@hcengineering/model-marketplace",
+      "projectFolder": "models/marketplace",
       "shouldPublish": false
     },
     {

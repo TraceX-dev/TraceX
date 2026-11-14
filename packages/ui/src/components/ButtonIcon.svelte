@@ -37,7 +37,7 @@
   export let dataId: string | undefined = undefined
   export let element: HTMLButtonElement | undefined = undefined
 
-  export function focus () {
+  export function focus (): void {
     element?.focus()
   }
 </script>

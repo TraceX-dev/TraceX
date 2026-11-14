@@ -203,6 +203,18 @@
         })
       }
 
+      if (result.length === 0 && model.showWhenEmpty && model._class !== undefined) {
+        const clazz = hierarchy.getClass(model._class)
+
+        result.push({
+          id: model.id,
+          _class: model._class,
+          objects: [],
+          label: clazz.pluralLabel ?? clazz.label,
+          count: 0
+        })
+      }
+
       handler(result.sort((s1, s2) => s1.label.localeCompare(s2.label)))
     }
   )
@@ -243,6 +255,8 @@
     sortFn={model.sortFn}
     itemsCount={section.count}
     showUnreadWhenCollapsed={model.showUnreadWhenCollapsed ?? false}
+    showWhenEmpty={model.showWhenEmpty ?? false}
+    showInlineActions={model.showInlineActions ?? false}
     on:show-more={() => {
       showMore(section)
     }}

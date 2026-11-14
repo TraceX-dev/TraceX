@@ -246,10 +246,6 @@
     overflow-y: auto;
   }
 
-  .hint {
-    color: var(--theme-dark-color);
-  }
-
   .warning-sign {
     color: var(--theme-docs-warning-icon-color);
   }

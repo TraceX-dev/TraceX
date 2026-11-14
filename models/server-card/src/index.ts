@@ -19,13 +19,21 @@ import { type Builder } from '@hcengineering/model'
 import core from '@hcengineering/core'
 import serverCore from '@hcengineering/server-core'
 import serverCard from '@hcengineering/server-card'
-import card from '@hcengineering/card'
+import card from '@hcengineering/model-card'
+import notification from '@hcengineering/notification'
 import serverNotification from '@hcengineering/server-notification'
 import view from '@hcengineering/view'
 
 export { serverCardId } from '@hcengineering/server-card'
 
 export function createModel (builder: Builder): void {
+  builder.mixin(
+    card.ids.CardAssigneeNotification,
+    notification.class.NotificationType,
+    serverNotification.mixin.TypeMatch,
+    { func: serverNotification.function.IsUserAddedToEmployeeFieldTypeMatch }
+  )
+
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverCard.trigger.OnAttribute,
     isAsync: true,

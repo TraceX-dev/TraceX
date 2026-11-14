@@ -367,14 +367,6 @@
     }
   }
 
-  .colorIcon {
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 50%;
-    margin: -0.15rem;
-    box-shadow: 0px 0px 0.15rem 0px var(--theme-button-contrast-enabled);
-  }
-
   .divider {
     margin: 0 0.25rem;
   }

@@ -35,7 +35,8 @@ import ChatMessagesPresenter from './components/chat-message/ChatMessagesPresent
 import Chat from './components/chat/Chat.svelte'
 import CreateChannel from './components/chat/create/CreateChannel.svelte'
 import CreateDirectChat from './components/chat/create/CreateDirectChat.svelte'
-import ChunterBrowser from './components/chat/specials/ChunterBrowser.svelte'
+import FilesBrowser from './components/chat/specials/FilesBrowser.svelte'
+import MessageSearch from './components/chat/specials/MessageSearch.svelte'
 import SavedMessages from './components/chat/specials/SavedMessages.svelte'
 import ConvertDmToPrivateChannelModal from './components/ConvertDmToPrivateChannel.svelte'
 import DirectIcon from './components/DirectIcon.svelte'
@@ -155,10 +156,6 @@ async function ConvertDmToPrivateChannel (dm: DirectMessage): Promise<void> {
 
 export const userSearch = writable('')
 
-export async function chunterBrowserVisible (): Promise<boolean> {
-  return false
-}
-
 export function chatMessagesFilter (message: ActivityMessage): boolean {
   return message._class === chunter.class.ChatMessage
 }
@@ -184,7 +181,8 @@ export default async (): Promise<Resources> => ({
     ChannelPanel,
     ChannelPresenter,
     ChannelPreview,
-    ChunterBrowser,
+    FilesBrowser,
+    MessageSearch,
     DmHeader,
     DmPresenter,
     EditChannel,
@@ -228,7 +226,6 @@ export default async (): Promise<Resources> => ({
     CanManageDiscussion: canManageDiscussionAction,
     GetChunterNotificationStore: getChunterNotificationStore,
     GetDmName: getDmName,
-    ChunterBrowserVisible: chunterBrowserVisible,
     GetFragment: getTitle,
     GetLink: getMessageLink,
     DirectTitleProvider,

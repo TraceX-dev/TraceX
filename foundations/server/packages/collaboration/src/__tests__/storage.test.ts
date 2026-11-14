@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -152,6 +153,7 @@ const mockContext: MeasureContext = {
   error: jest.fn(),
   debug: jest.fn(),
   with: jest.fn().mockImplementation((name, params, fn) => fn()),
+  withCounter: jest.fn().mockImplementation((name, params, fn) => fn()),
   withSync: jest.fn().mockImplementation((name, params, fn) => fn()),
   gauge: jest.fn(),
   counter: jest.fn(),

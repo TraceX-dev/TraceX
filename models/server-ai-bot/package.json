@@ -28,7 +28,7 @@
     "@types/node": "^24.13.3",
     "jest": "^30.4.2",
     "@types/jest": "^30.0.0",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "eslint-plugin-svelte": "^3.23.0",
     "eslint-config-love": "^157.0.0"
   },

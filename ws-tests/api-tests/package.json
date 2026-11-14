@@ -33,7 +33,7 @@
     "eslint-plugin-promise": "^7.3.0",
     "jest": "^30.4.2",
     "prettier": "^3.6.2",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "typescript": "^5.9.3",
     "@types/body-parser": "~1.19.2",
     "@types/morgan": "~1.9.9",

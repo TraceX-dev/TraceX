@@ -1,3 +1,17 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 import { expect, type Locator } from '@playwright/test'
 import path from 'path'
 import { createIssue, toTime } from '../../tracker/tracker.utils'
@@ -185,9 +199,13 @@ export class IssuesPage extends CommonTrackerPage {
       await createIssue(this.page, { name, assignee, status, taskType })
       await this.page.waitForSelector(`text="${name}"`)
       await this.viewIssueButton().click()
-    } finally {
-      await this.notificationTimeoutSetting('0')
+    } catch (error) {
+      await this.notificationTimeoutSetting('0').catch(() => {
+        // Preserve the original failure if the page closes while restoring the setting.
+      })
+      throw error
     }
+    await this.notificationTimeoutSetting('0')
   }
 
   async reportTime (time: number): Promise<void> {

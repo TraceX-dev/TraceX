@@ -34,7 +34,6 @@
   export let iconSize: IconSize = 'small'
   export let withIconBackground: boolean = true
   export let isSelected: boolean = false
-  export let isSecondary: boolean = false
   export let count: number | null = null
   export let secondaryNotifyMarker: boolean = false
   export let title: string | undefined = undefined

@@ -16,14 +16,11 @@
   import type { Attachment } from '@hcengineering/attachment'
   import type { WithLookup } from '@hcengineering/core'
   import { getFileUrl } from '@hcengineering/presentation'
-  import filesize from 'filesize'
+  import { humanReadableFileSize } from '@hcengineering/ui'
+  import { PersonIdPresenter } from '@hcengineering/view-resources'
   import { getType, showAttachmentPreviewPopup } from '../utils'
 
   export let value: WithLookup<Attachment>
-
-  const maxLength: number = 18
-  const trimFilename = (fname: string): string =>
-    fname.length > maxLength ? fname.substr(0, (maxLength - 1) / 2) + '...' + fname.substr(-(maxLength - 1) / 2) : fname
 
   function extensionIconLabel (name: string): string {
     const parts = name.split('.')
@@ -70,33 +67,29 @@
       </div>
     {/if}
 
-    <div class="cellInfo">
-      {#if isEmbedded(value.type)}
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <div class="flex-center extensionIcon" on:click={openAttachment}>
-          {extensionIconLabel(value.name)}
-        </div>
-      {:else}
-        <a class="no-line" href={src} download={value.name}>
-          <div class="flex-center extensionIcon">{extensionIconLabel(value.name)}</div>
-        </a>
-      {/if}
-      <div class="eCellInfoData">
+    <div class="header flex-col p-2 pt-1">
+      <div class="flex-row-center flex-between flex-gap-2 h-8 fs-bold">
         {#if isEmbedded(value.type)}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
-          <div class="eCellInfoFilename" on:click={openAttachment}>
-            {trimFilename(value.name)}
+          <div class="flex-presenter">
+            <div class="label overflow-label flex-grow" on:click={openAttachment}>
+              {value.name}
+            </div>
           </div>
         {:else}
-          <div class="eCellInfoFilename">
-            <a href={src} download={value.name}>{trimFilename(value.name)}</a>
+          <div class="flex-presenter">
+            <div class="label overflow-label flex-grow">
+              <a href={src} download={value.name}>{value.name}</a>
+            </div>
           </div>
         {/if}
-        <div class="eCellInfoFilesize">{filesize(value.size)}</div>
+        <slot name="rowMenu" />
       </div>
-      <div class="eCellInfoMenu"><slot name="rowMenu" /></div>
+      <div class="flex-between flex-gap-2 h-4 font-regular-12">
+        <PersonIdPresenter value={value.modifiedBy} withPadding={false} noUnderline avatarSize="tiny" />
+        <span class="caption-color overflow-label flex-no-shrink">{humanReadableFileSize(value.size)}</span>
+      </div>
     </div>
   </div>
 </div>
@@ -140,39 +133,9 @@
     width: 100%;
   }
 
-  .cellInfo {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    padding: 0.75rem;
-    height: 4rem;
-    background-color: var(--theme-bg-accent-color);
+  .header {
     border-top: 1px solid var(--theme-divider-color);
-
-    .eCellInfoData {
-      display: flex;
-      flex-direction: column;
-      margin-left: 1rem;
-    }
-
-    .eCellInfoMenu {
-      margin-left: auto;
-      position: absolute;
-      bottom: 1rem;
-      right: 0.5rem;
-    }
-
-    .eCellInfoFilename {
-      font-weight: 500;
-      color: var(--theme-caption-color);
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    .eCellInfoFilesize {
-      font-size: 0.75rem;
-      color: var(--theme-dark-color);
-    }
+    padding: 0.25rem 0.5rem 0.5rem;
   }
 
   .extensionIcon {
@@ -186,26 +149,5 @@
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 0.5rem;
     cursor: pointer;
-  }
-
-  .eCellInfoFilename:hover,
-  .extensionIcon:hover + .eCellInfoData > .eCellInfoFilename, // embedded on extension hover
-  .no-line:hover + .eCellInfoData > .eCellInfoFilename a, // not embedded on extension hover
-  .cellImagePreview:hover + .cellInfo .eCellInfoFilename, // image on preview hover
-  .cellMiscPreview:hover + .cellInfo .eCellInfoFilename, // PDF on preview hover
-  .cellMiscPreview:hover + .cellInfo .eCellInfoFilename a // not embedded on preview hover
-  {
-    text-decoration: underline;
-    color: var(--theme-caption-color);
-  }
-  .eCellInfoFilename:active,
-  .extensionIcon:active + .eCellInfoData > .eCellInfoFilename, // embedded on extension hover
-  .no-line:active + .eCellInfoData > .eCellInfoFilename a, // not embedded on extension hover
-  .cellImagePreview:active + .cellInfo .eCellInfoFilename, // image on preview hover
-  .cellMiscPreview:active + .cellInfo .eCellInfoFilename, // PDF on preview hover
-  .cellMiscPreview:active + .cellInfo .eCellInfoFilename a // not embedded on preview hover
-  {
-    text-decoration: underline;
-    color: var(--theme-caption-color);
   }
 </style>

@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -211,7 +212,7 @@ export abstract class MemDb extends TxProcessor implements Storage {
       result = await this.fillAssociations(result, options.associations)
     }
 
-    if (options?.sort !== undefined) resultSort(result, options?.sort, _class, this.hierarchy, this)
+    if (options?.sort !== undefined) resultSort<Doc>(result, options?.sort, _class, this.hierarchy, this)
     const total = result.length
     result = result.slice(0, options?.limit)
     const tresult = this.hierarchy.clone(result) as WithLookup<T>[]
@@ -249,7 +250,7 @@ export abstract class MemDb extends TxProcessor implements Storage {
       // We need to filter instances without mixin was set
       result = result.filter((r) => (r as any)[_class] !== undefined)
     }
-    if (options?.sort !== undefined) resultSort(result, options?.sort, _class, this.hierarchy, this)
+    if (options?.sort !== undefined) resultSort<Doc>(result, options?.sort, _class, this.hierarchy, this)
     const total = result.length
     result = result.slice(0, options?.limit)
 

@@ -15,20 +15,27 @@
 -->
 <script lang="ts">
   import { type Card, MasterTag } from '@hcengineering/card'
-  import core, { type Class, type Ref } from '@hcengineering/core'
+  import core, { type Class, getCurrentAccount, type Ref } from '@hcengineering/core'
+  import { getDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
+  import {
+    DefinitionPackageExportPopup,
+    getDefinitionPackageExportItemsStore
+  } from '@hcengineering/marketplace-resources'
   import { TypeBoolean, TypeNumber } from '@hcengineering/model'
-  import { getEmbeddedLabel, translateCB } from '@hcengineering/platform'
+  import { getEmbeddedLabel, setPlatformStatus, translateCB, unknownError } from '@hcengineering/platform'
   import { getClient, IconDownload, IconWithEmoji, MessageBox } from '@hcengineering/presentation'
   import setting from '@hcengineering/setting'
   import {
     Button,
     ButtonIcon,
+    ButtonMenu,
     type ColorDefinition,
     eventToHTMLElement,
     getCurrentLocation,
     getPlatformColorDef,
     IconDelete,
     IconInfo,
+    IconEdit,
     Label,
     ModernEditbox,
     navigate,
@@ -40,7 +47,9 @@
   import view from '@hcengineering/view'
   import { ColorsPopup, IconPicker } from '@hcengineering/view-resources'
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
-  import { exportModule } from '../../exporter'
+  import { exportModule, exportModulePackageSource, importModule } from '../../exporter'
+  import { downloadDefinition } from '../../authoring-utils'
+  import DefinitionYamlEditor from './DefinitionYamlEditor.svelte'
   import card from '../../plugin'
   import { deleteMasterTag } from '../../utils'
   import ChangeTagParentPopup from './ChangeTagParentPopup.svelte'
@@ -48,6 +57,11 @@
   import DuplicateSetting from './DuplicateSetting.svelte'
 
   export let masterTag: MasterTag
+
+  $: packageExportItems = getDefinitionPackageExportItemsStore(
+    getDefinitionPackageInfo(masterTag),
+    getCurrentAccount().uuid
+  )
 
   let name: string = ''
   let description = masterTag.description ?? ''
@@ -165,16 +179,59 @@
     )
   }
 
-  async function handleExport (): Promise<void> {
-    const str = await exportModule(masterTag._id)
-    const blob = new Blob([str], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${name}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  async function handleExport (format: 'json' | 'yaml'): Promise<void> {
+    try {
+      downloadDefinition(await exportModule(masterTag._id, format), name, format)
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  async function handlePackageExport (newVersion: boolean): Promise<void> {
+    try {
+      showPopup(
+        DefinitionPackageExportPopup,
+        {
+          source: '',
+          getSource: async (members: DefinitionPackageOwner[]) =>
+            await exportModulePackageSource(members.map((member) => member._id as Ref<Class<Card>>)),
+          definition: masterTag,
+          newVersion,
+          onDownload: downloadDefinition
+        },
+        'centered'
+      )
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
+  }
+
+  function onExportSelected (event: CustomEvent<string | number>): void {
+    if (event.detail === 'make-package' || event.detail === 'new-package-version') {
+      void handlePackageExport(event.detail === 'new-package-version')
+    } else {
+      void handleExport(event.detail === 'yaml' ? 'yaml' : 'json')
+    }
+  }
+
+  async function handleYaml (): Promise<void> {
+    try {
+      showPopup(
+        DefinitionYamlEditor,
+        {
+          kind: 'card',
+          name,
+          source: await exportModule(masterTag._id, 'yaml'),
+          onApply: async (source: string) => {
+            await importModule(source, true)
+            return true
+          }
+        },
+        'centered'
+      )
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    }
   }
 
   function getTagStyle (color: ColorDefinition): string {
@@ -185,15 +242,11 @@
   `
   }
 
-  async function enableVersioning (): Promise<void> {
-    if (h.isMixin(masterTag._id)) return
-    showPopup(MessageBox, {
-      label: card.string.EnableVersioning,
-      message: card.string.EnableVersioningConfirm,
-      action: async () => {
-        await client.createMixin(masterTag._id, masterTag._class, masterTag.space, core.mixin.VersionableClass, {
-          enabled: true
-        })
+  async function saveVersioning (enabled: boolean): Promise<void> {
+    versioningUpdating = true
+    const previous = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
+    try {
+      if (enabled && h.findAttribute(masterTag._id, 'version') === undefined) {
         await client.createDoc(core.class.Attribute, core.space.Model, {
           attributeOf: masterTag._id,
           _class: core.class.Attribute,
@@ -203,6 +256,8 @@
           readonly: true,
           type: TypeNumber()
         })
+      }
+      if (enabled && h.findAttribute(masterTag._id, 'isEffective') === undefined) {
         await client.createDoc(core.class.Attribute, core.space.Model, {
           attributeOf: masterTag._id,
           _class: core.class.Attribute,
@@ -212,9 +267,40 @@
           readonly: true,
           type: TypeBoolean()
         })
-        versioningEnabled = true
       }
-    })
+      await client.createMixin(masterTag._id, masterTag._class, masterTag.space, core.mixin.VersionableClass, {
+        enabled
+      })
+      versioningEnabled = enabled
+    } catch (error) {
+      versioningEnabled = previous
+      await setPlatformStatus(unknownError(error))
+    } finally {
+      versioningUpdating = false
+    }
+  }
+
+  function changeVersioning (event: CustomEvent<boolean>): void {
+    if (h.isMixin(masterTag._id)) return
+    versioningEnabled = event.detail
+    if (!event.detail) {
+      void saveVersioning(false)
+      return
+    }
+    showPopup(
+      MessageBox,
+      {
+        label: card.string.EnableVersioning,
+        message: card.string.EnableVersioningConfirm,
+        action: async () => {
+          await saveVersioning(true)
+        }
+      },
+      undefined,
+      () => {
+        versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
+      }
+    )
   }
 
   function versioningSetting (): void {
@@ -229,8 +315,9 @@
     })
   }
 
-  let versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled
-  $: versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled
+  let versioningUpdating = false
+  let versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
+  $: versioningEnabled = h.classHierarchyMixin(masterTag._id, core.mixin.VersionableClass)?.enabled ?? false
   $: hasSubtypes = h
     .getDescendants(masterTag._id)
     .some((it) => it !== masterTag._id && !h.isMixin(it) && h.getClass(it).extends === masterTag._id)
@@ -283,12 +370,25 @@
         on:click={showColorPopup}
       />
     </div>
-    <ButtonIcon
+    <ButtonMenu
       icon={IconDownload}
       size={'large'}
       tooltip={{ label: card.string.Export }}
       kind={'tertiary'}
-      on:click={handleExport}
+      items={[
+        { id: 'json', label: getEmbeddedLabel('JSON') },
+        { id: 'yaml', label: getEmbeddedLabel('YAML') },
+        ...$packageExportItems
+      ]}
+      noSelection
+      on:selected={onExportSelected}
+    />
+    <ButtonIcon
+      icon={IconEdit}
+      size="large"
+      tooltip={{ label: card.string.YamlEditor }}
+      kind="tertiary"
+      on:click={handleYaml}
     />
     {#if isEditable}
       <ButtonIcon icon={IconDelete} size={'large'} kind={'tertiary'} on:click={handleDelete} />
@@ -325,7 +425,7 @@
           {#if versioningEnabled}
             <ButtonIcon icon={setting.icon.Setting} size="extra-small" on:click={versioningSetting} />
           {/if}
-          <Toggle on={versioningEnabled} disabled={versioningEnabled} on:change={enableVersioning} />
+          <Toggle on={versioningEnabled} disabled={versioningUpdating} on:change={changeVersioning} />
         </div>
       </div>
       <div class="settings-row">

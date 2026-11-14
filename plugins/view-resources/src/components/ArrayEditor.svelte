@@ -7,6 +7,7 @@
   import { getClient } from '@hcengineering/presentation'
   import ObjectsTooltipWrapper from './ObjectsTooltipWrapper.svelte'
 
+  // svelte-ignore unused-export-let
   export let object: Doc
   export let label: IntlString
   export let value: Ref<Doc>[] = []
@@ -20,7 +21,6 @@
       ArrayEditorPopup,
       {
         _class: (type.of as RefTo<Doc>).to,
-        space: object.space,
         placeholder: label,
         selectedObjects: value
       },

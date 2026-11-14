@@ -14,7 +14,7 @@
 -->
 
 <script lang="ts">
-  import { Card, FavoriteCard, MasterTag } from '@hcengineering/card'
+  import { Card, FavoriteCard } from '@hcengineering/card'
   import core, { Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
@@ -28,7 +28,6 @@
   import { getCardIconInfo } from '../../utils'
   import { CardIcon } from '../../index'
 
-  export let type: Ref<MasterTag> | undefined = undefined
   export let card: Card
   export let favorite: FavoriteCard | undefined = undefined
   export let applicationId: string
@@ -143,28 +142,3 @@
     {/if} -->
   </svelte:fragment>
 </NavItem>
-
-<style lang="scss">
-  .notify {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    min-width: 1rem;
-    height: 1rem;
-  }
-  .notifyMarker {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border-radius: 0.5rem;
-    font-weight: 700;
-    background-color: var(--global-higlight-Color);
-    color: var(--global-on-accent-TextColor);
-    min-width: 1rem;
-    height: 1rem;
-    font-size: 0.5rem;
-    padding: 0 0.25rem;
-  }
-</style>

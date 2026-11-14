@@ -151,11 +151,6 @@
     margin-bottom: 0.5rem;
   }
 
-  .antiPanel-application.horizontal {
-    border-radius: 0 0 var(--medium-BorderRadius) var(--medium-BorderRadius);
-    border-top: none;
-  }
-
   .antiPanel-application:not(.horizontal) {
     border-radius: var(--medium-BorderRadius) 0 0 var(--medium-BorderRadius);
     border-right: none;

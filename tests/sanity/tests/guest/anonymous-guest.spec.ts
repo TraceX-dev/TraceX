@@ -291,7 +291,7 @@ test.describe('Anonymous guest', () => {
     try {
       const loginPage = new LoginPage(page)
       await loginPage.openProfileMenu()
-      await expect(loginPage.popupItemButton('Create workspace')).toBeVisible()
+      await expect(loginPage.popupItemButton('Create workspace')).toHaveCount(0)
       await expect(loginPage.popupItemButton('Sign out')).toHaveCount(0)
 
       await loginPage.popupItemButton('Log In').click()

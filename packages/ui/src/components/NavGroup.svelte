@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,15 +18,18 @@
   import { createEventDispatcher } from 'svelte'
   import type { Asset, IntlString } from '@hcengineering/platform'
   import { getEmbeddedLabel } from '@hcengineering/platform'
+  import { getEventPositionElement } from '../popups'
   import type { AnyComponent, IconSize, AnySvelteComponent } from '..'
   import {
+    ActionIcon,
+    ButtonIcon,
     showPopup,
     Menu,
     Action,
     Label,
     Component,
     IconDown,
-    IconDownOutline,
+    IconMoreH,
     IconOpenedArrow,
     IconFolderCollapsed,
     IconFolderExpanded,
@@ -56,13 +60,16 @@
   export let shouldTooltip: boolean = false
   export let forciblyCollapsed: boolean = false
   export let draggable: boolean = false
-  export let actions: Action[] = []
+  export let actions: Action[] | ((originalEvent?: MouseEvent) => Action[] | Promise<Action[]>) = []
   export let _id: Ref<Doc> | string | undefined = undefined
 
   const dispatch = createEventDispatcher()
 
   $: id = `navGroup-${categoryName}`
   let pressed: boolean = false
+  let menuOpened: boolean = false
+  let inlineActions: Action[] = []
+  let menuActions: Action[] = []
 
   const handleClick = (e: MouseEvent): void => {
     if (type === 'selectable-header') dispatch('click')
@@ -81,14 +88,47 @@
     }
   }
 
-  function handleMenuClicked (ev: MouseEvent): void {
-    if (actions.length === 0) return
+  async function getActions (originalEvent?: MouseEvent): Promise<Action[]> {
+    return typeof actions === 'function' ? await actions(originalEvent) : actions
+  }
+
+  async function refreshActions (): Promise<void> {
+    const result = await getActions()
+    inlineActions = result.filter((action) => action.inline === true)
+    menuActions = result.filter((action) => action.inline !== true)
+  }
+
+  async function openMenu (
+    ev: MouseEvent,
+    target: HTMLElement | ReturnType<typeof getEventPositionElement>,
+    fromMenuButton: boolean
+  ): Promise<void> {
     ev.stopPropagation()
-    pressed = true
-    showPopup(Menu, { actions }, ev.target as HTMLElement, () => {
+    menuActions = (await getActions(ev)).filter((action) => action.inline !== true)
+    if (menuActions.length === 0) return
+    menuOpened = true
+    pressed = fromMenuButton
+    showPopup(Menu, { actions: menuActions, ctx: _id }, target, () => {
       pressed = false
+      menuOpened = false
     })
   }
+
+  async function handleMenuClicked (ev: MouseEvent): Promise<void> {
+    await openMenu(ev, ev.target as HTMLElement, true)
+  }
+
+  async function handleContextMenu (ev: MouseEvent): Promise<void> {
+    ev.preventDefault()
+    await openMenu(ev, getEventPositionElement(ev), false)
+  }
+
+  async function handleInlineActionClicked (ev: MouseEvent, action: Action): Promise<void> {
+    ev.stopPropagation()
+    await action.action(_id, ev)
+  }
+
+  $: if (actions !== undefined) void refreshActions()
   $: isOpen = !getTreeCollapsed(_id, collapsedPrefix)
   $: setTreeCollapsed(_id, !isOpen, collapsedPrefix)
   $: visibleIcon = folderIcon ? (isOpen && !empty ? IconFolderExpanded : IconFolderCollapsed) : icon
@@ -102,46 +142,43 @@
   class:noIcon={!icon}
   class:noDivider
 >
-  <button
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div
     class="hulyNavGroup-header"
     class:isOpen={(isOpen || visible) && !empty}
     class:highlighted
     class:selected
-    class:showMenu={showMenu || pressed}
-    on:click={handleClick}
+    class:showMenu={showMenu || menuOpened}
+    on:contextmenu={handleContextMenu}
     {draggable}
     on:dragstart
     on:dragover
     on:dragend
     on:drop
   >
-    {#if isFold && !empty}
-      <button class="hulyNavGroup-header__chevron" class:collapsed={!isOpen} on:click={toggle}>
-        <IconDown size={'small'} />
-      </button>
-    {/if}
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div class="hulyNavGroup-header__label font-medium-12" on:click={handleMenuClicked}>
-      {#if visibleIcon}
-        <div class="hulyNavGroup-header__icon" class:folder={folderIcon}>
-          <Icon icon={visibleIcon} size={iconSize} {iconProps} />
-        </div>
+    <button class="hulyNavGroup-header__toggle" on:click={handleClick}>
+      {#if isFold && !empty}
+        <span class="hulyNavGroup-header__chevron" class:collapsed={!isOpen}>
+          <IconDown size={'small'} />
+        </span>
       {/if}
-      <span
-        use:tooltip={shouldTooltip ? { label: label ?? getEmbeddedLabel(title ?? ''), direction: 'top' } : undefined}
-        class="overflow-label"
-      >
-        {#if label}<Label {label} />{/if}
-        {#if title}{title}{/if}
+      <span class="hulyNavGroup-header__label font-medium-12">
+        {#if visibleIcon}
+          <span class="hulyNavGroup-header__icon" class:folder={folderIcon}>
+            <Icon icon={visibleIcon} size={iconSize} {iconProps} />
+          </span>
+        {/if}
+        <span
+          use:tooltip={shouldTooltip ? { label: label ?? getEmbeddedLabel(title ?? ''), direction: 'top' } : undefined}
+          class="overflow-label"
+        >
+          {#if label}<Label {label} />{/if}
+          {#if title}{title}{/if}
+        </span>
       </span>
-      {#if actions.length > 0}
-        <IconDownOutline size={'tiny'} />
-      {/if}
-    </div>
-    <div class="flex-grow" />
-    {#if $$slots.extra}<slot name="extra" />{/if}
-    {#if tools || $$slots.tools}
+    </button>
+    {#if $$slots.extra}<div><slot name="extra" /></div>{/if}
+    {#if tools !== undefined || $$slots.tools}
       <div class="hulyNavGroup-header__tools">
         {#if tools}
           <Component
@@ -155,15 +192,44 @@
         <slot name="tools" />
       </div>
     {/if}
-    {#if $$slots.actions}
+    {#if inlineActions.length > 0 || menuActions.length > 0}
       <div class="hulyNavGroup-header__actions">
-        <slot name="actions" />
+        {#each inlineActions as action}
+          <ButtonIcon
+            icon={action.icon ?? ActionIcon}
+            kind="tertiary"
+            size="extra-small"
+            tooltip={{ label: action.label, direction: 'top' }}
+            noFocus
+            on:click={(ev) => handleInlineActionClicked(ev, action)}
+          />
+        {/each}
+        {#if menuActions.length === 1 && menuActions[0].icon}
+          <ButtonIcon
+            id={_id}
+            icon={menuActions[0].icon}
+            kind="tertiary"
+            size="extra-small"
+            tooltip={{ label: menuActions[0].label, direction: 'top' }}
+            noFocus
+            on:click={(ev) => handleInlineActionClicked(ev, menuActions[0])}
+          />
+        {:else if menuActions.length > 0}
+          <ButtonIcon
+            icon={IconMoreH}
+            kind="tertiary"
+            size="extra-small"
+            noFocus
+            {pressed}
+            on:click={handleMenuClicked}
+          />
+        {/if}
       </div>
     {/if}
     {#if selected && type === 'nested-selectable'}
       <div class="hulyNavGroup-header__arrow"><IconOpenedArrow size={'small'} /></div>
     {/if}
-  </button>
+  </div>
   {#if !empty}
     <div {id} class="hulyNavGroup-content">
       {#if (!isOpen && visible) || forciblyCollapsed}

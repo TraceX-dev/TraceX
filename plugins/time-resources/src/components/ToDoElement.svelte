@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,7 +27,6 @@
   import ToDoPriorityPresenter from './ToDoPriorityPresenter.svelte'
 
   export let todo: WithLookup<ToDo>
-  export let planned: boolean = true
   export let isNew: boolean = false
 
   const client = getClient()
@@ -35,8 +35,11 @@
   async function markDone (): Promise<void> {
     await updating
     updating = client.update(todo, { doneOn: todo.doneOn == null ? Date.now() : null })
-    await updating
-    updating = undefined
+    try {
+      await updating
+    } finally {
+      updating = undefined
+    }
   }
 
   let events: WorkSlot[] = []
@@ -113,6 +116,6 @@
     {/if}
   </div>
   <div class="hulyToDoLine-checkbox" class:updating>
-    <ToDoCheckbox checked={isDone} priority={todo.priority} on:value={markDone} />
+    <ToDoCheckbox {...{ checked: todo.doneOn != null, priority: todo.priority }} on:value={markDone} />
   </div>
 </button>

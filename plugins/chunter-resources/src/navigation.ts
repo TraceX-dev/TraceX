@@ -2,7 +2,7 @@
 // Copyright © 2026 Intabia Fusion.
 // Copyright © 2026 TraceX SAS.
 //
-import {
+import ui, {
   closePanel,
   getCurrentLocation,
   getCurrentResolvedLocation,
@@ -11,6 +11,7 @@ import {
   navigate,
   languageStore
 } from '@hcengineering/ui'
+import attachment from '@hcengineering/attachment'
 import { type Ref, type Doc, type Class, generateId, concatLink } from '@hcengineering/core'
 import activity, { type ActivityMessage } from '@hcengineering/activity'
 import {
@@ -470,10 +471,13 @@ export async function locationDataResolver (loc: Location): Promise<LocationData
       icon: chunter.icon.Chunter
       // icon: chunter.icon.Bookmarks
     },
-    chunterBrowser: {
-      label: chunter.string.ChunterBrowser,
+    search: {
+      label: ui.string.Search,
       icon: chunter.icon.Chunter
-      // icon: chunter.icon.ChunterBrowser
+    },
+    files: {
+      label: attachment.string.Files,
+      icon: chunter.icon.Chunter
     },
     channels: {
       label: chunter.string.Channels,

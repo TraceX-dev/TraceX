@@ -34,7 +34,7 @@
     "svelte-eslint-parser": "^1.8.1",
     "svelte-loader": "^3.2.0",
     "svelte-preprocess": "^5.1.4",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "typescript": "^5.9.3"
   },
   "dependencies": {

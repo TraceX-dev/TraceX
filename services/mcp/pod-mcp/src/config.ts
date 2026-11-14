@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,6 +14,10 @@ export interface McpConfig {
   CollaboratorURL: string
   ServiceID: string
   WorkspaceClientCacheMs: number
+  OAuthIssuerURL: string
+  OAuthInternalURL: string
+  OAuthResourceURL: string
+  OAuthAllowHttp: boolean
 }
 
 function requiredEnv (name: string): string {
@@ -38,7 +43,11 @@ const config: McpConfig = {
   ServerSecret: requiredEnv('SERVER_SECRET'),
   CollaboratorURL: requiredEnv('COLLABORATOR_URL'),
   ServiceID: optionalEnv('SERVICE_ID', 'tracex-mcp-service'),
-  WorkspaceClientCacheMs: optionalNumberEnv('WORKSPACE_CLIENT_CACHE_MS', 0)
+  WorkspaceClientCacheMs: optionalNumberEnv('WORKSPACE_CLIENT_CACHE_MS', 0),
+  OAuthIssuerURL: requiredEnv('OPENAUTH_ISSUER_URL').replace(/\/$/, ''),
+  OAuthInternalURL: optionalEnv('OPENAUTH_INTERNAL_URL', requiredEnv('OPENAUTH_ISSUER_URL')).replace(/\/$/, ''),
+  OAuthResourceURL: requiredEnv('OPENAUTH_MCP_RESOURCE_URL'),
+  OAuthAllowHttp: optionalEnv('OPENAUTH_ALLOW_HTTP', 'false') === 'true'
 }
 
 export default config

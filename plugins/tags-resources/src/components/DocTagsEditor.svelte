@@ -100,9 +100,3 @@
     </div>
   {/if}
 {/if}
-
-<style lang="scss">
-  .step-container {
-    margin: 0.375rem 0.375rem 0 0;
-  }
-</style>

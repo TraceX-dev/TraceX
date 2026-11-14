@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -108,6 +109,7 @@
     <span
       slot="content"
       class="overflow-label disabled"
+      class:flex-grow={justify === 'left' && showDropdownIcon}
       class:mr-2={showDropdownIcon}
       class:content-color={selectedItem === undefined}
     >

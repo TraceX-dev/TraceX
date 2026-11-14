@@ -1,5 +1,12 @@
 {
     "string": {
+        "YamlEditor": "YAML editor",
+        "YamlSource": "YAML source",
+        "YamlOpenFile": "Open YAML file",
+        "YamlDownload": "Download YAML",
+        "YamlValid": "Valid YAML definition",
+        "YamlSaveCurrent": "Save current process",
+        "YamlCreateNew": "Create new definition",
         "Card": "카드",
         "CardApplication": "카드",
         "Cards": "카드",
@@ -81,6 +88,7 @@
         "Import": "가져오기",
         "Export": "내보내기",
         "CardUpdated": "카드가 업데이트되었습니다",
+        "AssignedToMe": "내 담당",
         "CardCreated": "카드가 생성되었습니다",
         "MyCards": "내 카드",
         "GotoMyCards": "내 카드로 이동",

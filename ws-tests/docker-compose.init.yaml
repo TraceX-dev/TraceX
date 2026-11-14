@@ -1,0 +1,9 @@
+# Override for ws-tests/init-data-test.sh: workspace service creates new workspaces
+# from the same init repository that is baked into the production workspace image.
+services:
+  workspace:
+    volumes:
+      - ${INIT_SCRIPTS_PATH:?set INIT_SCRIPTS_PATH to a checkout of hcengineering/init}:/usr/src/app/init-scripts:ro
+    environment:
+      - INIT_WORKSPACE=${INIT_WORKSPACE:-tracex-init-v07}
+      - INIT_REPO_DIR=/usr/src/app/init-scripts

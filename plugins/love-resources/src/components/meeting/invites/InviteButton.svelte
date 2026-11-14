@@ -79,19 +79,5 @@
       width: 1.5rem;
       height: 1.5rem;
     }
-
-    &[data-over]::after {
-      content: attr(data-over);
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.5);
-      color: white;
-      font-size: 0.625rem;
-      font-weight: 600;
-      border-radius: 50%;
-    }
   }
 </style>

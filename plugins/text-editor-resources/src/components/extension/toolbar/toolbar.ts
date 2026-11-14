@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,6 +24,7 @@ import { deepEqual } from 'fast-equals'
 import tippy, { type Placement, type Props as TippyProps } from 'tippy.js'
 import { SvelteRenderer } from '../../node-view'
 import EditorToolbar from './EditorToolbar.svelte'
+import { mapLoadingPos } from './mapLoadingPos'
 import { type ActionContext } from '@hcengineering/text-editor'
 
 export interface ToolbarCursor<T> {
@@ -88,7 +90,7 @@ export interface SelectionCursorContext {
 
 export const ToolbarExtension = Extension.create<ToolbarOptions>({
   addProseMirrorPlugins () {
-    return [LoadingStatePlugin(), ToolbarControlPlugin(this.editor, this.options)]
+    return [ToolbarControlPlugin(this.editor, this.options)]
   }
 })
 
@@ -117,7 +119,7 @@ export function LoadingStatePlugin (): Plugin<LoadingStatePluginState> {
         loadingNodes: new Set<number>()
       }),
 
-      apply (tr, prevState) {
+      apply (tr, prevState, oldState, newState) {
         const meta = tr.getMeta(loadingStatePluginKey) as LoadingStateTxMeta | undefined
         let loadingNodes = prevState.loadingNodes
 
@@ -136,9 +138,8 @@ export function LoadingStatePlugin (): Plugin<LoadingStatePluginState> {
           const mapped = new Set<number>()
           loadingNodes.forEach((pos) => {
             try {
-              const mappedPos = tr.mapping.map(pos, -1)
-              // Verify position is still valid
-              if (mappedPos >= 0 && mappedPos < tr.doc.content.size) {
+              const mappedPos = mapLoadingPos(pos, tr.mapping, oldState.doc, newState.doc)
+              if (mappedPos !== undefined) {
                 mapped.add(mappedPos)
               }
             } catch (e) {
@@ -323,6 +324,11 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
 
       let isMouseDown = false
       const mousedown = (event: MouseEvent): void => {
+        // Toolbar actions must not move between pointer down and pointer up.
+        if (event.target instanceof window.Node && container.contains(event.target)) {
+          killPendingMouseEvents()
+          return
+        }
         if (event.target instanceof HTMLElement) {
           const [blockToolbarMouseLock] = scanMarker(event.target, 'blockToolbarMouseLock')
           if (blockToolbarMouseLock) {
@@ -335,6 +341,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
       }
 
       const mouseup = (event: MouseEvent): void => {
+        if (!isMouseDown) return
         isMouseDown = false
         updateToolbar()
       }
@@ -383,6 +390,11 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
       }
 
       const tippyNode = tippy(view.dom, getTippyProps())
+      // Actions are rendered asynchronously, after Popper's initial measurement.
+      const resizeObserver = new ResizeObserver(() => {
+        tippyNode.popperInstance?.forceUpdate()
+      })
+      resizeObserver.observe(container)
 
       editor.on('transaction', ({ editor, transaction: tr }) => {
         const meta = tr.getMeta(toolbarPluginKey) as ToolbarControlTxMeta
@@ -422,6 +434,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
 
       return {
         destroy () {
+          resizeObserver.disconnect()
           tippyNode.destroy()
           window.removeEventListener('mousemove', mousemove)
           window.removeEventListener('mousedown', mousedown)
@@ -581,18 +594,20 @@ function scanForLoadingState (view: EditorView, range: Range): boolean {
     return false
   }
 
-  const loadingState = getLoadingState(view.state)
-  if (loadingState === undefined || loadingState.loadingNodes.size === 0) {
-    return false
-  }
+  const docSize = view.state.doc.content.size
+  const from = minmax(range.from, 0, docSize)
+  const to = minmax(range.to, 0, docSize)
 
-  for (const pos of loadingState.loadingNodes) {
-    if (pos >= range.from && pos <= range.to) {
-      return true
+  let isLoading = false
+  view.state.doc.nodesBetween(from, to, (node, pos) => {
+    const dom = view.nodeDOM(pos)
+    if (dom instanceof HTMLElement && hasLoadingMarker(dom)) {
+      isLoading = true
+      return false
     }
-  }
+  })
 
-  return false
+  return isLoading
 }
 
 function scanForAnchor (view: EditorView, range: Range): HTMLElement | undefined {
@@ -732,11 +747,27 @@ function minmax (value = 0, min = 0, max = 0): number {
 }
 
 export function setLoadingState (view: EditorView, pos: number, loading: boolean): void {
-  const meta: LoadingStateTxMeta = {
-    setLoading: { pos, loading }
+  const dom = view.nodeDOM(pos)
+  if (!(dom instanceof HTMLElement)) {
+    return
   }
 
-  view.dispatch(view.state.tr.setMeta(loadingStatePluginKey, meta).setMeta('loadingState', loading))
+  const isLoading = dom.dataset.toolbarLoading === 'true'
+  if (isLoading === loading) {
+    return
+  }
+
+  if (loading) {
+    dom.dataset.toolbarLoading = 'true'
+  } else {
+    delete dom.dataset.toolbarLoading
+  }
+
+  view.dispatch(view.state.tr.setMeta('loadingState', loading))
+}
+
+function hasLoadingMarker (dom: HTMLElement): boolean {
+  return dom.dataset.toolbarLoading === 'true' || dom.querySelector('[data-toolbar-loading="true"]') !== null
 }
 
 export const GeneralToolbarProvider: ToolbarProvider<any> = {

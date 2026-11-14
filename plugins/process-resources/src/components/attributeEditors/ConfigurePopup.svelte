@@ -38,6 +38,7 @@
   import RelationVersionsEditor from '../settings/RelationVersionsEditor.svelte'
   import FallbackEditor from '../contextEditors/FallbackEditor.svelte'
   import RelationTableConfigPopup from '../contextEditors/RelationTableConfigPopup.svelte'
+  import FindObjectsEditor from '../contextEditors/FindObjectsEditor.svelte'
 
   export let process: Process
   export let contextValue: SelectedContext
@@ -309,7 +310,26 @@
   }
 
   function onConfigureMainFunc (e: MouseEvent): void {
-    if (contextValue.type !== 'function' || !contextValue.props?.targetClass) return
+    if (contextValue.type !== 'function') return
+    if (contextValue.func === plugin.function.FindObjects) {
+      showPopup(
+        FindObjectsEditor,
+        {
+          context: getFunction(contextValue.func),
+          process,
+          target: attribute,
+          props: contextValue.props,
+          onSelect: (value: SelectedContext) => {
+            if (contextValue.type !== 'function' || value.type !== 'function') return
+            contextValue.props = value.props
+            onChange(contextValue)
+          }
+        },
+        eventToHTMLElement(e)
+      )
+      return
+    }
+    if (!contextValue.props?.targetClass) return
     showPopup(
       RelationTableConfigPopup,
       {
@@ -386,7 +406,7 @@
   <div class="selectPopup" use:resizeObserver={() => dispatch('changeContent')}>
     <div class="menu-space" />
     <Scroller>
-      {#if contextValue.type === 'function' && contextValue.props?.targetClass}
+      {#if contextValue.type === 'function' && (contextValue.func === plugin.function.FindObjects || contextValue.props?.targetClass)}
         {@const mainFunc = getFunction(contextValue.func)}
         {#if mainFunc !== undefined}
           <!-- svelte-ignore a11y-mouse-events-have-key-events -->

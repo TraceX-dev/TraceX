@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=../authoring-v2.schema.json
+# Copyright © 2026 TraceX SAS.
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: 2
+kind: card
+cardTypes:
+  risk_management:
+    label: Risk management
+    description: Assess risk from probability and severity.
+    extends: card:class:Card
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      probability:
+        name: probability
+        label: Probability
+        type: {enum: risk_scale}
+        isCustom: true
+        required: true
+        defaultValue: '1'
+      severity:
+        name: severity
+        label: Severity
+        type: {enum: risk_scale}
+        isCustom: true
+        required: true
+        defaultValue: '1'
+      score:
+        name: score
+        label: Risk score
+        type: number
+        isCustom: true
+        readonly: true
+        automationOnly: true
+      level:
+        name: level
+        label: Risk level
+        type: {enum: risk_levels}
+        isCustom: true
+        readonly: true
+        automationOnly: true
+enums:
+  risk_scale:
+    name: Risk scale 1–5
+    enumValues: ['1', '2', '3', '4', '5']
+  risk_levels:
+    name: Risk level
+    enumValues: [Insignificant, Moderate, Critical]
+processes:
+  risk_assessment:
+    label: Risk assessment
+    description: Recalculate the score and risk level when either scale changes.
+    masterTag: risk_management
+    autoStart: true
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      begin_assessment:
+        to: calculate_score
+        on: OnExecutionStart
+    states:
+      calculate_score:
+        label: Calculate score
+        transitions:
+          valid_inputs:
+            to: classify_score
+            on:
+              OnCardUpdate:
+                probability: {$in: ['1', '2', '3', '4', '5']}
+                severity: {$in: ['1', '2', '3', '4', '5']}
+            actions:
+              save_score:
+                method: UpdateCard
+                params:
+                  score:
+                    expr:
+                      from: $card.probability
+                      pipe:
+                        - StringFromEnum
+                        - NumberFromString
+                        - Multiply:
+                            value:
+                              expr:
+                                from: $card.severity
+                                pipe: [StringFromEnum, NumberFromString]
+      classify_score:
+        label: Classify score
+        transitions:
+          critical_risk:
+            to: wait_for_changes
+            on:
+              OnCardUpdate:
+                score: {$gt: 16}
+            actions:
+              mark_critical:
+                method: UpdateCard
+                params: {level: Critical}
+          insignificant_risk:
+            to: wait_for_changes
+            on:
+              OnCardUpdate:
+                score: {$lt: 9}
+            actions:
+              mark_insignificant:
+                method: UpdateCard
+                params: {level: Insignificant}
+          moderate_risk:
+            to: wait_for_changes
+            on:
+              OnCardUpdate:
+                score: {$gte: 9, $lte: 16}
+            actions:
+              mark_moderate:
+                method: UpdateCard
+                params: {level: Moderate}
+      wait_for_changes:
+        label: Wait for input changes
+        transitions:
+          probability_changed:
+            to: calculate_score
+            on:
+              WhenFieldChanges:
+                probability: {$exists: true}
+          severity_changed:
+            to: calculate_score
+            on:
+              WhenFieldChanges:
+                severity: {$exists: true}

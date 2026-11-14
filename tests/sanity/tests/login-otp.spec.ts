@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Response } from '@playwright/test'
 import { Mailpit } from './model/mailpit'
 import { OtpPage } from './model/otp-page'
 import { LoginPage } from './model/login-page'
@@ -21,6 +21,15 @@ import { SignUpPage } from './model/signup-page'
 import { SignInJoinPage } from './model/signin-page'
 import { SelectWorkspacePage } from './model/select-workspace-page'
 import { MailpitURL, PlatformOtpURI, PlatformSetting, PlatformURI, getInviteLink } from './utils'
+
+function isAccountResponse (response: Response, method: string): boolean {
+  const rpcRequest = response.request()
+  return (
+    rpcRequest.method() === 'POST' &&
+    (rpcRequest.headers()['content-type']?.includes('application/json') ?? false) &&
+    rpcRequest.postDataJSON()?.method === method
+  )
+}
 
 // Runs against the OTP contour (front-otp + account-otp + mail + mailpit) from tests/docker-compose.yaml
 test.describe('OTP login', () => {
@@ -127,6 +136,72 @@ test.describe('OTP login', () => {
       await expect(joinPage).toHaveURL(/\/workbench\/sanity-ws\//)
     } finally {
       await Promise.all([ownerContext.close(), joinContext.close()])
+    }
+  })
+
+  test('joins by confirmation link when OTP has already confirmed the email without a workspace', async ({
+    browser,
+    request
+  }) => {
+    const mailpit = new Mailpit(request, MailpitURL as string)
+    const email = `otp-confirmed-join-${Date.now()}-${Math.floor(Math.random() * 1e6)}@tracex.local`
+    const ownerContext = await browser.newContext({ storageState: PlatformSetting })
+    const joinContext = await browser.newContext()
+    const otpContext = await browser.newContext()
+
+    try {
+      const ownerPage = await ownerContext.newPage()
+      await (await ownerPage.goto(`${PlatformURI}/workbench/sanity-ws`))?.finished()
+      const inviteUrl = new URL(await getInviteLink(ownerPage))
+      const joinUrl = new URL('/login/join', PlatformOtpURI)
+      joinUrl.search = inviteUrl.search
+
+      const joinPage = await joinContext.newPage()
+      const known = await mailpit.messageIds(email)
+      await joinPage.goto(joinUrl.toString())
+      await new SignInJoinPage(joinPage).signUpAndJoin({
+        firstName: 'Already Confirmed',
+        lastName: 'Joiner',
+        email,
+        password: '1234'
+      })
+      await expect(joinPage).toHaveURL(/\/login\/confirmationSend/)
+      const confirmationLink = await mailpit.waitForConfirmationLink(email, known)
+
+      await test.step('confirm the email through OTP without joining or creating a workspace', async () => {
+        const otpPage = await otpContext.newPage()
+        const knownOtpMessages = await mailpit.messageIds(email)
+        await otpPage.goto(`${PlatformOtpURI}/login/login`)
+        const loginPage = new LoginPage(otpPage)
+        await loginPage.inputEmail().fill(email)
+        await loginPage.buttonLogin().click()
+
+        const otpForm = new OtpPage(otpPage)
+        await otpForm.waitForForm(email)
+        const code = await mailpit.waitForOtpCode(email, knownOtpMessages)
+        const [workspacesResponse] = await Promise.all([
+          otpPage.waitForResponse((response) => isAccountResponse(response, 'getUserWorkspaces')),
+          otpForm.enterCode(code)
+        ])
+        const workspaces = await workspacesResponse.json()
+        expect(workspaces.error).toBeUndefined()
+        expect(workspaces.result).toEqual([])
+        await expectLoggedInWithoutWorkspace(otpPage)
+      })
+
+      await test.step('finish joining through the original confirmation link in the original session', async () => {
+        const [confirmationResponse] = await Promise.all([
+          joinPage.waitForResponse((response) => isAccountResponse(response, 'confirm')),
+          joinPage.goto(confirmationLink)
+        ])
+        const confirmation = await confirmationResponse.json()
+        // Regression: confirmEmail throws SocialIdAlreadyConfirmed before the invite is processed.
+        expect(confirmation.error).toBeUndefined()
+        expect(confirmation.result.workspaceUrl).toBe('sanity-ws')
+        await expect(joinPage).toHaveURL(/\/workbench\/sanity-ws\//)
+      })
+    } finally {
+      await Promise.all([ownerContext.close(), joinContext.close(), otpContext.close()])
     }
   })
 })

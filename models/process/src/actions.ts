@@ -57,7 +57,8 @@ export function defineMethods (builder: Builder): void {
       createdContext: {
         _class: process.class.ApproveRequest
       },
-      requiredParams: ['user']
+      requiredParams: ['user'],
+      defaultParams: { completionMode: 'all' }
     },
     process.method.RequestApproval
   )

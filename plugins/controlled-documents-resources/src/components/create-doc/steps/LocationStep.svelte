@@ -34,6 +34,7 @@
   import { canGuestCreateDocumentsStore } from '../../../stores/permissions'
 
   export let canProceed: boolean
+  // svelte-ignore unused-export-let
   export let isTemplate: boolean = false
 
   const client = getClient()

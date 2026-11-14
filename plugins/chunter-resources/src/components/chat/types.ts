@@ -32,6 +32,8 @@ export interface ChatNavGroupModel {
   wrap: boolean
   getActionsFn?: (contexts: DocNotifyContext[]) => Action[]
   maxSectionItems?: number
+  showWhenEmpty?: boolean
+  showInlineActions?: boolean
   isPinned: boolean
   _class?: Ref<Class<Doc>>
   skipClasses?: Array<Ref<Class<Doc>>>

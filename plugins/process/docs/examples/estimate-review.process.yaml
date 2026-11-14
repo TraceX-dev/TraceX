@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=../authoring-v2.schema.json
+# Copyright © 2026 TraceX SAS.
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: 2
+kind: process
+processes:
+  estimate_review:
+    label: Review an estimate
+    description: Collect effort and rate, calculate cost, and classify the estimate.
+    slots:
+      reviewers:
+        type: {array: {ref: contact.mixin.Employee}}
+      cost:
+        type: number
+      status:
+        type: string
+    start:
+      request_estimate:
+        to: waiting_for_estimate
+        on: OnExecutionStart
+        actions:
+          request_review:
+            method: CreateToDo
+            params:
+              title: Provide an estimate
+              user: $card.reviewers
+              completionMode: any
+              withRollback: true
+              askRequired: true
+            as: {key: review_tasks, class: process.ProcessToDo, label: "Provide an estimate"}
+            results:
+              effort:
+                label: Estimated effort
+                type: number
+              rate:
+                label: Cost per unit
+                type: number
+    states:
+      waiting_for_estimate:
+        label: Wait for the first completed estimate
+        transitions:
+          estimate_received:
+            to: classify_estimate
+            on:
+              OnToDoClose: {_id: $context.review_tasks}
+            actions:
+              calculate_cost:
+                method: SetContext
+                params:
+                  value:
+                    expr:
+                      from: $context.effort
+                      pipe:
+                        - Multiply: {value: $context.rate}
+                results:
+                  total_cost:
+                    label: Total cost
+                    type: number
+              save_cost:
+                method: UpdateCard
+                params:
+                  $slots.cost: $context.total_cost
+      classify_estimate:
+        label: Classify the calculated estimate
+        transitions:
+          needs_approval:
+            to: expensive
+            on:
+              OnCardUpdate:
+                $slots.cost: {$gt: 100}
+            actions:
+              mark_for_approval:
+                method: UpdateCard
+                params: {$slots.status: Needs approval}
+          within_budget:
+            to: accepted
+            on:
+              OnCardUpdate:
+                $slots.cost: {$lte: 100}
+            actions:
+              mark_accepted:
+                method: UpdateCard
+                params: {$slots.status: Accepted}
+      expensive:
+        label: Needs approval
+      accepted:
+        label: Accepted

@@ -13,18 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import {
-    CategoryType,
-    Class,
-    Doc,
-    DocumentQuery,
-    FindOptions,
-    IdMap,
-    RateLimiter,
-    Ref,
-    Space,
-    toIdMap
-  } from '@hcengineering/core'
+  import { CategoryType, Class, Doc, DocumentQuery, FindOptions, IdMap, Ref, toIdMap } from '@hcengineering/core'
   import ui, { Button, IconMoreH, Lazy, mouseAttractor } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { slide } from 'svelte/transition'
@@ -40,11 +29,9 @@
   export let state: CategoryType
 
   export let _class: Ref<Class<DocWithRank>>
-  export let space: Ref<Space> | undefined = undefined
   export let query: DocumentQuery<DocWithRank> = {}
   export let options: FindOptions<DocWithRank> | undefined = undefined
   export let groupByKey: any
-  export let limiter: RateLimiter
 
   export let cardDragOver: (evt: CardDragEvent, object: Item) => void
   export let cardDrop: (evt: CardDragEvent, object: Item) => void

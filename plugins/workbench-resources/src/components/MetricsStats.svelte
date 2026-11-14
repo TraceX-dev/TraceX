@@ -30,9 +30,3 @@
     <MetricsInfo metrics={metricsData} {sortOrder} />
   {/if}
 </div>
-
-<style lang="scss">
-  .greyed {
-    color: rgba(black, 0.5);
-  }
-</style>

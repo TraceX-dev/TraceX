@@ -25,6 +25,7 @@
   export let readonly: boolean = false
   export let label: IntlString = core.string.Space
   export let onChange: (value: Ref<CardSpace> | undefined) => void
+  // svelte-ignore unused-export-let
   export let attribute: AnyAttribute | undefined = undefined
 
   export let focus: boolean = true
