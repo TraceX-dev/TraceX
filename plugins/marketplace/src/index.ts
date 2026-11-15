@@ -12,12 +12,13 @@
 
 import { plugin, type Asset, type IntlString, type Metadata, type Plugin } from '@hcengineering/platform'
 import type { Class, Ref } from '@hcengineering/core'
-import type { DefinitionPackageInstallation } from './types'
+import type { DefinitionPackageDraft, DefinitionPackageInstallation } from './types'
 
 export type {
   DefinitionPackageInfo,
   DefinitionPackageOwner,
   DefinitionPackageInstallation,
+  DefinitionPackageDraft,
   DefinitionPackageDestination
 } from './types'
 export { getDefinitionPackageInfo, stripDefinitionPackageInfo } from './types'
@@ -37,7 +38,7 @@ export {
   getDefinitionPackageProcessSlots
 } from './definition-package-installation'
 export { prepareDefinitionPackageUpdate } from './definition-package-update'
-export type { PreparedDefinitionPackageUpdate } from './definition-package-update'
+export type { PreparedDefinitionPackageUpdate, DefinitionPackageReviewComponents } from './definition-package-update'
 export type * from './catalog-types'
 export { MarketplaceClient, MarketplaceError } from './catalog-client'
 
@@ -52,9 +53,25 @@ export default plugin(marketplaceId, {
     Url: '' as Metadata<string>
   },
   class: {
+    DefinitionPackageDraft: '' as Ref<Class<DefinitionPackageDraft>>,
     DefinitionPackageInstallation: '' as Ref<Class<DefinitionPackageInstallation>>
   },
   string: {
+    PackageDrafts: '' as IntlString,
+    NoPackageDrafts: '' as IntlString,
+    PackageDraftsDescription: '' as IntlString,
+    ReviewPackageDraft: '' as IntlString,
+    PackageDraftReview: '' as IntlString,
+    PackageOverview: '' as IntlString,
+    PackageSource: '' as IntlString,
+    Fields: '' as IntlString,
+    FieldType: '' as IntlString,
+    Required: '' as IntlString,
+    DefaultValue: '' as IntlString,
+    StateGraph: '' as IntlString,
+    Transitions: '' as IntlString,
+    DeclaredOutputs: '' as IntlString,
+    InstallationRequiresMaintainer: '' as IntlString,
     CardModule: '' as IntlString,
     ProcessBundle: '' as IntlString,
     CatalogDescription: '' as IntlString,
@@ -98,6 +115,25 @@ export default plugin(marketplaceId, {
     UsePackageVersion: '' as IntlString,
     MigrationRequired: '' as IntlString,
     ProcessChangesAffectActiveExecutions: '' as IntlString,
+    CurrentWorkspace: '' as IntlString,
+    NewPackageVersion: '' as IntlString,
+    WillUpdate: '' as IntlString,
+    LocalChangesPreserved: '' as IntlString,
+    ChooseVersion: '' as IntlString,
+    AlreadyMatches: '' as IntlString,
+    NoDefinitionChanges: '' as IntlString,
+    PackageUpdateExplanation: '' as IntlString,
+    Added: '' as IntlString,
+    Removed: '' as IntlString,
+    Modified: '' as IntlString,
+    NotPresent: '' as IntlString,
+    EmptyValue: '' as IntlString,
+    Property: '' as IntlString,
+    DisplayOrder: '' as IntlString,
+    Readonly: '' as IntlString,
+    AutomationOnly: '' as IntlString,
+    Hidden: '' as IntlString,
+    ConflictExplanation: '' as IntlString,
     ShowChanges: '' as IntlString,
     PublishedChanges: '' as IntlString,
     LocalChanges: '' as IntlString,

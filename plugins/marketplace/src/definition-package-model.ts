@@ -25,6 +25,7 @@ const RANKED = new Set<string>([
   card.class.Tag
 ])
 const RUNTIME_METADATA = new Set(['createdOn', 'createdBy', 'modifiedOn', 'modifiedBy'])
+const DEFAULT_FALSE_ATTRIBUTE_FLAGS = new Set(['hidden', 'readonly', 'required', 'automationOnly'])
 const COSMETIC = new Set(['label', 'description', 'icon', 'color', '$order'])
 const MODEL_PROPERTIES = new Set(['_id', '_class', 'space', 'label', 'description', 'icon', 'color'])
 const KNOWN_PROPERTIES: Record<string, Set<string>> = {
@@ -37,7 +38,10 @@ const KNOWN_PROPERTIES: Record<string, Set<string>> = {
     'required',
     'readonly',
     'automationOnly',
-    'defaultValue'
+    'defaultValue',
+    'hidden',
+    'showInForm',
+    'showInCreate'
   ]),
   [card.class.MasterTag]: new Set([...MODEL_PROPERTIES, 'extends', 'kind', 'baseType']),
   [card.class.Tag]: new Set([...MODEL_PROPERTIES, 'extends', 'kind']),
@@ -87,6 +91,7 @@ export function definitionPackageComponents (
       Object.entries(doc).filter(
         ([key]) =>
           !RUNTIME_METADATA.has(key) &&
+          !(doc._class === core.class.Attribute && DEFAULT_FALSE_ATTRIBUTE_FLAGS.has(key) && doc[key] === false) &&
           !(key === 'rank' && orders.has(doc._id)) &&
           !(key === 'sequence' && (doc._class === core.class.Sequence || doc._class === core.class.CustomSequence))
       )
@@ -147,10 +152,7 @@ export function definitionPackageImpact (
     return finding('destructive', 'The component class changed')
   }
   if (after.class === process.class.Process) {
-    return finding(
-      'behavioral',
-      'Process graphs are one merge unit; changes require manual review and can affect current executions'
-    )
+    return finding('behavioral', 'Process logic changes can affect current executions')
   }
   const doc = after.documents[after.key].document
   const previous = before?.documents[before.key].document
@@ -158,21 +160,27 @@ export function definitionPackageImpact (
   if (
     known === undefined ||
     doc.space !== core.space.Model ||
-    Object.keys(doc).some((key) => !known.has(key)) ||
-    (previous !== undefined && Object.keys(previous).some((key) => !known.has(key)))
+    [...new Set([...Object.keys(doc), ...Object.keys(previous ?? {})])].some(
+      (key) => !known.has(key) && !authoringDataEqual(previous?.[key], doc[key])
+    )
   ) {
     return finding('unknown', 'This component contains native properties without a verified compatibility contract')
   }
   if (previous === undefined) {
     if (after.class === core.class.Attribute) {
-      if (doc.required === true) {
-        return finding('destructive', 'A new required field needs existing-data and write-path checks')
-      }
       if (!supportedType(doc.type)) {
         return finding('unknown', 'The new field type has no verified compatibility contract')
       }
-      if (doc.defaultValue !== undefined || doc.readonly === true || doc.automationOnly === true) {
-        return finding('behavioral', 'New field defaults or write restrictions need review')
+      if (
+        doc.required === true ||
+        doc.defaultValue !== undefined ||
+        doc.readonly === true ||
+        doc.automationOnly === true
+      ) {
+        return finding(
+          'behavioral',
+          'Adding a field changes future forms or writes without rewriting existing card values'
+        )
       }
       return finding('additive', 'Optional field; destination ownership, references and consumers still need checking')
     }
@@ -192,7 +200,8 @@ export function definitionPackageImpact (
     ) {
       return finding('destructive', 'Field identity, type, ownership or requiredness changed')
     }
-    if (!supportedType(doc.type)) return finding('unknown', 'The field type has no verified compatibility contract')
+    if (changed.has('type') && !supportedType(doc.type))
+      {return finding('unknown', 'The field type has no verified compatibility contract')}
   }
   if (
     (after.class === card.class.MasterTag || after.class === card.class.Tag) &&
@@ -220,7 +229,56 @@ export function definitionPackageImpact (
   return finding('behavioral', 'Definition behavior or constraints changed')
 }
 
-/** Compares definitions using one unit per process graph and one unit per model component. */
+export interface DefinitionPackageMerge {
+  component?: DefinitionPackageComponent
+  conflictPaths: string[]
+}
+
+/** Merges independent changes; ordered arrays and incompatible typed values remain atomic. */
+export function mergeDefinitionPackageComponents (
+  baseline: DefinitionPackageComponent | undefined,
+  local: DefinitionPackageComponent | undefined,
+  incoming: DefinitionPackageComponent | undefined,
+  choice: 'local' | 'upstream' = 'local'
+): DefinitionPackageMerge {
+  const conflictPaths: string[] = []
+  const record = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+  const merge = (base: unknown, actual: unknown, next: unknown, path: string[]): unknown => {
+    if (authoringDataEqual(actual, next) || authoringDataEqual(base, next)) return actual
+    if (authoringDataEqual(base, actual)) return next
+    // Absolute schema positions shift when unrelated fields are inserted. They are
+    // display metadata, unlike process branch priority or ordered action arrays.
+    if (
+      path.length === 3 &&
+      path[0] === 'documents' &&
+      path[2] === 'order' &&
+      (incoming ?? local)?.class !== process.class.Process
+    )
+      {return next}
+    const incompatibleType =
+      record(actual) &&
+      record(next) &&
+      typeof actual._class === 'string' &&
+      typeof next._class === 'string' &&
+      path[path.length - 1] !== 'document' &&
+      actual._class !== next._class
+    if (!incompatibleType && record(actual) && record(next) && (base === undefined || record(base))) {
+      const result: Record<string, unknown> = Object.create(null)
+      for (const key of new Set([...Object.keys(base ?? {}), ...Object.keys(actual), ...Object.keys(next)])) {
+        const value = merge(record(base) ? base[key] : undefined, actual[key], next[key], [...path, key])
+        if (value !== undefined) result[key] = value
+      }
+      return result
+    }
+    conflictPaths.push('$' + path.map((key) => '.' + key).join(''))
+    return choice === 'upstream' ? next : actual
+  }
+  const component = merge(baseline, local, incoming, []) as DefinitionPackageComponent | undefined
+  return { component, conflictPaths }
+}
+
+/** Compares merged definitions and reports only overlapping incompatible edits as conflicts. */
 export function compareDefinitionPackageDefinitions (
   baselineDefinition: ProcessAuthoringResult,
   localDefinition: ProcessAuthoringResult,
@@ -237,19 +295,23 @@ export function compareDefinitionPackageDefinitions (
     const upstreamChanged = !authoringDataEqual(before, after)
     const locallyChanged = !authoringDataEqual(before, actual)
     if (!upstreamChanged && !locallyChanged) continue
+    const merged = mergeDefinitionPackageComponents(before, actual, after)
     const resolution = !upstreamChanged
       ? 'local'
       : !locallyChanged
         ? 'upstream'
         : authoringDataEqual(actual, after)
           ? 'converged'
-          : 'conflict'
-    const destination = upstreamChanged ? after : actual
+          : merged.conflictPaths.length > 0
+            ? 'conflict'
+            : 'merged'
+    const destination = resolution === 'merged' ? merged.component : upstreamChanged ? after : actual
     changes.push({
       key,
       class: (destination ?? before ?? actual)?.class ?? '',
       operation: before === undefined ? 'added' : destination === undefined ? 'removed' : 'modified',
       resolution,
+      ...(resolution === 'conflict' ? { conflictPaths: merged.conflictPaths } : {}),
       ...definitionPackageImpact(before, destination),
       paths:
         resolution === 'conflict'

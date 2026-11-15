@@ -13,6 +13,9 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  moduleNameMapper: {
+    '^@hcengineering/marketplace$': '<rootDir>/../marketplace/src/index.ts'
+  },
   transform: {
     '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: { allowJs: true } }]
   },
