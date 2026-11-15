@@ -17,7 +17,7 @@
 import { config as dotenvConfig } from 'dotenv'
 import { globalShortcut, Event, BrowserWindow, CookiesSetDetails, Notification, app, desktopCapturer, ipcMain, nativeImage, session, shell, systemPreferences, nativeTheme } from 'electron'
 import contextMenu from 'electron-context-menu'
-import log from 'electron-log'
+import log from 'electron-log/main'
 import Store from 'electron-store'
 import WinBadge from 'electron-windows-badge'
 import * as path from 'path'
