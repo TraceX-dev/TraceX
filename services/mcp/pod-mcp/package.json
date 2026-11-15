@@ -17,7 +17,7 @@
     "_phase:bundle": "rushx bundle",
     "_phase:docker-build": "rushx docker:build",
     "_phase:docker-staging": "rushx docker:staging",
-    "bundle": "node ../../../common/scripts/esbuild.js",
+    "bundle": "node scripts/package-authoring-bundle.cjs",
     "docker:build": "../../../common/scripts/docker_build.sh tracexapp/mcp",
     "docker:sbom": "../../../common/scripts/docker_sbom.sh tracexapp/mcp",
     "docker:staging": "../../../common/scripts/docker_tag.sh tracexapp/mcp staging",
@@ -73,6 +73,9 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "convict": "^6.2.5",
-    "@hcengineering/account-client": "workspace:^0.7.25"
+    "@hcengineering/account-client": "workspace:^0.7.25",
+    "@hcengineering/contact": "workspace:^0.7.0",
+    "@hcengineering/marketplace": "workspace:^0.7.0",
+    "@hcengineering/process": "workspace:^0.7.0"
   }
 }

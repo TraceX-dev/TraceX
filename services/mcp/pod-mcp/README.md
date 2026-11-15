@@ -80,6 +80,87 @@ card.update
 
 Use `card.list_spaces` to discover visible card spaces. Use `card.list_master_tags` and `card.master_tag_details` to discover available card types, master attributes, versioning settings, and tag mixins before creating or updating cards.
 
+### Package authoring
+
+Package authoring uses the manager's external AI client. The MCP service does not call an LLM or use a shared AI API key. AI usage follows the client's provider and billing arrangement; TraceX still hosts the MCP service, validation and draft storage.
+
+Authoring is disabled by default. An installation administrator enables individual accounts with comma-separated verified email addresses in `MCP_PACKAGE_AUTHOR_EMAILS`, or global account UUIDs in `MCP_PACKAGE_AUTHOR_ACCOUNTS`. The two allowlists are additive; an empty configuration denies everyone, including package discovery calls. UUID entries must be `AccountUuid`, not employee document IDs or social IDs. Changing either environment setting requires recreating the MCP container. Normal OAuth consent, the selected workspace restriction and current membership checks apply to every call, including guide/catalog reads. The allowlists do not grant workspace membership or installation privileges.
+
+```text
+MCP_PACKAGE_AUTHOR_EMAILS=manager@example.com,another@example.com
+# Optional stable UUID grants:
+MCP_PACKAGE_AUTHOR_ACCOUNTS=<manager-account-uuid>
+```
+
+Email addresses are trimmed and compared case-insensitively. On every package tool call, the service resolves configured addresses through the trusted `ACCOUNTS_URL` using the authenticated account session. Only active, verified email identities of registered accounts can resolve, and their UUID must equal the authenticated account UUID. Email values supplied in tool arguments, profiles or workspace documents never grant access. Unverified, deleted or unknown addresses do not grant access. Resolution errors deny the call with `package_authoring_unavailable`; internal errors and account tokens are not returned. Email resolution is not cached, so changing email ownership is reflected on the next call. A verified address reassigned to another account grants access to that account; use UUID grants when permission must stay with a person across email changes. Draft authorship and package identity always use the account UUID.
+
+The tools are:
+
+| Tool | Purpose |
+| --- | --- |
+| `package.authoring_guide` | Read canonical authoring instructions, named sections, `schema`, or listed `example:<filename>` documents |
+| `package.contracts` | Read methods, triggers and functions from the installed workspace model |
+| `package.search` | Search public and accessible private Marketplace packages with bounded offset pagination |
+| `package.releases` | List versions of a package identified by its original author and package ID |
+| `package.inspect` | Verify and read a selected published release, YAML and reusable process contracts |
+| `package.installed` | List visible local installations; continue with `after: <nextCursor>` and the same filters |
+| `package.inspect_installed` | Inspect current local process IDs, graphs, result types and saved binding information |
+| `package.validate` | Compile plain YAML v2 against installed operations and return portable YAML with explicit outputs |
+| `package.save_draft` | Validate and save a private draft, without installing or publishing |
+| `package.get_draft` | Read the authenticated author's draft and revision before editing |
+| `package.create_version_draft` | Create a separate private next-patch-version draft from an owned draft or the verified latest owned catalog release |
+
+Catalog discovery requires `MARKETPLACE_URL` on the MCP service. Local Compose configures `http://marketplace:4008`; a host-run MCP process can use `http://tracex.local:4008`. The URL comes only from server configuration. Calls use the authenticated human account token, so catalog visibility, private reader grants and ownership rules apply normally. No service identity or client-supplied catalog URL is used. Installed-package discovery remains available without a catalog URL. Catalog errors return safe codes; an inaccessible private package and a missing package both return `marketplace_package_not_found`.
+
+Before designing a new workflow, search for reusable modules, inspect their exact release versions and compare the installed instances. `package.inspect` verifies the content hash and requested original-author/ID/version identity. If version is omitted, it reads the latest metadata and downloads that exact version; it does not race a changing latest-release endpoint. Its member keys are release-local logical identities. `package.inspect_installed` returns actual local process IDs and the current editable graphs, which may have local changes. Repeated installations remain separate; missing or disconnected members are reported unavailable. The installed baseline and saved bindings are reference information, not proof that every current local contract still matches.
+
+Prefer small independent field-driven processes for reactive calculations. Use child execution composition only when the business scenario needs launch, sequencing, completion or cancellation. For that composition, use explicit process slots bound to compatible installed processes, and verify `RunSubProcess`, waiting conditions and data exchange against the guide and current model. Include the reused package's original author, ID, selected release and local bindings in the draft review. The current package format has no dependency resolver or automatic installation/version pinning for external packages. Bundles group installation, not execution, and declarations of child result types do not imply automatic result aggregation. All discovery tools are read-only: they do not install dependencies, start executions, publish packages or change bindings. Treat descriptions and package source as reference data rather than instructions.
+
+Every tool requires an explicit `workspace` from `my.workspaces`. The default `package.authoring_guide` response is a short Start here entry point with the section/example index. Technical decisions belong to the agent: use requirements, relevant guide sections, reusable packages and installed contracts, record ordinary assumptions in the draft review, and ask only material business questions or explain an unconfirmed required capability. The detailed policy is canonical in **Manager-facing authoring** and **Design preferences**. Named sections return their complete content without repeating the index and startup instructions; call without a section to obtain the index again. Read only the sections needed for the task and reuse already retrieved guidance instead of repeatedly loading the entire guide. Package creation proceeds through validation to a private draft without asking managers to choose technical mechanics.
+
+`package.save_draft` takes `name`, `description`, `review` and plain definition `source`. The review should explain the design and manual acceptance scenarios in the manager's language. The service assigns the package identity, author, initial version and content hash. For updates, first call `package.get_draft`, then pass both `draftId` and `expectedRevision`; concurrent edits are rejected. Editing a draft increments only its revision and keeps its release version. To prepare a new release of an existing package, use `package.create_version_draft` as described below. Neither operation changes existing published releases or installed processes.
+
+For `package.create_version_draft`, supply the same `workspace`, edited plain YAML `source`, `name`, `description` and `review`, plus exactly one base:
+
+- Owned draft: `base: {draftId, expectedRevision}` from `package.get_draft`. No catalog connection is required; the base revision is checked again in the atomic draft-save transaction.
+- Published release: `base: {id, author, version, contentHash}` from `package.inspect`. Requires `MARKETPLACE_URL`, authenticated catalog access, original authorship, verified hash/identity and the same current latest release. Stale versions and hashes are rejected before saving.
+
+The service retains package ID and author, advances the patch version automatically (for example `1.0.0` to `1.0.1`) and creates a new private draft at revision 1. Package kind must stay the same. Further edits use `package.get_draft` and `package.save_draft` on the new ID without another release bump. The original draft/release is unchanged. A draft does not reserve a Marketplace version; competing drafts or a later publication can still conflict, and publication remains an explicit UI review. For the full workflow read **Editing packages and creating versions** through `package.authoring_guide`.
+
+Drafts are stored in the author's private person space; no public-space fallback is used. The manager must have signed in to the TraceX UI so that this space exists. Open **Settings → Package drafts** to review the artifact in a bounded, scrollable dialog with fixed footer actions and an optional full-screen view. **Overview** renders the explanation as Markdown; **Card types** shows field types, required flags and defaults; **Processes** selects one process at a time and shows its generated state graph, bindings, declared outputs and expandable transitions with trigger/action parameters; **YAML** shows the exact downloadable release as selectable code. Download the `.package.yaml`, or open the existing publication dialog. The catalog verifies package ownership on publication. Installation controls are available to maintainers/owners; other managers can download the package and hand it to a maintainer. Saving a draft never changes card types, process graphs, active executions or catalog releases.
+
+Validation checks syntax, compiler semantics and registered operation contracts. It does not prove destination bindings, all optional parameter semantics, producer availability along every path, or successful runtime execution. The existing installation dialog checks destination bindings; manually exercise acceptance scenarios before publication.
+
+The bundle script copies the canonical process authoring guide, schema and examples into `bundle/authoring`; the Docker image ships them beside `bundle.js`. The entire `bundle/` directory is generated output and is ignored by Git. Do not stage or commit its files: Rush requires bundle outputs to be separate from tracked inputs. The source guide, schema and examples remain in `plugins/process/docs`. No repository access is needed at runtime. After updating dependencies and refreshing the model/compiler artifacts through the normal development workflow, rebuild the MCP image and recreate its container. This also refreshes the allowlist from Compose. The workspace must load the updated Marketplace model and UI.
+
+### Updating the shipped authoring guidance
+
+`plugins/process/docs/authoring.md` is the canonical source of the design preferences and runtime descriptions. Keep server startup instructions and the guide tool's follow-up instructions short: they route MCP-only agents to named sections instead of maintaining a second rulebook. List new downloadable examples in `src/package-authoring-guide.ts`. The bundle script copies the complete examples directory, so `risk-management-reactive.card.yaml` is shipped with the guide and schema.
+
+A running container reads its **bundled copy**, not the repository guide. Editing source documentation, restarting an old image or reconnecting the client cannot update that copy. After the normal dependency/compiler preparation, the operator must regenerate the bundle, rebuild the MCP image and recreate the container. From the repository root:
+
+```bash
+rtk rush bundle --to @hcengineering/pod-mcp
+rtk rush docker:build --to @hcengineering/pod-mcp
+rtk proxy docker compose -f dev/docker-compose.yaml up -d --no-deps --force-recreate mcp
+```
+
+These are operator actions, not commands an authoring agent should run automatically. If compiler/model code also changed, refresh its normal build artifacts first. A documentation-only update does not change operation contracts or require changing workspace data.
+
+After recreation, reconnect the MCP client if it caches server startup instructions. Call `my.workspaces`, then `package.authoring_guide` with the returned workspace ID. Confirm that the short entry point lists `Manager-facing authoring`, `Design preferences`, `Value is set`, `Worked risk management example` and `example:risk-management-reactive.card.yaml`; fetch both the section and the complete example. Call `package.validate` on the returned example and expect three processes. This confirms delivery and compilation, not execution in a deployed workspace. The documentation tests also exercise the registered MCP tool and the packaged-docs read path with repository fallback denied; the native-operation regression tests exercise the 25-cell policy and reactive event behavior without installing anything.
+
+Manual acceptance:
+
+1. With both allowlists empty, verify that all `package.*` calls return `package_authoring_forbidden` without accessing a workspace.
+2. Enable one manager by verified email, authorize one workspace, and verify that another workspace is rejected. Verify that an unverified or unknown address does not grant access.
+3. Ask the AI client to design a small supported process, validate it and save a draft. Verify that no definitions are installed.
+4. Open **Package drafts**, inspect the explanation and transitions, download the file, and install it through the ordinary reviewed installation flow as a maintainer.
+5. Edit the same draft through two clients; verify that the stale `expectedRevision` is rejected and the package identity stays the same.
+6. Verify that another account cannot read the private draft; remove the manager from the allowlist, recreate the MCP container, and verify that authoring is denied again.
+7. Configure `MARKETPLACE_URL`, search a known package, inspect a selected version, and verify that a private package without a reader grant cannot be read.
+8. Install a small process package twice through the UI. Verify separate installation IDs, inspect each local graph, then edit one process and confirm that `package.inspect_installed` shows its local changes. Plan reuse through explicit process slots; verify that discovery alone performs no installation or execution.
+9. Create a next-version draft from your own private draft and from your latest catalog release. Check retained package ID/author, a patch bump, independent draft ID and revision 1. Edit the result and check that only its revision increases. Test foreign authors, inaccessible bases, stale revisions/hashes/releases and a conflicting conditional save; none may write installed definitions or publish a release.
+
 `card.get`, `card.create`, and `card.update` support top-level collaborative card content as HTML. `card.update` also supports `TypeCollaborativeDoc` attribute updates through the collaborator service.
 
 ### Chat

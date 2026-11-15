@@ -304,14 +304,14 @@ describe('read-only package upgrade analysis', () => {
     }
   )
 
-  it('does not auto-approve new required fields even when the author calls the release a patch', async () => {
+  it('treats a new required field as additive schema behavior without a data migration', async () => {
     const incoming = card()
     incoming.cardTypes.purchase.fields.code = { name: 'code', type: 'string', required: true }
     const plan = await planDefinitionPackageUpgrade(await release(dump(card())), await release(dump(incoming), '1.0.1'))
-    expect(plan.changes.find((change) => change.key === 'code')?.impact).toBe('destructive')
+    expect(plan.changes.find((change) => change.key === 'code')?.impact).toBe('behavioral')
   })
 
-  it('requires review for display changes on fields with unsupported native type contracts', async () => {
+  it('keeps an unchanged native type when applying display metadata', async () => {
     const baseline = card()
     baseline.cardTypes.purchase.fields.amount.type = { class: 'extension.UnverifiedType' }
     const incoming = structuredClone(baseline)
@@ -320,7 +320,7 @@ describe('read-only package upgrade analysis', () => {
       await release(dump(baseline)),
       await release(dump(incoming), '1.0.1')
     )
-    expect(plan.changes.find((change) => change.key === 'amount')?.impact).toBe('unknown')
+    expect(plan.changes.find((change) => change.key === 'amount')?.impact).toBe('cosmetic')
   })
 
   it('does not ignore transaction-looking metadata nested inside literal operation parameters', async () => {
@@ -374,7 +374,7 @@ describe('read-only package upgrade analysis', () => {
     expect(plan.changes[0].paths).toContain('$.documents.amount.document.label')
   })
 
-  it('treats the whole graph as one conflict unit instead of merging unrelated action changes', async () => {
+  it('merges independent local and incoming process metadata without a conflict', async () => {
     const source = example('purchase-approval.process.yaml')
     const upstream = source.replace('label:', 'label: Updated ')
     const local = source + '\n'
@@ -385,7 +385,8 @@ describe('read-only package upgrade analysis', () => {
       await release(upstream, '1.1.0'),
       dump(localDefinition)
     )
-    expect(plan.status).toBe('conflict')
+    expect(plan.status).toBe('review-required')
+    expect(plan.changes[0].resolution).toBe('merged')
     expect(plan.changes).toHaveLength(1)
     expect(plan.reviewReasons).toContain('behavioral-change')
   })

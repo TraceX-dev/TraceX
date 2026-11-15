@@ -16,11 +16,14 @@
 -->
 <script lang="ts">
   import type { WorkspaceAuditEvent } from '@hcengineering/account-client'
+  import { getClient } from '@hcengineering/presentation'
   import { BooleanIcon, DateTimePresenter, Expandable, Label, Modal, StateTag } from '@hcengineering/ui'
   import {
     AUDIT_ATTRIBUTE_LABELS,
     AUDIT_OUTCOME_LABELS,
     AUDIT_OUTCOME_TYPES,
+    getAuditClassLabel,
+    getAuditDirectionLabel,
     getAuditEventLabel,
     getAuditRoleLabel,
     getAuditTarget
@@ -31,6 +34,8 @@
 
   export let event: WorkspaceAuditEvent
   export let noTopIndent: boolean = false
+
+  const hierarchy = getClient().getHierarchy()
 
   $: target = getAuditTarget(event)
   $: attributes = Object.entries(event.attributes).filter(([key]) => AUDIT_ATTRIBUTE_LABELS[key] !== undefined)
@@ -45,7 +50,7 @@
   onCancel={clearSettingsStore}
   padding="var(--spacing-3)"
 >
-  <div class="flex-col flex-gap-4">
+  <div class="flex-col flex-gap-4 flex-no-shrink">
     <div class="flex-col flex-gap-2">
       <span class="font-medium">
         <Label label={getAuditEventLabel(event.event)} />
@@ -68,6 +73,10 @@
         <dd class="field-value">
           {#if typeof value === 'boolean'}<BooleanIcon {value} />
           {:else if key === 'role' || key === 'targetRole'}<Label label={getAuditRoleLabel(String(value))} />
+          {:else if key === 'direction'}<Label label={getAuditDirectionLabel(String(value))} />
+          {:else if key === 'objectClass'}<Label
+              label={getAuditClassLabel(String(value), (_class) => hierarchy.findClass(_class))}
+            />
           {:else}{value === null ? '—' : Array.isArray(value) ? value.join(', ') : String(value)}{/if}
         </dd>
       {/each}
@@ -112,8 +121,18 @@
   .fields {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    // Top-align cells so a label stays on the first line of a wrapped value.
+    align-items: start;
     gap: var(--spacing-2) var(--spacing-3);
     margin: 0;
+    // Avatars and the date button are 1.5rem tall: center both columns within that line height
+    // so plain labels line up with presenter text.
+    dt,
+    dd {
+      display: flex;
+      align-items: center;
+      min-height: var(--global-extra-small-Size);
+    }
     dt {
       color: var(--theme-dark-color);
     }

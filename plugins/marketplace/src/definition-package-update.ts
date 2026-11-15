@@ -35,7 +35,9 @@ import {
   compareDefinitionPackageDefinitions,
   definitionPackageComponents,
   definitionPackageDifferencePaths,
-  definitionPackageImpact
+  definitionPackageImpact,
+  mergeDefinitionPackageComponents,
+  type DefinitionPackageComponent
 } from './definition-package-model'
 import { planDefinitionPackageUpgrade } from './definition-package-plan'
 import type { DefinitionPackageChange, DefinitionPackageRelease } from './definition-package-types'
@@ -46,14 +48,23 @@ import {
   type DefinitionPackageOwner
 } from './types'
 
+export interface DefinitionPackageReviewComponents {
+  baseline?: DefinitionPackageComponent
+  local?: DefinitionPackageComponent
+  incoming?: DefinitionPackageComponent
+  target?: DefinitionPackageComponent
+}
+
 export interface PreparedDefinitionPackageUpdate extends PreparedDefinitionPackageInstallation {
   changes: DefinitionPackageChange[]
   current: Doc[]
   removed: Doc[]
   fingerprint: string
   blocked: boolean
+  blockedChanges: string[]
   reviews: Record<string, { baseline: string, local: string, incoming: string }>
   missingDependencies: boolean
+  reviewComponents: Record<string, DefinitionPackageReviewComponents>
 }
 
 /** Compares definitions and separately loaded workspace counters with the baseline and verified incoming release. */
@@ -171,39 +182,70 @@ export async function prepareDefinitionPackageUpdate (
   const target = new Map<string, Doc>()
   const nextById = new Map(next.documents.map((doc) => [String(doc._id), doc]))
   let blocked = false
+  const blockedChanges: string[] = []
   for (const key of new Set([...localComponents.keys(), ...incomingComponents.keys(), ...findings.keys()])) {
     const change = findings.get(key)
     const conflict = change?.resolution === 'conflict'
     if (conflict && resolutions[key] === undefined) blocked = true
-    const upstream =
-      change?.resolution === 'upstream' ||
-      ((conflict || change?.resolution === 'local') && resolutions[key] === 'upstream')
-    if (change !== undefined && change.resolution !== 'local' && ['destructive', 'unknown'].includes(change.impact)) {
-      blocked = true
-    }
-    if (upstream && change !== undefined) {
-      const impact = definitionPackageImpact(localComponents.get(key), incomingComponents.get(key))
-      if (impact.impact === 'destructive' || impact.impact === 'unknown') {
+    const local = localComponents.get(key)
+    const incomingComponent = incomingComponents.get(key)
+    const merged = change?.resolution === 'merged' || conflict
+    const useIncoming =
+      resolutions[key] === 'upstream' || (change?.resolution === 'upstream' && resolutions[key] !== 'local')
+    const component =
+      resolutions[key] === 'local' && !conflict
+        ? local
+        : merged
+          ? mergeDefinitionPackageComponents(baselineComponents.get(key), local, incomingComponent, resolutions[key])
+              .component
+          : useIncoming
+            ? incomingComponent
+            : local
+    // Compatibility is checked against the effective merged target. Unchanged
+    // native properties and additive definitions require no data transformation.
+    if (change !== undefined && !authoringDataEqual(local, component)) {
+      const impact = definitionPackageImpact(local, component)
+      changes[changes.indexOf(change)] = {
+        ...change,
+        ...impact,
+        paths: [...new Set([...change.paths, ...definitionPackageDifferencePaths(local, component)])].sort()
+      }
+      if (local !== undefined && impact.impact === 'destructive') {
         blocked = true
-        changes[changes.indexOf(change)] = {
-          ...change,
-          ...impact,
-          paths: [
-            ...new Set([
-              ...change.paths,
-              ...definitionPackageDifferencePaths(localComponents.get(key), incomingComponents.get(key))
-            ])
-          ].sort()
-        }
+        blockedChanges.push(key)
       }
     }
-    const component = upstream ? incomingComponents.get(key) : localComponents.get(key)
-    const source = upstream ? nextById : current
-    for (const id of Object.keys(component?.documents ?? {})) {
-      const doc = source.get(id)
-      if (doc !== undefined) target.set(id, structuredClone(doc))
+    for (const [id, entry] of Object.entries(component?.documents ?? {})) {
+      const actual = current.get(id)
+      const incomingDoc = nextById.get(id)
+      const raw = actual ?? incomingDoc
+      if (raw === undefined) continue
+      const doc = structuredClone(raw)
+      const metadata = new Set([
+        'createdOn',
+        'createdBy',
+        'modifiedOn',
+        'modifiedBy',
+        'rank',
+        ...(doc._class === core.class.Sequence || doc._class === core.class.CustomSequence ? ['sequence'] : [])
+      ])
+      for (const property of Object.keys(doc)) {
+        const defaultFlag =
+          doc._class === core.class.Attribute &&
+          ['hidden', 'readonly', 'required', 'automationOnly'].includes(property) &&
+          Reflect.get(doc, property) === false
+        if (!metadata.has(property) && !defaultFlag && !(property in entry.document)) {
+          Reflect.deleteProperty(doc, property)
+        }
+      }
+      Object.assign(doc, structuredClone(entry.document))
+      if (entry.order !== local?.documents[id]?.order && incomingDoc !== undefined && 'rank' in incomingDoc) {
+        Reflect.set(doc, 'rank', incomingDoc.rank)
+      }
+      target.set(id, doc)
     }
   }
+
   for (const doc of target.values()) {
     const actual: (Doc & { rank?: string }) | undefined = current.get(doc._id)
     if (doc._class === process.class.Process && actual?.rank !== undefined) {
@@ -217,25 +259,29 @@ export async function prepareDefinitionPackageUpdate (
     }
   }
   let missingDependencies = false
-  const incomingRoots = verifiedIncoming.definition.docs.filter((doc) => doc._class === process.class.Process)
-  for (const source of incomingRoots) {
-    const rootId = next.installation.identities[source._id]
-    const change = findings.get(rootId)
-    if (
-      !target.has(rootId) ||
-      ((change?.resolution === 'local' || change?.resolution === 'conflict') && resolutions[rootId] !== 'upstream')
-    ) {
-      continue
+  const incomingRoots = new Set(
+    verifiedIncoming.definition.docs
+      .filter((doc) => doc._class === process.class.Process)
+      .map((doc) => next.installation.identities[doc._id])
+  )
+  const processSlots = new Map<string, Set<string>>()
+  for (const source of [...baseline.definition.docs, ...verifiedIncoming.definition.docs]) {
+    if (source._class !== process.class.Process) continue
+    const id = next.installation.identities[source._id] ?? installed.identities[source._id]
+    const slots = processSlots.get(id) ?? new Set<string>()
+    const definition = source as unknown as Process
+    for (const [key, slot] of Object.entries(definition.requiredSlots ?? {})) {
+      if (slot.slotKind === 'process') slots.add(key)
     }
-    const proc = source as unknown as Process
-    for (const [key, slot] of Object.entries(proc.requiredSlots ?? {})) {
+    processSlots.set(id, slots)
+  }
+  for (const document of target.values()) {
+    if (document._class !== process.class.Process) continue
+    const proc = document as Process
+    // Bound definitions retain bindings but no longer carry requiredSlots.
+    for (const key of processSlots.get(proc._id) ?? []) {
       const dependency = proc.bindings?.[key]
-      if (
-        slot.slotKind === 'process' &&
-        dependency !== undefined &&
-        incomingRoots.some((root) => root._id === dependency) &&
-        !target.has(next.installation.identities[dependency])
-      ) {
+      if (dependency !== undefined && incomingRoots.has(dependency) && !target.has(dependency)) {
         missingDependencies = true
         blocked = true
       }
@@ -256,6 +302,7 @@ export async function prepareDefinitionPackageUpdate (
       fields.set(key, doc._id)
     }
   }
+  const targetComponents = definitionPackageComponents(asDefinition([...target.values()]))
   const snapshot = [...current.values()].sort((a, b) => String(a._id).localeCompare(String(b._id)))
   return {
     ...next,
@@ -265,7 +312,19 @@ export async function prepareDefinitionPackageUpdate (
     removed: snapshot.filter((doc) => !target.has(doc._id)),
     fingerprint: JSON.stringify(snapshot),
     blocked,
+    blockedChanges,
     reviews,
+    reviewComponents: Object.fromEntries(
+      changes.map((change) => [
+        change.key,
+        {
+          baseline: baselineComponents.get(change.key),
+          local: localComponents.get(change.key),
+          incoming: incomingComponents.get(change.key),
+          target: targetComponents.get(change.key)
+        }
+      ])
+    ),
     missingDependencies
   }
 }

@@ -105,6 +105,10 @@
             Authorization: `Bearer ${token}`
           }
         })
+        if (!response.ok) {
+          // Error responses are JSON too: never take one for backup info.
+          throw new Error(`Backup info request failed: ${response.status}`)
+        }
         backupInfo = await response.json()
       } catch (err) {
         console.error('Failed to fetch backup info:', err)

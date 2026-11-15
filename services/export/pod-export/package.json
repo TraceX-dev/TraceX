@@ -62,6 +62,7 @@
     "@hcengineering/document": "workspace:^0.7.0",
     "@hcengineering/server-token": "workspace:^0.7.18",
     "@hcengineering/server-core": "workspace:^0.7.19",
+    "@hcengineering/kafka": "workspace:^0.7.20",
     "@hcengineering/server-storage": "workspace:^0.7.16",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/platform": "workspace:^0.7.20",

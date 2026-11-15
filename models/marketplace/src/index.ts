@@ -13,11 +13,12 @@
 import { AccountRole, type Domain } from '@hcengineering/core'
 import marketplace, {
   type DefinitionPackageDestination,
+  type DefinitionPackageDraft,
   type DefinitionPackageInstallation,
   type DefinitionPackageManifest
 } from '@hcengineering/marketplace'
 import marketplaceResources from '@hcengineering/marketplace-resources/src/plugin'
-import { Model, Prop, TypeRecord, TypeString, type Builder } from '@hcengineering/model'
+import { Model, Prop, TypeNumber, TypeRecord, TypeString, type Builder } from '@hcengineering/model'
 import core, { TDoc } from '@hcengineering/model-core'
 import setting from '@hcengineering/setting'
 
@@ -25,6 +26,24 @@ export { marketplaceId } from '@hcengineering/marketplace'
 export { marketplace as default }
 
 const DOMAIN_MARKETPLACE = 'marketplace' as Domain
+
+@Model(marketplace.class.DefinitionPackageDraft, core.class.Doc, DOMAIN_MARKETPLACE)
+export class TDefinitionPackageDraft extends TDoc implements DefinitionPackageDraft {
+  @Prop(TypeString(), core.string.Name)
+    name!: string
+
+  @Prop(TypeString(), core.string.Name)
+    author!: DefinitionPackageDraft['author']
+
+  @Prop(TypeString(), marketplace.string.PackageDraftReview)
+    review!: string
+
+  @Prop(TypeString(), marketplace.string.InstallPackage)
+    release!: string
+
+  @Prop(TypeNumber(), core.string.Name)
+    revision!: number
+}
 
 @Model(marketplace.class.DefinitionPackageInstallation, core.class.Doc, DOMAIN_MARKETPLACE)
 export class TDefinitionPackageInstallation extends TDoc implements DefinitionPackageInstallation {
@@ -45,7 +64,24 @@ export class TDefinitionPackageInstallation extends TDoc implements DefinitionPa
 }
 
 export function createModel (builder: Builder): void {
-  builder.createModel(TDefinitionPackageInstallation)
+  builder.createModel(TDefinitionPackageInstallation, TDefinitionPackageDraft)
+  builder.mixin(marketplace.class.DefinitionPackageDraft, core.class.Class, core.mixin.TxAccessLevel, {
+    createAccessLevel: AccountRole.User,
+    updateAccessLevel: AccountRole.Maintainer,
+    removeAccessLevel: AccountRole.Maintainer,
+    ownerAttribute: 'author',
+    ownerUpdateAttributes: ['name', 'review', 'release', 'revision'],
+    ownerRemove: true
+  })
+  builder.createDoc(setting.class.SettingsCategory, core.space.Model, {
+    name: 'package-drafts',
+    label: marketplace.string.PackageDrafts,
+    icon: marketplace.icon.Marketplace,
+    component: marketplaceResources.component.PackageDrafts,
+    group: 'settings',
+    role: AccountRole.User,
+    order: 1001
+  })
   builder.createDoc(setting.class.SettingsCategory, core.space.Model, {
     name: 'marketplace',
     label: marketplace.string.Marketplace,
