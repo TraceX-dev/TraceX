@@ -129,11 +129,13 @@
       {@const editor = getEditor(result)}
       <span
         class="labelOnPanel"
+        class:required-empty={!loading && !isRequiredValueFilled(values[result._id], result.type)}
         use:tooltip={{
           props: { text: result.name }
         }}
       >
         {result.name}
+        <span class="required-asterisk">*</span>
       </span>
       {#if editor && !loading}
         <div class="w-full">
@@ -161,6 +163,11 @@
 </Card>
 
 <style lang="scss">
+  .required-empty,
+  .required-asterisk {
+    color: var(--theme-error-color);
+  }
+
   .grid {
     display: grid;
     grid-template-columns: 1fr 1.5fr;

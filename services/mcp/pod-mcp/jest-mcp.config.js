@@ -18,6 +18,9 @@ module.exports = {
   testMatch: ['**/src/**/*.test.ts'],
   transform: { '^.+\\.ts$': ['ts-jest', { tsconfig: { isolatedModules: true } }] },
   moduleNameMapper: {
+    '^@hcengineering/contact$': '<rootDir>/../../../plugins/contact/src/index.ts',
+    '^@hcengineering/marketplace$': '<rootDir>/../../../plugins/marketplace/src/index.ts',
+    '^@hcengineering/process$': '<rootDir>/../../../plugins/process/src/index.ts',
     '^@hcengineering/openauth-client$': '<rootDir>/../../../packages/openauth-client/src/index.ts'
   }
 }

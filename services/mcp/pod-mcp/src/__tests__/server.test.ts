@@ -54,6 +54,32 @@ describe('MCP tool naming', () => {
         expect.objectContaining({ title: 'List accessible workspaces' }),
         expect.any(Function)
       )
+      const packageTools = register.mock.calls.filter(([name]) => name.startsWith('package_'))
+      expect(packageTools.map(([name]) => name).sort()).toEqual([
+        'package_authoring_guide',
+        'package_contracts',
+        'package_create_version_draft',
+        'package_get_draft',
+        'package_inspect',
+        'package_inspect_installed',
+        'package_installed',
+        'package_releases',
+        'package_save_draft',
+        'package_search',
+        'package_validate'
+      ])
+      for (const [name, definition] of packageTools) {
+        expect(name).toMatch(/^[a-z][a-z0-9_]+$/)
+        expect(definition.title).toEqual(expect.any(String))
+        expect(definition.title?.length).toBeGreaterThan(0)
+        const writes = name === 'package_save_draft' || name === 'package_create_version_draft'
+        expect(definition.annotations).toEqual({
+          readOnlyHint: !writes,
+          destructiveHint: name === 'package_save_draft',
+          idempotentHint: !writes
+        })
+        expect(JSON.stringify(definition)).not.toMatch(/(?:package|my|card)\.[a-z_]+/)
+      }
     } finally {
       tools.pop()
       register.mockRestore()

@@ -62,7 +62,11 @@ export async function planDefinitionPackageUpgrade (
   }
   if (
     changes.some(
-      (change) => change.resolution === 'local' || change.resolution === 'conflict' || change.resolution === 'converged'
+      (change) =>
+        change.resolution === 'local' ||
+        change.resolution === 'conflict' ||
+        change.resolution === 'converged' ||
+        change.resolution === 'merged'
     )
   ) {
     reasons.add('local-customization')

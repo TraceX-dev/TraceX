@@ -17,6 +17,9 @@ export interface McpConfig {
   OAuthInternalURL: string
   OAuthResourceURL: string
   OAuthAllowHttp: boolean
+  PackageAuthorAccounts?: readonly string[]
+  PackageAuthorEmails?: readonly string[]
+  MarketplaceURL?: string
 }
 
 function requiredEnv (name: string): string {
@@ -46,7 +49,16 @@ const config: McpConfig = {
   OAuthIssuerURL: requiredEnv('OPENAUTH_ISSUER_URL').replace(/\/$/, ''),
   OAuthInternalURL: optionalEnv('OPENAUTH_INTERNAL_URL', requiredEnv('OPENAUTH_ISSUER_URL')).replace(/\/$/, ''),
   OAuthResourceURL: requiredEnv('OPENAUTH_MCP_RESOURCE_URL'),
-  OAuthAllowHttp: optionalEnv('OPENAUTH_ALLOW_HTTP', 'false') === 'true'
+  OAuthAllowHttp: optionalEnv('OPENAUTH_ALLOW_HTTP', 'false') === 'true',
+  PackageAuthorAccounts: optionalEnv('MCP_PACKAGE_AUTHOR_ACCOUNTS', '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean),
+  PackageAuthorEmails: optionalEnv('MCP_PACKAGE_AUTHOR_EMAILS', '')
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean),
+  MarketplaceURL: optionalEnv('MARKETPLACE_URL', '').trim() || undefined
 }
 
 export default config

@@ -15,7 +15,7 @@
 
 import { CancellationToken } from 'builder-util-runtime'
 import { BrowserWindow, app, dialog } from 'electron'
-import log from 'electron-log'
+import log from 'electron-log/main'
 import { ProgressInfo, UpdateInfo } from 'electron-updater'
 
 import { IpcMessage } from '../ui/ipcMessages'

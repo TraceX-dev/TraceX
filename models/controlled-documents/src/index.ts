@@ -471,6 +471,11 @@ export function createModel (builder: Builder): void {
     inlineEditor: documents.component.ControlledDocumentArrayEditor
   })
 
+  builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.AttributePresenter, {
+    presenter: documents.component.ControlledDocumentInlineEditor,
+    arrayPresenter: documents.component.ControlledDocumentArrayEditor
+  })
+
   builder.mixin(documents.class.ControlledDocument, core.class.Class, view.mixin.IgnoreActions, {
     actions: [tracker.action.NewRelatedIssue]
   })

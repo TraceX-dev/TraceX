@@ -12,6 +12,7 @@
     "Forms": "Forms",
     "Enabled": "フォームを有効にする",
     "TargetSpace": "Create cards in",
+    "SelectSpaceToEnableForm": "フォームを有効にするには、カードを作成するスペースを選択してください。",
     "FormLink": "Form link",
     "Submit": "Submit",
     "Submitted": "Your response has been submitted",

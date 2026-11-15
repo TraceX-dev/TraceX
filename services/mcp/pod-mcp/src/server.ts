@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -39,21 +40,19 @@ import { createMcpTokenVerifier, type TraceXAuthInfo } from './auth'
 import { jsonStructuredText, jsonText } from './mcp'
 import { registerMeWorkspacesTool } from './tools/me/workspaces'
 import { meWorkspacesToolId } from './tools/me/tool-ids'
+import { packageAuthoringGuideToolId } from './tools/package/tool-ids'
 import type { WorkspaceConnection, WorkspaceManager } from './workspace'
+import { registerPackageAuthoringTools } from './package-authoring'
+import { createPackageAuthorizer, type PackageAuthorizer } from './package-authoring-access'
 
 const SERVER_NAME = 'tracex-mcp'
 const SERVER_VERSION = '0.1.0'
-const SERVER_INSTRUCTIONS = `TraceX MCP provides tools for the workspaces accessible to the authenticated TraceX account. Never ask the user for tokens or expose token values.
+const SERVER_INSTRUCTIONS = `Use only authorized TraceX workspaces. Never request or expose tokens. Discover IDs and fields through read-only tools and follow their schemas. Mutate only with user intent, reload existing objects, respect readonly/history errors and report the target workspace.
 
 Call ${meWorkspacesToolId} to discover workspaces authorized by this connection. A connection may be restricted to one workspace. Every other tool requires the exact workspace ID returned by ${meWorkspacesToolId}. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes.
+For packages, read ${packageAuthoringGuideToolId}, then only relevant sections and installed contracts. Own technical choices; do not ask managers to select triggers, storage keys or process architecture. Record reasonable assumptions in the draft review. Ask concise business questions only for material contradictions, outcome-changing missing rules or unconfirmed required capabilities. Search reusable packages before new logic; never invent APIs or runtime behavior. Validate and save the requested private draft; installation, execution and publication are separate actions. The guide distinguishes draft edits from new package versions.
 
-Use read-only tools first to discover the available object types, allowed fields, and stable identifiers before making changes. Do not invent workspace ids, object ids, class ids, mixin ids, type ids, or attribute keys; obtain them from tool results or ask the user to clarify.
-
-Call mutating tools only when the user clearly intends to create, update, delete, mark, or otherwise change workspace data. Before mutating an existing object, load its current state when it is not already known, respect readonly or historical-version errors, and stop instead of forcing a change.
-
-When tools expose structured schemas, follow those schemas exactly.
-
-Prefer narrow queries and practical limits. Request only enough results to answer the user's task, use filters when available, and prefer structuredContent from tool results when present. If a tool returns an error, use the error code and message to correct the request; do not repeatedly retry the same invalid arguments.`
+Prefer narrow queries, practical limits and structuredContent. Reuse retrieved guidance and contracts during the task instead of repeatedly loading whole documents or unchanged YAML. Correct invalid arguments from tool diagnostics.`
 
 type ToolDefinition = (typeof tools)[number]
 type ToolExecutionResult = Awaited<ReturnType<ToolDefinition['execute']>>
@@ -69,8 +68,10 @@ export function createServer (config: McpConfig, workspaceManager: WorkspaceMana
     res.json({ status: 'ok', service: config.ServiceID, server: SERVER_NAME })
   })
 
+  const authorizePackages = createPackageAuthorizer(config)
   const handler = createMcpHandler(
-    ({ authInfo }) => createMcpServer(getTraceXAuthInfo(authInfo), workspaceManager, ctx),
+    ({ authInfo }) =>
+      createMcpServer(getTraceXAuthInfo(authInfo), workspaceManager, ctx, authorizePackages, config.MarketplaceURL),
     { responseMode: 'json' }
   )
   const nodeHandler = toNodeHandler(handler)
@@ -125,7 +126,9 @@ export function listen (app: Express, port: number, ctx: MeasureContext, host?: 
 export function createMcpServer (
   auth: TraceXAuthInfo,
   workspaceManager: WorkspaceManager,
-  ctx: MeasureContext
+  ctx: MeasureContext,
+  authorizePackages: PackageAuthorizer = async () => false,
+  marketplaceUrl?: string
 ): McpServer {
   const server = new McpServer(
     {
@@ -138,6 +141,7 @@ export function createMcpServer (
   )
 
   registerMeWorkspacesTool(server, workspaceManager, auth, ctx)
+  registerPackageAuthoringTools(server, auth, workspaceManager, authorizePackages, ctx, marketplaceUrl)
 
   for (const tool of tools) {
     const inputSchema = {

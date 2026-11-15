@@ -1,0 +1,233 @@
+# yaml-language-server: $schema=../authoring-v2.schema.json
+# Copyright © 2026 TraceX SAS.
+# Licensed under the Eclipse Public License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may
+# obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: 2
+kind: card
+cardTypes:
+  reactive_risk:
+    label: Risk management
+    description: Independent field-driven normalization, addition and classification.
+    extends: card:class:Card
+    kind: 0
+    icon: card:icon:MasterTag
+    fields:
+      rr_probability:
+        name: probability
+        label: Probability
+        type: {enum: rr_probability_scale}
+        isCustom: true
+        required: true
+        defaultValue: 1 Rare
+      rr_severity:
+        name: severity
+        label: Severity
+        type: {enum: rr_severity_scale}
+        isCustom: true
+        required: true
+        defaultValue: 1 Negligible
+      rr_probability_number:
+        name: probability_number
+        label: Normalized probability
+        type: number
+        isCustom: true
+        hidden: true
+        readonly: true
+        automationOnly: true
+      rr_severity_number:
+        name: severity_number
+        label: Normalized severity
+        type: number
+        isCustom: true
+        hidden: true
+        readonly: true
+        automationOnly: true
+      rr_sum:
+        name: risk_sum
+        label: Risk sum
+        type: number
+        isCustom: true
+        hidden: true
+        readonly: true
+        automationOnly: true
+      rr_level:
+        name: risk_level
+        label: Risk level
+        type: {enum: rr_levels}
+        isCustom: true
+        readonly: true
+        automationOnly: true
+enums:
+  rr_probability_scale:
+    name: Probability
+    enumValues: [1 Rare, 2 Unlikely, 3 Possible, 4 Likely, 5 Almost certain]
+  rr_severity_scale:
+    name: Severity
+    enumValues: [1 Negligible, 2 Minor, 3 Moderate, 4 Major, 5 Catastrophic]
+  rr_levels:
+    name: Risk level
+    enumValues: [Acceptable, Tolerable, Unacceptable]
+processes:
+  normalize_risk:
+    label: Normalize risk inputs
+    description: Read the text choices and write their explicit numeric prefixes.
+    masterTag: reactive_risk
+    autoStart: true
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      normalize_start:
+        to: normalize_inputs
+        on: OnExecutionStart
+    states:
+      normalize_inputs:
+        label: Normalize inputs when set
+        transitions:
+          normalize_ready:
+            to: normalize_wait
+            on:
+              OnCardUpdate:
+                probability: {$exists: true, $ne: null}
+                severity: {$exists: true, $ne: null}
+            actions:
+              normalize_values:
+                method: UpdateCard
+                params:
+                  probability_number:
+                    expr:
+                      from: $card.probability
+                      pipe: [StringFromEnum, {Split: {separator: ' '}}, NumberFromString]
+                  severity_number:
+                    expr:
+                      from: $card.severity
+                      pipe: [StringFromEnum, {Split: {separator: ' '}}, NumberFromString]
+      normalize_wait:
+        label: Wait for text input changes
+        transitions:
+          probability_changed:
+            to: normalize_inputs
+            on:
+              WhenFieldChanges:
+                probability: {$exists: true}
+          severity_changed:
+            to: normalize_inputs
+            on:
+              WhenFieldChanges:
+                severity: {$exists: true}
+  sum_risk:
+    label: Add normalized risk inputs
+    description: Read the normalized fields and write their sum.
+    masterTag: reactive_risk
+    autoStart: true
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      sum_start:
+        to: calculate_sum
+        on: OnExecutionStart
+    states:
+      calculate_sum:
+        label: Add inputs when set
+        transitions:
+          sum_ready:
+            to: sum_wait
+            on:
+              OnCardUpdate:
+                probability_number: {$exists: true, $ne: null}
+                severity_number: {$exists: true, $ne: null}
+            actions:
+              save_sum:
+                method: UpdateCard
+                params:
+                  risk_sum:
+                    expr:
+                      from: $card.probability_number
+                      pipe:
+                        - Add: {value: $card.severity_number}
+      sum_wait:
+        label: Wait for normalized input changes
+        transitions:
+          probability_number_changed:
+            to: calculate_sum
+            on:
+              WhenFieldChanges:
+                probability_number: {$exists: true}
+          severity_number_changed:
+            to: calculate_sum
+            on:
+              WhenFieldChanges:
+                severity_number: {$exists: true}
+  classify_risk:
+    label: Classify risk
+    description: Read severity and sum; severity one is always Acceptable.
+    masterTag: reactive_risk
+    autoStart: true
+    showInHeader: true
+    parallelExecutionForbidden: true
+    start:
+      classify_start:
+        to: classify_inputs
+        on: OnExecutionStart
+    states:
+      classify_inputs:
+        label: Classify available inputs
+        transitions:
+          negligible_severity:
+            to: classify_wait
+            on:
+              OnCardUpdate:
+                severity_number: 1
+            actions:
+              accept_negligible:
+                method: UpdateCard
+                params: {risk_level: Acceptable}
+          acceptable_sum:
+            to: classify_wait
+            on:
+              OnCardUpdate:
+                severity_number: {$gt: 1}
+                risk_sum: {$exists: true, $ne: null, $lte: 5}
+            actions:
+              accept_sum:
+                method: UpdateCard
+                params: {risk_level: Acceptable}
+          tolerable_sum:
+            to: classify_wait
+            on:
+              OnCardUpdate:
+                severity_number: {$gt: 1}
+                risk_sum: {$gt: 5, $lte: 7}
+            actions:
+              tolerate_sum:
+                method: UpdateCard
+                params: {risk_level: Tolerable}
+          unacceptable_sum:
+            to: classify_wait
+            on:
+              OnCardUpdate:
+                severity_number: {$gt: 1}
+                risk_sum: {$gte: 8}
+            actions:
+              reject_sum:
+                method: UpdateCard
+                params: {risk_level: Unacceptable}
+      classify_wait:
+        label: Wait for classification input changes
+        transitions:
+          classification_severity_changed:
+            to: classify_inputs
+            on:
+              WhenFieldChanges:
+                severity_number: {$exists: true}
+          classification_sum_changed:
+            to: classify_inputs
+            on:
+              WhenFieldChanges:
+                risk_sum: {$exists: true}
