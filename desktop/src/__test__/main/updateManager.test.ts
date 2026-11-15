@@ -17,7 +17,7 @@ const mockApp = { removeAllListeners: jest.fn() }
 const mockDialog = { showMessageBox: jest.fn() }
 
 jest.mock('electron', () => ({ app: mockApp, dialog: mockDialog }))
-jest.mock('electron-log', () => ({
+jest.mock('electron-log/main', () => ({
   __esModule: true,
   default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }))
