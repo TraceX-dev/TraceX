@@ -13,8 +13,10 @@
 // limitations under the License.
 //
 
+import card from '@hcengineering/card'
+import core from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
-import process from '@hcengineering/process'
+import process, { exportAuthoringModel, type AuthoringNativeDocument } from '@hcengineering/process'
 import { importModule } from '../exporter'
 
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
@@ -24,8 +26,13 @@ declare const __dirname: string
 const { readFileSync } = jest.requireActual<{ readFileSync: (path: string, encoding: 'utf8') => string }>('fs')
 const source = readFileSync(`${__dirname}/../../../process/docs/examples/risk-management.card.yaml`, 'utf8')
 
-function setup (): { createDoc: jest.Mock, commit: jest.Mock } {
+function setup (existingDocs: AuthoringNativeDocument[] = []): {
+  createDoc: jest.Mock
+  updateDoc: jest.Mock
+  commit: jest.Mock
+} {
   const createDoc = jest.fn().mockResolvedValue(undefined)
+  const updateDoc = jest.fn().mockResolvedValue(undefined)
   const commit = jest.fn().mockResolvedValue({ result: true })
   const registry = [
     ...Object.values(process.method).map((_id) => ({ _id, _class: process.class.Method })),
@@ -34,13 +41,57 @@ function setup (): { createDoc: jest.Mock, commit: jest.Mock } {
   ]
   ;(getClient as jest.Mock).mockReturnValue({
     getHierarchy: () => ({ isDerived: () => false }),
-    getModel: () => ({ findObject: (id: string) => registry.find((doc) => doc._id === id) }),
-    apply: () => ({ createDoc, commit })
+    getModel: () => ({
+      findObject: (id: string) => existingDocs.find((doc) => doc._id === id) ?? registry.find((doc) => doc._id === id)
+    }),
+    apply: () => ({ createDoc, updateDoc, commit })
   })
-  return { createDoc, commit }
+  return { createDoc, updateDoc, commit }
 }
 
 describe('YAML card module import', () => {
+  describe.each(['json', 'yaml'] as const)('%s existing card type import', (format) => {
+    const document: AuthoringNativeDocument = {
+      _id: 'restored_type',
+      _class: card.class.MasterTag,
+      space: core.space.Model,
+      extends: card.class.Card,
+      kind: 0,
+      rank: '0|hzzzzz:',
+      label: 'embedded:embedded:Restored type'
+    }
+
+    it.each([undefined, true, false])('restores a deleted type when the imported removed flag is %s', async (removed) => {
+      const existing: AuthoringNativeDocument = { ...document, removed: true }
+      const imported: AuthoringNativeDocument = removed === undefined ? document : { ...document, removed }
+      const { createDoc, updateDoc, commit } = setup([existing])
+      const source = format === 'json' ? JSON.stringify([imported]) : exportAuthoringModel([imported], 'card')
+
+      await importModule(source)
+
+      expect(updateDoc).toHaveBeenCalledTimes(1)
+      expect(updateDoc).toHaveBeenCalledWith(
+        card.class.MasterTag,
+        core.space.Model,
+        document._id,
+        expect.objectContaining({ removed: false, label: document.label })
+      )
+      expect(createDoc).not.toHaveBeenCalled()
+      expect(commit).toHaveBeenCalledWith(true)
+      expect(existing.removed).toBe(true)
+    })
+
+    it('does not update an unchanged active type', async () => {
+      const { createDoc, updateDoc } = setup([document])
+      const source = format === 'json' ? JSON.stringify([document]) : exportAuthoringModel([document], 'card')
+
+      await importModule(source)
+
+      expect(updateDoc).not.toHaveBeenCalled()
+      expect(createDoc).not.toHaveBeenCalled()
+    })
+  })
+
   it('reports a rejected import commit', async () => {
     const { commit } = setup()
     commit.mockResolvedValue({ result: false })

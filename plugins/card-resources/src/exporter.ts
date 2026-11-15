@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import type { MasterTag } from '@hcengineering/card'
 import core, {
   type AnyAttribute,
   type ArrOf,
@@ -57,7 +58,10 @@ export async function importModule (json: string, createNew: boolean = false): P
     for (const elem of data) {
       const existing = m.findObject(elem._id)
       if (existing !== undefined) {
-        const newData = stripData(elem)
+        const newData: Data<Doc> & Pick<MasterTag, 'removed'> = stripData(elem)
+        if (elem._class === card.class.MasterTag && (existing as MasterTag).removed === true) {
+          newData.removed = false
+        }
         const oldData = stripData(existing)
         if (!deepEqual(newData, oldData)) {
           await apply.updateDoc(elem._class, existing.space, elem._id, newData)
