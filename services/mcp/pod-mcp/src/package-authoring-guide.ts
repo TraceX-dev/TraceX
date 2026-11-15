@@ -12,9 +12,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import {
-  packageAuthoringGuideToolId
-} from './tools/package/tool-ids'
+import { packageAuthoringGuideToolId } from './tools/package/tool-ids'
 
 const EXAMPLES = [
   'risk-management-reactive.card.yaml',

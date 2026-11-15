@@ -221,7 +221,10 @@ export async function createPackageVersionDraft (
   if ('draftId' in args.base) {
     const draft = await loadDraft(connection, author, args.base.draftId)
     if (draft.revision !== args.base.expectedRevision) {
-      throw new PackageAuthoringError('draft_conflict', `The base draft changed; reload it with ${packageGetDraftToolId}`)
+      throw new PackageAuthoringError(
+        'draft_conflict',
+        `The base draft changed; reload it with ${packageGetDraftToolId}`
+      )
     }
     base = { release: await parseDefinitionPackageRelease(draft.release), draft }
   } else {
@@ -354,7 +357,8 @@ export function registerPackageAuthoringTools (
           {
             error: {
               code: 'package_authoring_failed',
-              message: 'Package authoring failed. Check workspace access, guide section and installed model, then retry.'
+              message:
+                'Package authoring failed. Check workspace access, guide section and installed model, then retry.'
             }
           },
           true
@@ -385,15 +389,18 @@ export function registerPackageAuthoringTools (
       })
     },
     async (args) =>
-      await execute(packageAuthoringGuideToolId, args.workspace, async () => await readPackageAuthoringGuide(args.section))
+      await execute(
+        packageAuthoringGuideToolId,
+        args.workspace,
+        async () => await readPackageAuthoringGuide(args.section)
+      )
   )
   server.registerTool(
     packageContractsToolId,
     {
       title: 'List package operation contracts',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
-      description:
-        `Get installed process methods, triggers and functions for package authoring. Use card_list_master_tags and card_master_tag_details for existing card fields. Contracts do not universally describe optional parameters or execution semantics; consult ${packageAuthoringGuideToolId} and stop on unsupported requirements.`,
+      description: `Get installed process methods, triggers and functions for package authoring. Use card_list_master_tags and card_master_tag_details for existing card fields. Contracts do not universally describe optional parameters or execution semantics; consult ${packageAuthoringGuideToolId} and stop on unsupported requirements.`,
       inputSchema: fromJsonSchema<{ workspace: string }>({
         type: 'object',
         properties: { workspace },
@@ -465,8 +472,7 @@ export function registerPackageAuthoringTools (
     {
       title: 'Create package version draft',
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-      description:
-        `Create a private next-version draft of your own package after explicit user intent. First inspect the current Marketplace release or read your own base draft. Supply edited plain YAML and a review. Retains package ID and author, automatically increments the patch version and creates a fresh draft at revision 1. base is either {draftId, expectedRevision} or {id, author, version, contentHash} from ${packageInspectToolId}. Existing releases and drafts are unchanged. Edit the result with ${packageGetDraftToolId} and ${packageSaveDraftToolId}; those edits increment only draft revision. Never installs, executes or publishes.`,
+      description: `Create a private next-version draft of your own package after explicit user intent. First inspect the current Marketplace release or read your own base draft. Supply edited plain YAML and a review. Retains package ID and author, automatically increments the patch version and creates a fresh draft at revision 1. base is either {draftId, expectedRevision} or {id, author, version, contentHash} from ${packageInspectToolId}. Existing releases and drafts are unchanged. Edit the result with ${packageGetDraftToolId} and ${packageSaveDraftToolId}; those edits increment only draft revision. Never installs, executes or publishes.`,
       inputSchema: fromJsonSchema<VersionDraftInput>({
         type: 'object',
         properties: {
@@ -476,8 +482,7 @@ export function registerPackageAuthoringTools (
           description: { type: 'string', maxLength: 4000 },
           review: { type: 'string', minLength: 1, maxLength: 32000 },
           base: {
-            description:
-              `Use the exact metadata returned by ${packageGetDraftToolId} or ${packageInspectToolId}. Only your own packages can be versioned.`,
+            description: `Use the exact metadata returned by ${packageGetDraftToolId} or ${packageInspectToolId}. Only your own packages can be versioned.`,
             oneOf: [
               {
                 type: 'object',
@@ -518,8 +523,7 @@ export function registerPackageAuthoringTools (
     {
       title: 'Save package draft',
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
-      description:
-        `Validate and save a private package draft for explicit UI review. Requires user intent to save. Search and inspect reusable packages and installed processes before creating new logic. Supply a plain YAML v2 definition and a review explaining fields, states, ordered actions, reused package identities/versions, context dependencies, bindings and manual acceptance scenarios. The authenticated account becomes the author. For edits first use ${packageGetDraftToolId} and supply draftId with expectedRevision; editing retains the release version. For a new version of an existing package use ${packageCreateVersionDraftToolId}. Never installs, executes or publishes definitions.`,
+      description: `Validate and save a private package draft for explicit UI review. Requires user intent to save. Search and inspect reusable packages and installed processes before creating new logic. Supply a plain YAML v2 definition and a review explaining fields, states, ordered actions, reused package identities/versions, context dependencies, bindings and manual acceptance scenarios. The authenticated account becomes the author. For edits first use ${packageGetDraftToolId} and supply draftId with expectedRevision; editing retains the release version. For a new version of an existing package use ${packageCreateVersionDraftToolId}. Never installs, executes or publishes definitions.`,
       inputSchema: fromJsonSchema<DraftInput>({
         type: 'object',
         properties: {
@@ -535,6 +539,11 @@ export function registerPackageAuthoringTools (
         additionalProperties: false
       })
     },
-    async (args) => await execute(packageSaveDraftToolId, args.workspace, async (connection) => await savePackageDraft(args, connection))
+    async (args) =>
+      await execute(
+        packageSaveDraftToolId,
+        args.workspace,
+        async (connection) => await savePackageDraft(args, connection)
+      )
   )
 }

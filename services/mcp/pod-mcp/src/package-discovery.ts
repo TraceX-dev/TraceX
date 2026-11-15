@@ -232,8 +232,7 @@ export function registerPackageDiscoveryTools (
     {
       title: 'List package releases',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
-      description:
-        `List accessible releases of an exact Marketplace package. Use the original author and ID from ${packageSearchToolId} and preserve explicit release versions when reviewing reuse.`,
+      description: `List accessible releases of an exact Marketplace package. Use the original author and ID from ${packageSearchToolId} and preserve explicit release versions when reviewing reuse.`,
       inputSchema: fromJsonSchema<{ workspace: string, id: string, author: string, offset?: number }>({
         type: 'object',
         properties: { workspace, id, author, offset },
@@ -283,8 +282,7 @@ export function registerPackageDiscoveryTools (
     {
       title: 'List installed packages',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
-      description:
-        `List visible package installations in this workspace, including independent repeated installations. Filter by package ID and original author from ${packageSearchToolId}. Use ${packageInspectInstalledToolId} to get actual local process IDs and current graphs for reuse.`,
+      description: `List visible package installations in this workspace, including independent repeated installations. Filter by package ID and original author from ${packageSearchToolId}. Use ${packageInspectInstalledToolId} to get actual local process IDs and current graphs for reuse.`,
       inputSchema: fromJsonSchema<{ workspace: string, id?: string, author?: string, after?: string, limit?: number }>({
         type: 'object',
         properties: {

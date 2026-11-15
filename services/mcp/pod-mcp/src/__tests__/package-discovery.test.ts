@@ -108,7 +108,14 @@ function fixture (
   }
   const register = jest.fn()
   const server: Partial<McpServer> = { registerTool: register }
-  registerPackageAuthoringTools(server as McpServer, auth, manager as WorkspaceManager, async () => allowed, new NoMetricsContext(), url)
+  registerPackageAuthoringTools(
+    server as McpServer,
+    auth,
+    manager as WorkspaceManager,
+    async () => allowed,
+    new NoMetricsContext(),
+    url
+  )
   return {
     getConnection,
     findAll,
