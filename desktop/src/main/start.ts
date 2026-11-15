@@ -40,6 +40,11 @@ import { getFileInPublicBundledFolder } from './path'
 import { OsIntegration } from './osIntegration'
 import { IpcMessage } from '../ui/ipcMessages'
 
+// Injects the electron-log preload so renderer `electron-log` calls reach the main log file.
+// Must run before any session (e.g. the `persist:huly` partition) is created: sessions created
+// later get the preload via 'session-created'. Renderer console is not mirrored (spyRendererConsole is off).
+log.initialize()
+
 let isQuiting = false
 
 function quitApplication (): void {
