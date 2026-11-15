@@ -234,8 +234,9 @@ export async function prepareDefinitionPackageUpdate (
           doc._class === core.class.Attribute &&
           ['hidden', 'readonly', 'required', 'automationOnly'].includes(property) &&
           Reflect.get(doc, property) === false
-        if (!metadata.has(property) && !defaultFlag && !(property in entry.document))
-          {Reflect.deleteProperty(doc, property)}
+        if (!metadata.has(property) && !defaultFlag && !(property in entry.document)) {
+          Reflect.deleteProperty(doc, property)
+        }
       }
       Object.assign(doc, structuredClone(entry.document))
       if (entry.order !== local?.documents[id]?.order && incomingDoc !== undefined && 'rank' in incomingDoc) {

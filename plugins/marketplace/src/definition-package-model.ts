@@ -200,8 +200,9 @@ export function definitionPackageImpact (
     ) {
       return finding('destructive', 'Field identity, type, ownership or requiredness changed')
     }
-    if (changed.has('type') && !supportedType(doc.type))
-      {return finding('unknown', 'The field type has no verified compatibility contract')}
+    if (changed.has('type') && !supportedType(doc.type)) {
+      return finding('unknown', 'The field type has no verified compatibility contract')
+    }
   }
   if (
     (after.class === card.class.MasterTag || after.class === card.class.Tag) &&
@@ -254,8 +255,9 @@ export function mergeDefinitionPackageComponents (
       path[0] === 'documents' &&
       path[2] === 'order' &&
       (incoming ?? local)?.class !== process.class.Process
-    )
-      {return next}
+    ) {
+      return next
+    }
     const incompatibleType =
       record(actual) &&
       record(next) &&

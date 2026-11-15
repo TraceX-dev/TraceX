@@ -22,7 +22,8 @@ jest.mock('@hcengineering/platform', () => ({
 const { getContextValue } = require('../utils')
 const { MatchCardCheck, FieldChangedCheck, UpdateCard } = require('../functions')
 const source = readFileSync(
-  resolve(__dirname, '../../../../plugins/process/docs/examples/risk-management-reactive.card.yaml'), 'utf8'
+  resolve(__dirname, '../../../../plugins/process/docs/examples/risk-management-reactive.card.yaml'),
+  'utf8'
 )
 const original = compileProcessYaml(source)
 const compiled = compileProcessYaml(exportProcessYaml(original.docs, 'card'))
@@ -59,8 +60,11 @@ const startOrders = [
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function runtime (p = 1, s = 1) {
   const card = {
-    _id: 'reactive-risk-card', _class: 'reactive_risk', space: 'cards',
-    probability: probabilityChoices[p - 1], severity: severityChoices[s - 1]
+    _id: 'reactive-risk-card',
+    _class: 'reactive_risk',
+    space: 'cards',
+    probability: probabilityChoices[p - 1],
+    severity: severityChoices[s - 1]
   }
   const executions = new Map()
   const events = []
@@ -100,12 +104,14 @@ function runtime (p = 1, s = 1) {
     const execution = executions.get(processId)
     const native = control()
     const candidates = transitions.filter((item) => item.process === processId && item.from === execution.currentState)
-    let transition = candidates.find((item) => item.trigger === event && (
-      event === 'process:trigger:OnExecutionStart' ||
-      (event === 'process:trigger:WhenFieldChanges'
-        ? FieldChangedCheck(native, execution, item.triggerParams, { card: eventCard, operations })
-        : MatchCardCheck(native, execution, item.triggerParams, { card: eventCard }))
-    ))
+    let transition = candidates.find(
+      (item) =>
+        item.trigger === event &&
+        (event === 'process:trigger:OnExecutionStart' ||
+          (event === 'process:trigger:WhenFieldChanges'
+            ? FieldChangedCheck(native, execution, item.triggerParams, { card: eventCard, operations })
+            : MatchCardCheck(native, execution, item.triggerParams, { card: eventCard })))
+    )
     let immediateSteps = 0
     while (transition !== undefined) {
       if (++immediateSteps > 100 || ++totalSteps > 1000) throw new Error('Reactive execution did not settle')
@@ -121,10 +127,12 @@ function runtime (p = 1, s = 1) {
         }
       }
       execution.currentState = transition.to
-      transition = transitions.find((item) =>
-        item.process === processId && item.from === execution.currentState &&
-        item.trigger === 'process:trigger:OnCardUpdate' &&
-        MatchCardCheck(native, execution, item.triggerParams, { card })
+      transition = transitions.find(
+        (item) =>
+          item.process === processId &&
+          item.from === execution.currentState &&
+          item.trigger === 'process:trigger:OnCardUpdate' &&
+          MatchCardCheck(native, execution, item.triggerParams, { card })
       )
     }
     maxImmediateSteps = Math.max(maxImmediateSteps, immediateSteps)
@@ -161,7 +169,12 @@ function runtime (p = 1, s = 1) {
   }
 
   return {
-    card, executions, writes, start, edit, drain,
+    card,
+    executions,
+    writes,
+    start,
+    edit,
+    drain,
     stats: () => ({ pending: events.length, totalSteps, maxImmediateSteps })
   }
 }
@@ -172,11 +185,22 @@ describe('default Risk management example through native operations', () => {
     const numeric = attributes.filter((attr) => attr.type._class === core.class.TypeNumber)
     expect(numeric).toHaveLength(3)
     for (const attr of numeric) expect(attr).toMatchObject({ hidden: true, readonly: true, automationOnly: true })
-    expect(attributes.filter((attr) => !attr.hidden).map((attr) => attr.name)).toEqual(['probability', 'severity', 'risk_level'])
-    expect(transitions.flatMap((item) => item.actions).every((action) => action.methodId === 'process:method:UpdateCard')).toBe(true)
-    const observed = Object.fromEntries(definitions.map((definition) => [definition._id, transitions
-      .filter((item) => item.process === definition._id && item.trigger === 'process:trigger:WhenFieldChanges')
-      .flatMap((item) => Object.keys(item.triggerParams))]))
+    expect(attributes.filter((attr) => !attr.hidden).map((attr) => attr.name)).toEqual([
+      'probability',
+      'severity',
+      'risk_level'
+    ])
+    expect(
+      transitions.flatMap((item) => item.actions).every((action) => action.methodId === 'process:method:UpdateCard')
+    ).toBe(true)
+    const observed = Object.fromEntries(
+      definitions.map((definition) => [
+        definition._id,
+        transitions
+          .filter((item) => item.process === definition._id && item.trigger === 'process:trigger:WhenFieldChanges')
+          .flatMap((item) => Object.keys(item.triggerParams))
+      ])
+    )
     expect(observed).toEqual({
       normalize_risk: ['probability', 'severity'],
       sum_risk: ['probability_number', 'severity_number'],
@@ -186,41 +210,52 @@ describe('default Risk management example through native operations', () => {
   })
 
   describe.each(['fifo', 'lifo'])('%s update delivery', (policy) => {
-    test.each(pairs)('matches the decision table for P=%i, S=%i -> %s in all six start orders', async (p, s, expected) => {
-      for (const order of startOrders) {
-        const state = runtime(p, s)
-        await state.start(order, policy)
-        expect(state.card).toMatchObject({ probability_number: p, severity_number: s, risk_sum: p + s, risk_level: expected })
-        expect(state.stats().pending).toBe(0)
-        expect(state.stats().maxImmediateSteps).toBeLessThanOrEqual(2)
-        expect(state.stats().totalSteps).toBeLessThan(50)
-        for (const execution of state.executions.values()) expect(execution.currentState).toMatch(/_wait$/)
-      }
-    })
-
-    test.each(startOrders.map((order) => [order]))('recomputes each input independently with start order %p', async (order) => {
-      const state = runtime()
-      await state.start(order, policy)
-      for (let s = 1; s <= 5; s++) {
-        await state.edit({ severity: severityChoices[s - 1] }, policy)
-        for (let p = 1; p <= 5; p++) {
-          await state.edit({ probability: probabilityChoices[p - 1] }, policy)
-          expect(state.card.risk_sum).toBe(p + s)
-          expect(state.card.risk_level).toBe(matrix[p - 1][s - 1])
+    test.each(pairs)(
+      'matches the decision table for P=%i, S=%i -> %s in all six start orders',
+      async (p, s, expected) => {
+        for (const order of startOrders) {
+          const state = runtime(p, s)
+          await state.start(order, policy)
+          expect(state.card).toMatchObject({
+            probability_number: p,
+            severity_number: s,
+            risk_sum: p + s,
+            risk_level: expected
+          })
+          expect(state.stats().pending).toBe(0)
+          expect(state.stats().maxImmediateSteps).toBeLessThanOrEqual(2)
+          expect(state.stats().totalSteps).toBeLessThan(50)
+          for (const execution of state.executions.values()) expect(execution.currentState).toMatch(/_wait$/)
         }
       }
-      for (let p = 1; p <= 5; p++) {
-        await state.edit({ probability: probabilityChoices[p - 1] }, policy)
+    )
+
+    test.each(startOrders.map((order) => [order]))(
+      'recomputes each input independently with start order %p',
+      async (order) => {
+        const state = runtime()
+        await state.start(order, policy)
         for (let s = 1; s <= 5; s++) {
           await state.edit({ severity: severityChoices[s - 1] }, policy)
-          expect(state.card.risk_level).toBe(matrix[p - 1][s - 1])
+          for (let p = 1; p <= 5; p++) {
+            await state.edit({ probability: probabilityChoices[p - 1] }, policy)
+            expect(state.card.risk_sum).toBe(p + s)
+            expect(state.card.risk_level).toBe(matrix[p - 1][s - 1])
+          }
         }
+        for (let p = 1; p <= 5; p++) {
+          await state.edit({ probability: probabilityChoices[p - 1] }, policy)
+          for (let s = 1; s <= 5; s++) {
+            await state.edit({ severity: severityChoices[s - 1] }, policy)
+            expect(state.card.risk_level).toBe(matrix[p - 1][s - 1])
+          }
+        }
+        const steps = state.stats().totalSteps
+        await state.edit({ risk_level: state.card.risk_level }, policy)
+        expect(state.stats().totalSteps).toBe(steps)
+        expect(await state.drain(policy)).toBe(0)
       }
-      const steps = state.stats().totalSteps
-      await state.edit({ risk_level: state.card.risk_level }, policy)
-      expect(state.stats().totalSteps).toBe(steps)
-      expect(await state.drain(policy)).toBe(0)
-    })
+    )
 
     test('preserves 1/5 <-> 5/1 asymmetry when the aggregate does not change', async () => {
       const state = runtime(1, 5)
@@ -260,7 +295,13 @@ describe('default Risk management example through native operations', () => {
   })
 
   test.each([
-    [undefined, false], [null, true], ['', true], [0, true], [false, true], [[], true], ['not an enum choice', true]
+    [undefined, false],
+    [null, true],
+    ['', true],
+    [0, true],
+    [false, true],
+    [[], true],
+    ['not an enum choice', true]
   ])('Value is set tests presence of %p, not validity', (value, expected) => {
     const definition = definitions[0]
     const card = { _id: 'card', _class: definition.masterTag, probability: value }

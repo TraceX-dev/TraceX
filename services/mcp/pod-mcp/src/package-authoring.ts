@@ -222,8 +222,9 @@ export async function createPackageVersionDraft (
         'Configure MARKETPLACE_URL to edit a catalog release'
       )
     }
-    if (accountToken === undefined)
-      {throw new PackageAuthoringError('account_token_required', 'Catalog access requires the authenticated account')}
+    if (accountToken === undefined) {
+      throw new PackageAuthoringError('account_token_required', 'Catalog access requires the authenticated account')
+    }
     const identity: CatalogPackageIdentity = { id: args.base.id, author }
     const { release, latestVersion } = await readCatalogPackageRelease(
       new MarketplaceClient(marketplaceUrl, accountToken),

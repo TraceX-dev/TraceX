@@ -355,7 +355,9 @@ describe('MCP package version drafts', () => {
   beforeEach(() => {
     fetchMock = jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Unexpected catalog access'))
   })
-  afterEach(() => { fetchMock.mockRestore(); })
+  afterEach(() => {
+    fetchMock.mockRestore()
+  })
 
   async function baseDraft (ws: ReturnType<typeof fixture>): Promise<{
     current: DefinitionPackageDraft
