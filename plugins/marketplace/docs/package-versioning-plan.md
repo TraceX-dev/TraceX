@@ -45,7 +45,7 @@ A process-only package may contain one or more standalone processes under one pa
 - Bindings remain scoped to their process. Matching slot names alone do not establish a shared requirement; reuse a binding only when the destination and required contracts are compatible and the mapping is explicit.
 - Resolve references between bundled processes to the corresponding local processes of the same installation. External dependencies remain explicit required bindings. Allocate the internal identity mapping for the complete set before resolving cross-process references.
 - Bundling groups installation and release management. Execution and subprocess calls retain their existing explicit engine behavior; membership does not make processes execute together.
-- Updates compare each process graph as a whole, preserve local-only edits and expose conflicts per process. The package version advances only after the complete reviewed update succeeds. Removing a process is reported as a destructive change and follows the existing removal policy.
+- Updates group review by process, preserve local-only edits and merge independent properties automatically. Only divergent edits to the same value or delete/modify collisions require a choice; ordered action arrays remain atomic. The package version advances only after the complete reviewed update succeeds. Removing a process is reported as a destructive change and follows the existing removal policy.
 - Installing the bundle again creates a separate installation with independent local identities and bindings.
 
 ## Current implementation
@@ -54,10 +54,11 @@ Available:
 
 - Plain `.package.yaml` files: `version: 2`, `kind`, package metadata, `contentHash`, and the actual `cardTypes`/`processes` definition sections. YAML is never embedded as a quoted string inside JSON.
 - Release parsing, hash verification, SemVer checks and read-only comparison.
-- Component and whole-process graph comparison, including ordered branches/actions and local customization conflicts.
+- Three-way property comparison grouped by component/process, including ordered branches/actions and explicit overlapping-edit conflicts.
 - `Make package` and `Create new package version` actions in both card-module and standalone-process export menus.
 - One shared export dialog that records package ID, version, author, description and composition on the definitions and downloads a package YAML file.
 - Installation of complete card modules or process bundles, independent repeated installations, saved baselines and bindings, reviewed updates and disconnection through workspace settings.
+- Private package drafts prepared through an external AI client and the existing MCP service. The service validates definitions against installed operations, assigns release metadata and stores only the draft in the author's private person space. Draft revisions use optimistic checks and retain package identity. **Package drafts** in workspace settings provides explanation, compiled field/transition previews, file export and the existing installation/publication dialogs. Installation controls retain their maintainer restriction; catalog publication retains ownership checks. MCP authoring requires an explicit account allowlist and never invokes an LLM. See [MCP package authoring](../../../services/mcp/pod-mcp/README.md#package-authoring).
 
 Export updates only package metadata on its recorded owners (`definitionPackage: {id, version, author, description, members?}`); it does not rewrite card schemas or process graphs. Membership is workspace-local and omitted from the release manifest. Ordinary JSON/YAML imports keep their existing behavior; package files use the separate installation flow. Exporting a release never applies an update to an installation.
 
@@ -74,14 +75,14 @@ The export dialog assigns `1.0.0` initially and advances the patch number for ea
 | Change | Review and application policy |
 | --- | --- |
 | Supported label, description or icon | Nondestructive candidate; preserve local edits |
-| Supported optional field without defaults or constraints | Nondestructive addition candidate; check destination bindings |
+| New supported field, including required and hidden automation fields | Add without a conflict choice; existing card values are not rewritten. Check destination bindings |
 | Independent supported type or enum | Addition candidate; check references and local conflicts |
 | Process graph, threshold, action order or recipients | Behavioral change; show the diff and require manual review |
 | Defaults, permissions or write restrictions | Manual review of behavior and access |
 | Field type, stored name, owner or Ref target | Destructive; require an implemented migration |
-| Required field, tighter constraints or relationship cardinality | Destructive; check existing data and require a migration |
+| Making an existing field required, tighter constraints or relationship cardinality | Destructive; check existing data and require a migration |
 | Removal of a component or enum value | Destructive; check existing data and references |
-| Unknown native properties or unsupported contracts | Unverified; establish support before application |
+| Unknown native properties | Advisory classification; validate the complete target against native contracts. Unchanged native properties do not block an update |
 
 Process changes use the existing in-place update behavior. Preview must explain that current executions can observe the edited graph. There is no promise of preserving the old graph and no check that all executions have finished.
 
@@ -94,9 +95,9 @@ The offline analyzer compares previous release B, local YAML L and incoming rele
 - N equals B: preserve L.
 - L equals B: use N after destination checks.
 - L equals N: accept the converged change.
-- Both changed differently: show a conflict and require resolution before update.
+- Both changed different properties: merge automatically. Both changed the same value differently, or one deleted what the other modified: show the conflicting properties and require a choice. Apply the choice only to those properties, retaining independent edits from both sides.
 
-Treat a process graph, context and bindings as one comparison unit. Preserve branch/action order and ignore only documented audit metadata and regenerated ranks. Do not merge action arrays by position. Local deletion is a local edit, not permission for implicit data deletion.
+Group a process graph, context and bindings for review, merging independent values and validating the complete target. Preserve branch/action order and ignore documented audit metadata, regenerated ranks and default-false attribute flags. Do not merge action arrays by position. Local deletion is a local edit, not permission for implicit data deletion.
 
 ## Available APIs and commands
 
@@ -131,13 +132,13 @@ One `DefinitionPackageInstallation` document in the Marketplace domain records t
 - A typed process slot whose saved binding refers to another member is resolved inside the same installation. Keep its owner/type contract and validate it against that member's selected destination; equal slot names never imply shared bindings. Other slots require explicit destination bindings.
 - Allocate mappings for all documents and graph-owned identities before binding members. Repeated installation creates an independent record and object set. When a package is already installed, the import dialog offers its existing installations for update or an explicit additional instance.
 - The installation record and definitions are written in one conditional workspace batch using ordinary platform CRUD. Package creation and installation use no dedicated server preparation API or jobs.
-- An update compares the saved baseline, actual local definitions and incoming release after binding to stable local identities. Each process graph remains one merge unit. Preserve local-only edits; divergent changes require an explicit local/upstream choice. Destructive and unknown changes remain blocked. Check the actual local-to-target transition as well: choosing a cosmetic upstream edit must not revert a locally changed field type without a migration. The incoming author, package identity and definition kind must match the baseline.
+- An update compares the saved baseline, actual local definitions and incoming release after binding to stable local identities. Process changes remain grouped for review. Merge independent properties automatically, including workspace-only metadata and new fields. Divergent edits to the same value and delete/modify collisions require an explicit choice; ordered arrays and incompatible typed values are atomic. A conflict choice retains independent edits from both sides. Only applied destructive changes to existing definitions remain blocked until a data migration is available; unknown native-property classification alone is advisory and the complete target must pass native validation. Keeping local or already-converged definitions requires no migration. Check the actual local-to-target transition: choosing a cosmetic upstream edit must not revert a locally changed field type without a migration. The incoming author, package identity and definition kind must match the baseline.
 - Update preview is invalidated when destinations or bindings change. Applying rechecks the local snapshot and adds existing transaction conditions for the installation, read documents, newly created identities and unexpected graph/field additions. Advance the stored release only with the complete update.
 - Typed internal process dependencies must still exist after conflict resolution. Local edits are preserved by default; the review can explicitly restore a package version of a locally deleted member.
 - Local YAML process edits preserve both package membership and the installation reference. Releasing a new version from installed author-owned definitions retains logical package identities. External workspace bindings are omitted from process package payloads; internal process bindings stay explicit.
 - Disconnect removes the record and matching ownership links while retaining definitions, cards and runtime process data.
 
-The installer accepts model-space definitions and identifier sequences (`core.class.Sequence` / `core.class.CustomSequence`) in `core.space.Workspace` inside card modules. New installations allocate independent counter identities and start them at zero. The writer preserves each validated document space. Update review loads existing counters outside ModelDb, ignores issued-number progress in definition diffs and retains their current values; unrelated package updates never reset numbering. Counter definition changes remain subject to the existing unknown/destructive-change checks. Process bundles support process graphs and enum dependencies; other model definitions belong in a card module. These limits are checked explicitly before any write. Unmanaged local objects whose native identities collide with new package components require explicit ownership reconciliation; the first version blocks adoption rather than creating parallel schema definitions. Review details render normalized native components as read-only YAML diffs; release files retain the named-block authoring DSL.
+The installer accepts model-space definitions and identifier sequences (`core.class.Sequence` / `core.class.CustomSequence`) in `core.space.Workspace` inside card modules. New installations allocate independent counter identities and start them at zero. The writer preserves each validated document space. Update review loads existing counters outside ModelDb, ignores issued-number progress in definition diffs and retains their current values; unrelated package updates never reset numbering. Counter definition changes remain subject to the existing unknown/destructive-change checks. Process bundles support process graphs and enum dependencies; other model definitions belong in a card module. These limits are checked explicitly before any write. Unmanaged local objects whose native identities collide with new package components require explicit ownership reconciliation; the first version blocks adoption rather than creating parallel schema definitions. Review details show actual local-to-target changes; resolution controls show only explicit conflicting properties. The Update button follows the resulting preview, not advisory impact classifications. Preserved local-only definitions do not appear as changes or prompt for a choice. New definitions show their properties once; actual property additions and removals are labeled explicitly instead of displaying missing-value placeholders. Blocking migrations are identified on the affected applied changes. Release files retain the named-block authoring DSL.
 
 ## Standalone catalog pod
 
@@ -226,13 +227,13 @@ Manual scenarios:
 - Save YAML edits and confirm package ownership and version remain unchanged.
 - Change or clear the description and confirm it is saved both on the definition and in the downloaded manifest.
 - Export and verify a package on an ordinary HTTP origin with no `crypto.subtle`. Confirm it uses the same SHA-256 format as older releases.
-- Compare label changes, optional-field additions, required/type changes and component removal: verify classifications.
+- Compare label changes, new optional/required/hidden fields, requiredness/type changes on existing fields and component removal: verify classifications and that supported additions require no conflict choices.
 - Compare a process threshold or branch-order change: manual behavioral review is required, with no execution-revision prerequisite.
 - Compare conflicting and converged local edits: verify conflict handling and preserve local-only changes.
 - Confirm export changes only package metadata and ordinary JSON/YAML export still works.
 - Create a package with two processes, including a call between them; reload and create the next version from either member. Confirm the saved set is selected and internal calls remain inside the package.
 - Install that package twice with independent bindings; verify distinct local identities and installation records. Check that incompatible destinations for an internal process slot are rejected.
-- Make a local edit on one member and publish a change to another; update and confirm the local edit survives. Exercise divergent edits and both conflict choices.
+- Make a local edit on one member and publish a change to another; update and confirm the local edit survives. Exercise independent edits, divergent edits to the same property, and both conflict choices. Verify Update is enabled after either valid choice and that newly added fields never produce a resolution question.
 - Try a field type change or component removal; confirm the update remains blocked. Change definitions after preview and confirm apply requires a fresh review.
 - Install a card module, update a label or add an optional field, and confirm existing schema identities and card data remain intact. Disconnect and confirm the definitions remain editable.
 

@@ -45,6 +45,15 @@ export interface DefinitionPackageInstallation extends Doc {
   destinations: Record<string, DefinitionPackageDestination>
 }
 
+/** Private authoring artifact; saving a draft never installs its definitions. */
+export interface DefinitionPackageDraft extends Doc {
+  name: string
+  author: AccountUuid
+  review: string
+  release: string
+  revision: number
+}
+
 /** Reads Marketplace metadata without extending the owning feature's public document type. */
 export function getDefinitionPackageInfo (definition: Doc): DefinitionPackageInfo | undefined {
   return (definition as DefinitionPackageOwner).definitionPackage

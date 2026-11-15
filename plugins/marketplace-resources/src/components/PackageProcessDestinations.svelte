@@ -34,8 +34,7 @@
     dispatch('change', destinations)
   }
 
-  function destinationLabel (id: string): IntlString {
-    const target = destinations[id]
+  function destinationLabel (target: DefinitionPackageDestination | undefined): IntlString {
     return target === undefined
       ? presentation.string.NotSelected
       : (client.getModel().findObject<MasterTag>(target.masterTag)?.label ?? presentation.string.NotSelected)
@@ -47,7 +46,13 @@
     showPopup(
       SelectPopup,
       {
-        value: types.filter((type) => !type.hidden).map((type) => ({ id: type._id, label: type.label })),
+        value: types
+          .filter((type) => type.hidden !== true)
+          .map((type) => ({
+            id: type._id,
+            label: type.label,
+            isSelected: type._id === destinations[member._id]?.masterTag
+          })),
         searchable: true
       },
       eventToHTMLElement(event),
@@ -82,7 +87,7 @@
     <span class="font-medium">{member.name}</span>
     <Button
       kind="secondary"
-      label={destinationLabel(member._id)}
+      label={destinationLabel(destinations[member._id])}
       disabled={busy}
       on:click={(event) => selectDestination(member, event)}
     />

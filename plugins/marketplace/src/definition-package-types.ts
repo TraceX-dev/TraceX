@@ -33,9 +33,10 @@ export interface DefinitionPackageChange {
   readonly key: string
   readonly class: string
   readonly operation: 'added' | 'removed' | 'modified'
-  readonly resolution: 'upstream' | 'local' | 'converged' | 'conflict'
+  readonly resolution: 'upstream' | 'local' | 'converged' | 'merged' | 'conflict'
   readonly impact: 'cosmetic' | 'additive' | 'behavioral' | 'destructive' | 'unknown'
   readonly paths: readonly string[]
+  readonly conflictPaths?: readonly string[]
   readonly reason: string
 }
 
