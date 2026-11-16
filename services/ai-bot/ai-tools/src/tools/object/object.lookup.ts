@@ -1,6 +1,5 @@
 //
 // Copyright © 2026 TraceX.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,6 +23,7 @@ import core, {
   type SortingQuery
 } from '@hcengineering/core'
 import { Type, type Static } from 'typebox'
+import { CollaborativeFieldsSchema, getCollaborativeFields } from '../shared/collaborative-document'
 
 import {
   buildClassSummary,
@@ -97,6 +97,7 @@ export const ObjectLookupOutputSchema = Type.Object(
     results: Type.Array(
       Type.Object(
         {
+          collaborativeFields: CollaborativeFieldsSchema,
           id: Type.String({
             description: 'Stable object identifier.'
           }),
@@ -127,9 +128,15 @@ type ObjectSortEntry = Static<typeof ObjectQuerySortSchema>
 
 export const objectLookupTool = createTool({
   name: objectLookupToolId,
+  title: 'Find objects by class',
   description: 'List workspace objects by class or mixin, optionally filtering and sorting by object fields.',
   inputSchema: ObjectLookupInputSchema,
   outputSchema: ObjectLookupOutputSchema,
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true
+  },
   execute: async (args: ObjectLookupInput, toolCtx: PlatformContext) => {
     const { hierarchy } = toolCtx
 
@@ -154,6 +161,7 @@ export const objectLookupTool = createTool({
           return {
             id: doc._id,
             title: await getDocumentTitle(toolCtx, doc),
+            collaborativeFields: await getCollaborativeFields(toolCtx, doc),
             class: classSummary,
             space: buildSpaceSummary(doc.space, space)
           }

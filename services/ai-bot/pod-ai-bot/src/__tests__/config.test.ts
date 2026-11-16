@@ -117,3 +117,46 @@ describe('ai-bot configuration secrets', () => {
     expect(loadConfig).toThrow('AI provider primary has an invalid apiKey environment reference')
   })
 })
+
+describe('LLM tool output schemas', () => {
+  function configureOutputSchema (outputSchema: unknown): void {
+    const tool: Record<string, unknown> = {
+      name: 'ask_specialist',
+      description: 'Ask specialist',
+      outputSchema
+    }
+    const toolConfig: Record<string, unknown> = {
+      ...yamlConfig,
+      llm: [{ ...yamlConfig.llm[0], tools: [tool] }]
+    }
+    process.env.CONFIG_YAML = Buffer.from(JSON.stringify(toolConfig)).toString('base64')
+  }
+
+  const unsupportedSchemas: Array<Record<string, unknown>> = [
+    { anyOf: [{ type: 'string' }, { type: 'object', properties: {} }] },
+    { oneOf: [{ type: 'string' }, { type: 'object', properties: {} }] },
+    { type: 'number' },
+    { type: 'array', items: { type: 'string' } }
+  ]
+
+  it.each(unsupportedSchemas)('rejects an unsupported root schema: %j', (outputSchema) => {
+    configureOutputSchema(outputSchema)
+
+    expect(loadConfig).toThrow('outputSchema must have root type "object" or "string"')
+  })
+
+  const supportedSchemas: Array<Record<string, unknown> | undefined> = [
+    undefined,
+    { type: 'string' },
+    {
+      type: 'object',
+      properties: { value: { anyOf: [{ type: 'string' }, { type: 'number' }] } }
+    }
+  ]
+
+  it.each(supportedSchemas)('accepts a supported root schema: %j', (outputSchema) => {
+    configureOutputSchema(outputSchema)
+
+    expect(loadConfig().Llm[0].tools?.[0].outputSchema).toEqual(outputSchema)
+  })
+})

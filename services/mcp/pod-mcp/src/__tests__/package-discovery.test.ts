@@ -12,6 +12,7 @@
 
 import card from '@hcengineering/card'
 import core, {
+  NoMetricsContext,
   SortingOrder,
   type AccountUuid,
   type ModelDb,
@@ -107,7 +108,14 @@ function fixture (
   }
   const register = jest.fn()
   const server: Partial<McpServer> = { registerTool: register }
-  registerPackageAuthoringTools(server as McpServer, auth, manager as WorkspaceManager, async () => allowed, url)
+  registerPackageAuthoringTools(
+    server as McpServer,
+    auth,
+    manager as WorkspaceManager,
+    async () => allowed,
+    new NoMetricsContext(),
+    url
+  )
   return {
     getConnection,
     findAll,
@@ -158,7 +166,7 @@ afterEach(() => {
 })
 
 describe('Marketplace discovery over MCP', () => {
-  it.each(['package.search', 'package.releases', 'package.inspect', 'package.installed', 'package.inspect_installed'])(
+  it.each(['package_search', 'package_releases', 'package_inspect', 'package_installed', 'package_inspect_installed'])(
     'checks authoring access before %s can access any service',
     async (name) => {
       const ws = fixture('https://catalog.test', false)
@@ -173,7 +181,7 @@ describe('Marketplace discovery over MCP', () => {
   it('checks the OAuth workspace restriction before reading the installation-wide catalog', async () => {
     const ws = fixture()
     ws.getConnection.mockRejectedValue(new Error('Workspace not authorized'))
-    expect((await ws.call('package.search', { workspace: 'other-workspace' })).isError).toBe(true)
+    expect((await ws.call('package_search', { workspace: 'other-workspace' })).isError).toBe(true)
     expect(ws.getConnection).toHaveBeenCalledWith('private-account-token', 'other-workspace', 'workspace')
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -181,7 +189,7 @@ describe('Marketplace discovery over MCP', () => {
   it('searches with the human account token and preserves catalog pagination without writes', async () => {
     const ws = fixture()
     fetchMock.mockResolvedValue(Response.json({ items: [entry], nextOffset: 10 }))
-    const result = await ws.call('package.search', { search: 'review', mine: true, limit: 10 })
+    const result = await ws.call('package_search', { search: 'review', mine: true, limit: 10 })
     expect(result.structuredContent).toMatchObject({ items: [entry], nextOffset: 10 })
     const [url, request] = fetchMock.mock.calls[0]
     expect(String(url)).toBe('https://catalog.test/api/packages?search=review&mine=true&limit=10')
@@ -193,7 +201,7 @@ describe('Marketplace discovery over MCP', () => {
   it('lists releases using both the original author and package identity', async () => {
     const ws = fixture()
     fetchMock.mockResolvedValue(Response.json({ items: [], nextOffset: 30 }))
-    expect((await ws.call('package.releases', { id: entry.id, author, offset: 0 })).structuredContent).toMatchObject({
+    expect((await ws.call('package_releases', { id: entry.id, author, offset: 0 })).structuredContent).toMatchObject({
       nextOffset: 30
     })
     expect(String(fetchMock.mock.calls[0][0])).toContain('/releases?id=acme%2Freview&author=catalog-author&offset=0')
@@ -205,7 +213,7 @@ describe('Marketplace discovery over MCP', () => {
       const ws = fixture()
       const selected = version ?? entry.version
       fetchMock.mockResolvedValueOnce(Response.json(entry)).mockResolvedValueOnce(new Response(await release(selected)))
-      const result = await ws.call('package.inspect', {
+      const result = await ws.call('package_inspect', {
         id: entry.id,
         author,
         ...(version === undefined ? {} : { version })
@@ -233,7 +241,7 @@ describe('Marketplace discovery over MCP', () => {
     fetchMock
       .mockResolvedValueOnce(Response.json(entry))
       .mockResolvedValueOnce(new Response(await release('1.0.0', 'different-author' as AccountUuid)))
-    expect(JSON.stringify(await ws.call('package.inspect', { id: entry.id, author }))).toContain(
+    expect(JSON.stringify(await ws.call('package_inspect', { id: entry.id, author }))).toContain(
       'package_identity_mismatch'
     )
   })
@@ -243,13 +251,13 @@ describe('Marketplace discovery over MCP', () => {
     fetchMock
       .mockResolvedValueOnce(Response.json(entry))
       .mockResolvedValueOnce(new Response((await release()).replace('label: Review', 'label: Tampered')))
-    expect(JSON.stringify(await ws.call('package.inspect', { id: entry.id, author }))).toContain('invalid_definition')
+    expect(JSON.stringify(await ws.call('package_inspect', { id: entry.id, author }))).toContain('invalid_definition')
   })
 
   it('does not expose existence or server details for private or missing packages', async () => {
     const ws = fixture()
     fetchMock.mockResolvedValue(Response.json({ message: 'Sensitive private package name' }, { status: 404 }))
-    const result = await ws.call('package.inspect', { id: entry.id, author })
+    const result = await ws.call('package_inspect', { id: entry.id, author })
     expect(JSON.stringify(result)).toContain('marketplace_package_not_found')
     expect(JSON.stringify(result)).not.toContain('Sensitive private package name')
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -257,8 +265,8 @@ describe('Marketplace discovery over MCP', () => {
 
   it('reports missing catalog configuration while keeping installed discovery available', async () => {
     const ws = fixture('')
-    expect(JSON.stringify(await ws.call('package.search'))).toContain('marketplace_not_configured')
-    expect((await ws.call('package.installed')).structuredContent).toMatchObject({ items: [] })
+    expect(JSON.stringify(await ws.call('package_search'))).toContain('marketplace_not_configured')
+    expect((await ws.call('package_installed')).structuredContent).toMatchObject({ items: [] })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
@@ -272,7 +280,7 @@ describe('installed package reuse', () => {
       _id: 'installation-b' as Ref<DefinitionPackageInstallation>
     }
     ws.findAll.mockResolvedValue([first, second])
-    expect((await ws.call('package.installed', { id: entry.id, author, limit: 1 })).structuredContent).toMatchObject({
+    expect((await ws.call('package_installed', { id: entry.id, author, limit: 1 })).structuredContent).toMatchObject({
       items: [{ installationId: first._id, package: first.package }],
       nextCursor: first._id
     })
@@ -281,7 +289,7 @@ describe('installed package reuse', () => {
       { 'package.id': entry.id, 'package.author': author },
       { sort: { _id: SortingOrder.Ascending }, limit: 2, projection: { _id: 1, name: 1, package: 1 } }
     )
-    await ws.call('package.installed', { after: first._id, limit: 1 })
+    await ws.call('package_installed', { after: first._id, limit: 1 })
     expect(ws.findAll).toHaveBeenLastCalledWith(
       marketplace.class.DefinitionPackageInstallation,
       { _id: { $gt: first._id } },
@@ -316,7 +324,7 @@ describe('installed package reuse', () => {
         rank: 'a'
       }
     )
-    const result = await ws.call('package.inspect_installed', { installationId: installed._id })
+    const result = await ws.call('package_inspect_installed', { installationId: installed._id })
     expect(result.structuredContent).toMatchObject({
       processes: [
         {
@@ -340,7 +348,7 @@ describe('installed package reuse', () => {
     ws.findOne.mockResolvedValue(installed)
     ws.modelDocuments.push({ _id: 'local-review', _class: process.class.Process, masterTag: 'card-type' })
     expect(
-      (await ws.call('package.inspect_installed', { installationId: installed._id })).structuredContent
+      (await ws.call('package_inspect_installed', { installationId: installed._id })).structuredContent
     ).toMatchObject({
       processes: [{ member: 'review', processId: 'local-review', available: false }]
     })
@@ -378,7 +386,7 @@ processes:
       { _id: 'local-review', _class: process.class.Process, masterTag: 'local-purchase' }
     )
     expect(
-      (await ws.call('package.inspect_installed', { installationId: installed._id })).structuredContent
+      (await ws.call('package_inspect_installed', { installationId: installed._id })).structuredContent
     ).toMatchObject({
       processes: [{ member: 'review', processId: 'local-review', available: true, savedDestination: null }]
     })
@@ -389,7 +397,7 @@ processes:
     const installed = await installation()
     installed.package = { ...installed.package, version: '2.0.0' }
     ws.findOne.mockResolvedValue(installed)
-    expect(JSON.stringify(await ws.call('package.inspect_installed', { installationId: installed._id }))).toContain(
+    expect(JSON.stringify(await ws.call('package_inspect_installed', { installationId: installed._id }))).toContain(
       'package_identity_mismatch'
     )
   })
@@ -397,7 +405,7 @@ processes:
   it('does not reveal another workspace installation when it cannot be read', async () => {
     const ws = fixture()
     expect(
-      JSON.stringify(await ws.call('package.inspect_installed', { installationId: 'hidden-installation' }))
+      JSON.stringify(await ws.call('package_inspect_installed', { installationId: 'hidden-installation' }))
     ).toContain('package_installation_not_found')
     expect(ws.findOne).toHaveBeenCalledWith(marketplace.class.DefinitionPackageInstallation, {
       _id: 'hidden-installation'

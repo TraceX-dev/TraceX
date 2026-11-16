@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -128,7 +129,9 @@ export class StorageExtension implements Extension {
       return
     }
 
-    await this.storeDocument(documentName, document, context)
+    // A direct reader can flush pending edits; persist them with the actual last writer's context.
+    const writerContext = this.updates.get(documentName)?.context ?? context
+    await this.storeDocument(documentName, document, writerContext)
   }
 
   async onConnect ({ context, documentName, instance }: withContext<onConnectPayload>): Promise<any> {

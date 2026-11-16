@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-export const meAccountToolId = 'my.account'
-export const meInboxToolId = 'my.inbox'
-export const meInboxReadAllToolId = 'my.inbox_read_all'
-export const meWorkspaceToolId = 'my.workspace'
+export const meAccountToolId = 'my_account'
+export const meInboxToolId = 'my_inbox'
+export const meInboxReadAllToolId = 'my_inbox_read_all'
+export const meWorkspaceToolId = 'my_workspace'

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,6 +24,15 @@ export const InlineCommentMark = Mark.create({
 
   inclusive: false,
 
+  addSchemaAwareness () {
+    return {
+      label: 'Inline comment anchor',
+      description:
+        'Anchor of an existing comment thread. Preserve its thread ID and overlapping anchors; do not invent, reassign or remove comment identities as ordinary formatting.',
+      attributes: { thread: { access: 'readonly', description: 'Existing comment thread ID.' } }
+    }
+  },
+
   parseHTML () {
     return [
       {
@@ -40,6 +50,7 @@ export const InlineCommentMark = Mark.create({
     return {
       thread: {
         default: undefined,
+        validate: 'string|undefined',
         parseHTML: (element) => {
           return element.getAttribute(name)
         },

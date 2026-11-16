@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -41,6 +42,15 @@ export const tildeInputRegex = /^~~~$/
 
 export const CodeBlockExtension = CodeBlock.extend({
   marks: 'inline-comment',
+
+  addSchemaAwareness () {
+    return {
+      label: 'Code snippet',
+      description:
+        'Code block with preserved whitespace and an optional language. Existing inline-comment anchors may occur in the code and must be preserved.',
+      attributes: { language: { description: 'Code language identifier.' } }
+    }
+  },
 
   addAttributes () {
     return {

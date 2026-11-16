@@ -12,6 +12,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { packageAuthoringGuideToolId } from './tools/package/tool-ids'
 
 const EXAMPLES = [
   'risk-management-reactive.card.yaml',
@@ -48,7 +49,7 @@ export async function readPackageAuthoringGuide (section = 'Start here'): Promis
   }
   const index = headings.findIndex((heading) => heading[2] === section)
   if (index === -1) {
-    throw new Error('Unknown guide section; call package.authoring_guide without a section to list sections')
+    throw new Error(`Unknown guide section; call ${packageAuthoringGuideToolId} without a section to list sections`)
   }
   const heading = headings[index]
   const next = headings.slice(index + 1).find((item) => item[1].length <= heading[1].length)

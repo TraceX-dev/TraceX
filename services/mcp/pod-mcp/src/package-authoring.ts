@@ -11,7 +11,7 @@
 // limitations under the License.
 
 import contact from '@hcengineering/contact'
-import { generateId, type AccountUuid, type Data, type Ref } from '@hcengineering/core'
+import { generateId, type AccountUuid, type Data, type MeasureContext, type Ref } from '@hcengineering/core'
 import marketplace, {
   createDefinitionPackageMetadata,
   createDefinitionPackageRelease,
@@ -33,13 +33,28 @@ import {
   validateAuthoringModelOperations,
   type ProcessAuthoringResult
 } from '@hcengineering/process'
-import { fromJsonSchema, type CallToolResult, type McpServer } from '@modelcontextprotocol/server'
+import { fromJsonSchema, type McpServer } from '@modelcontextprotocol/server'
 import type { TraceXAuthInfo } from './auth'
 import { jsonStructuredText, jsonText } from './mcp'
 import { readPackageAuthoringGuide } from './package-authoring-guide'
 import type { PackageAuthorizer } from './package-authoring-access'
 import type { WorkspaceConnection, WorkspaceManager } from './workspace'
-import { PackageDiscoveryError, readCatalogPackageRelease, registerPackageDiscoveryTools } from './package-discovery'
+import {
+  PackageDiscoveryError,
+  readCatalogPackageRelease,
+  registerPackageDiscoveryTools,
+  type PackageToolExecutor
+} from './package-discovery'
+import {
+  packageAuthoringGuideToolId,
+  packageContractsToolId,
+  packageCreateVersionDraftToolId,
+  packageGetDraftToolId,
+  packageInspectToolId,
+  packageSaveDraftToolId,
+  packageValidateToolId
+} from './tools/package/tool-ids'
+import { meWorkspacesToolId } from './tools/me/tool-ids'
 
 interface DraftInput {
   workspace: string
@@ -109,7 +124,7 @@ export async function savePackageDraft (
   if (current !== undefined && args.expectedRevision !== current.revision) {
     throw new PackageAuthoringError(
       'draft_conflict',
-      'The draft changed; reload it with package.get_draft before editing'
+      `The draft changed; reload it with ${packageGetDraftToolId} before editing`
     )
   }
   if (base !== undefined && current !== undefined) {
@@ -206,7 +221,10 @@ export async function createPackageVersionDraft (
   if ('draftId' in args.base) {
     const draft = await loadDraft(connection, author, args.base.draftId)
     if (draft.revision !== args.base.expectedRevision) {
-      throw new PackageAuthoringError('draft_conflict', 'The base draft changed; reload it with package.get_draft')
+      throw new PackageAuthoringError(
+        'draft_conflict',
+        `The base draft changed; reload it with ${packageGetDraftToolId}`
+      )
     }
     base = { release: await parseDefinitionPackageRelease(draft.release), draft }
   } else {
@@ -262,91 +280,98 @@ export function registerPackageAuthoringTools (
   auth: TraceXAuthInfo,
   manager: WorkspaceManager,
   authorize: PackageAuthorizer,
+  ctx: MeasureContext,
   marketplaceUrl?: string
 ): void {
-  const execute = async (
-    workspace: string,
-    operation: (connection: WorkspaceConnection) => Promise<Record<string, unknown>>
-  ): Promise<CallToolResult> => {
-    let allowed: boolean
-    try {
-      allowed = await authorize(auth)
-    } catch {
-      return jsonText(
-        {
-          error: {
-            code: 'package_authoring_unavailable',
-            message: 'Package authoring access could not be verified. Try again later.'
-          }
-        },
-        true
-      )
-    }
-    if (!allowed) {
-      return jsonText(
-        {
-          error: {
-            code: 'package_authoring_forbidden',
-            message: 'Package authoring is disabled for this account. Contact the TraceX administrator.'
-          }
-        },
-        true
-      )
-    }
-    try {
-      const connection = await manager.getConnection(auth.extra.accountToken, workspace, auth.extra.workspaceId)
-      if (connection.token.account !== auth.extra.account) {
-        throw new PackageAuthoringError('account_mismatch', 'The workspace belongs to another account')
-      }
-      return jsonStructuredText({ workspace, installation: String(auth.resource), ...(await operation(connection)) })
-    } catch (error) {
-      if (error instanceof PackageAuthoringError || error instanceof PackageDiscoveryError) {
-        return jsonText({ error: { code: error.code, message: error.message } }, true)
-      }
-      if (error instanceof MarketplaceError) {
+  const execute: PackageToolExecutor = async (tool, workspace, operation) =>
+    await ctx.with('mcp-tool', { tool }, async (ctx) => {
+      let allowed: boolean
+      try {
+        allowed = await authorize(auth)
+      } catch {
         return jsonText(
           {
             error: {
-              code: error.status === 404 ? 'marketplace_package_not_found' : 'marketplace_request_failed',
+              code: 'package_authoring_unavailable',
+              message: 'Package authoring access could not be verified. Try again later.'
+            }
+          },
+          true
+        )
+      }
+      if (!allowed) {
+        return jsonText(
+          {
+            error: {
+              code: 'package_authoring_forbidden',
+              message: 'Package authoring is disabled for this account. Contact the TraceX administrator.'
+            }
+          },
+          true
+        )
+      }
+      try {
+        const connection = await ctx.with(
+          'connect',
+          {},
+          async () => await manager.getConnection(auth.extra.accountToken, workspace, auth.extra.workspaceId)
+        )
+        if (connection.token.account !== auth.extra.account) {
+          throw new PackageAuthoringError('account_mismatch', 'The workspace belongs to another account')
+        }
+        const output = await ctx.with('execute', {}, async () => await operation(connection))
+        return jsonStructuredText({ workspace, installation: String(auth.resource), ...output })
+      } catch (error) {
+        if (error instanceof PackageAuthoringError || error instanceof PackageDiscoveryError) {
+          return jsonText({ error: { code: error.code, message: error.message } }, true)
+        }
+        if (error instanceof MarketplaceError) {
+          return jsonText(
+            {
+              error: {
+                code: error.status === 404 ? 'marketplace_package_not_found' : 'marketplace_request_failed',
+                message:
+                  error.status === 404
+                    ? 'Package or release not found'
+                    : 'The Marketplace request failed; check catalog access and service availability',
+                status: error.status
+              }
+            },
+            true
+          )
+        }
+        if (error instanceof ProcessAuthoringError || error instanceof DefinitionPackageError) {
+          return jsonText(
+            {
+              error: {
+                code: 'invalid_definition',
+                message: error.message,
+                path: error.path,
+                ...(error instanceof ProcessAuthoringError ? { line: error.line, column: error.column } : {})
+              }
+            },
+            true
+          )
+        }
+        return jsonText(
+          {
+            error: {
+              code: 'package_authoring_failed',
               message:
-                error.status === 404
-                  ? 'Package or release not found'
-                  : 'The Marketplace request failed; check catalog access and service availability',
-              status: error.status
+                'Package authoring failed. Check workspace access, guide section and installed model, then retry.'
             }
           },
           true
         )
       }
-      if (error instanceof ProcessAuthoringError || error instanceof DefinitionPackageError) {
-        return jsonText(
-          {
-            error: {
-              code: 'invalid_definition',
-              message: error.message,
-              path: error.path,
-              ...(error instanceof ProcessAuthoringError ? { line: error.line, column: error.column } : {})
-            }
-          },
-          true
-        )
-      }
-      return jsonText(
-        {
-          error: {
-            code: 'package_authoring_failed',
-            message: 'Package authoring failed. Check workspace access, guide section and installed model, then retry.'
-          }
-        },
-        true
-      )
-    }
-  }
+    })
   registerPackageDiscoveryTools(server, execute, auth, marketplaceUrl)
-  const workspace = { type: 'string', minLength: 1, description: 'Exact workspace ID from my.workspaces.' }
+  const workspace = { type: 'string', minLength: 1, description: `Exact workspace ID from ${meWorkspacesToolId}.` }
   server.registerTool(
-    'package.authoring_guide',
+    packageAuthoringGuideToolId,
     {
+      title: 'Read package authoring guide',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
       description:
         'Read the canonical TraceX YAML v2 guide before designing a package. Returns available sections and worked examples. Restricted to administrator-approved authors. AI generation runs in your client.',
       inputSchema: fromJsonSchema<{ workspace: string, section?: string }>({
@@ -363,13 +388,19 @@ export function registerPackageAuthoringTools (
         additionalProperties: false
       })
     },
-    async (args) => await execute(args.workspace, async () => await readPackageAuthoringGuide(args.section))
+    async (args) =>
+      await execute(
+        packageAuthoringGuideToolId,
+        args.workspace,
+        async () => await readPackageAuthoringGuide(args.section)
+      )
   )
   server.registerTool(
-    'package.contracts',
+    packageContractsToolId,
     {
-      description:
-        'Get installed process methods, triggers and functions for package authoring. Use card.list_master_tags and card.master_tag_details for existing card fields. Contracts do not universally describe optional parameters or execution semantics; consult package.authoring_guide and stop on unsupported requirements.',
+      title: 'List package operation contracts',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+      description: `Get installed process methods, triggers and functions for package authoring. Use card_list_master_tags and card_master_tag_details for existing card fields. Contracts do not universally describe optional parameters or execution semantics; consult ${packageAuthoringGuideToolId} and stop on unsupported requirements.`,
       inputSchema: fromJsonSchema<{ workspace: string }>({
         type: 'object',
         properties: { workspace },
@@ -378,13 +409,15 @@ export function registerPackageAuthoringTools (
       })
     },
     async (args) =>
-      await execute(args.workspace, async (connection) => ({
+      await execute(packageContractsToolId, args.workspace, async (connection) => ({
         catalog: getAuthoringCatalog(connection.client.getModel())
       }))
   )
   server.registerTool(
-    'package.validate',
+    packageValidateToolId,
     {
+      title: 'Validate package definition',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
       description:
         'Compile a plain version: 2 card module or process bundle against installed operation contracts without writing. Returns portable YAML with explicit outputs. This does not prove runtime behavior or destination bindings; UI installation review and manual execution are still required.',
       inputSchema: fromJsonSchema<{ workspace: string, source: string }>({
@@ -395,7 +428,7 @@ export function registerPackageAuthoringTools (
       })
     },
     async (args) =>
-      await execute(args.workspace, async (connection) => {
+      await execute(packageValidateToolId, args.workspace, async (connection) => {
         const { source, definition } = validatePackageDraft(args.source, connection)
         return {
           valid: true,
@@ -407,8 +440,10 @@ export function registerPackageAuthoringTools (
       })
   )
   server.registerTool(
-    'package.get_draft',
+    packageGetDraftToolId,
     {
+      title: 'Get package draft',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
       description:
         'Read your own private package draft and its revision before making changes. Does not install or publish.',
       inputSchema: fromJsonSchema<{ workspace: string, draftId: string }>({
@@ -419,7 +454,7 @@ export function registerPackageAuthoringTools (
       })
     },
     async (args) =>
-      await execute(args.workspace, async (connection) => {
+      await execute(packageGetDraftToolId, args.workspace, async (connection) => {
         const draft = await loadDraft(connection, connection.token.account, args.draftId)
         const release = await parseDefinitionPackageRelease(draft.release)
         return {
@@ -433,10 +468,11 @@ export function registerPackageAuthoringTools (
       })
   )
   server.registerTool(
-    'package.create_version_draft',
+    packageCreateVersionDraftToolId,
     {
-      description:
-        'Create a private next-version draft of your own package after explicit user intent. First inspect the current Marketplace release or read your own base draft. Supply edited plain YAML and a review. Retains package ID and author, automatically increments the patch version and creates a fresh draft at revision 1. base is either {draftId, expectedRevision} or {id, author, version, contentHash} from package.inspect. Existing releases and drafts are unchanged. Edit the result with package.get_draft and package.save_draft; those edits increment only draft revision. Never installs, executes or publishes.',
+      title: 'Create package version draft',
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+      description: `Create a private next-version draft of your own package after explicit user intent. First inspect the current Marketplace release or read your own base draft. Supply edited plain YAML and a review. Retains package ID and author, automatically increments the patch version and creates a fresh draft at revision 1. base is either {draftId, expectedRevision} or {id, author, version, contentHash} from ${packageInspectToolId}. Existing releases and drafts are unchanged. Edit the result with ${packageGetDraftToolId} and ${packageSaveDraftToolId}; those edits increment only draft revision. Never installs, executes or publishes.`,
       inputSchema: fromJsonSchema<VersionDraftInput>({
         type: 'object',
         properties: {
@@ -446,8 +482,7 @@ export function registerPackageAuthoringTools (
           description: { type: 'string', maxLength: 4000 },
           review: { type: 'string', minLength: 1, maxLength: 32000 },
           base: {
-            description:
-              'Use the exact metadata returned by package.get_draft or package.inspect. Only your own packages can be versioned.',
+            description: `Use the exact metadata returned by ${packageGetDraftToolId} or ${packageInspectToolId}. Only your own packages can be versioned.`,
             oneOf: [
               {
                 type: 'object',
@@ -478,15 +513,17 @@ export function registerPackageAuthoringTools (
     },
     async (args) =>
       await execute(
+        packageCreateVersionDraftToolId,
         args.workspace,
         async (connection) => await createPackageVersionDraft(args, connection, marketplaceUrl, auth.extra.accountToken)
       )
   )
   server.registerTool(
-    'package.save_draft',
+    packageSaveDraftToolId,
     {
-      description:
-        'Validate and save a private package draft for explicit UI review. Requires user intent to save. Search and inspect reusable packages and installed processes before creating new logic. Supply a plain YAML v2 definition and a review explaining fields, states, ordered actions, reused package identities/versions, context dependencies, bindings and manual acceptance scenarios. The authenticated account becomes the author. For edits first use package.get_draft and supply draftId with expectedRevision; editing retains the release version. For a new version of an existing package use package.create_version_draft. Never installs, executes or publishes definitions.',
+      title: 'Save package draft',
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+      description: `Validate and save a private package draft for explicit UI review. Requires user intent to save. Search and inspect reusable packages and installed processes before creating new logic. Supply a plain YAML v2 definition and a review explaining fields, states, ordered actions, reused package identities/versions, context dependencies, bindings and manual acceptance scenarios. The authenticated account becomes the author. For edits first use ${packageGetDraftToolId} and supply draftId with expectedRevision; editing retains the release version. For a new version of an existing package use ${packageCreateVersionDraftToolId}. Never installs, executes or publishes definitions.`,
       inputSchema: fromJsonSchema<DraftInput>({
         type: 'object',
         properties: {
@@ -502,6 +539,11 @@ export function registerPackageAuthoringTools (
         additionalProperties: false
       })
     },
-    async (args) => await execute(args.workspace, async (connection) => await savePackageDraft(args, connection))
+    async (args) =>
+      await execute(
+        packageSaveDraftToolId,
+        args.workspace,
+        async (connection) => await savePackageDraft(args, connection)
+      )
   )
 }

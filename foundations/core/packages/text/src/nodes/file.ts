@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -28,6 +29,21 @@ export interface FileOptions {
 export const FileNode = Node.create<FileOptions>({
   name: 'file',
 
+  addSchemaAwareness () {
+    return {
+      label: 'Attached file',
+      description:
+        'Reference to an existing file with a download label. Preserve file identity and metadata; inserting this node does not upload or create a file.',
+      attributes: {
+        'file-id': { access: 'readonly', description: 'Existing attachment ID. Do not invent it.' },
+        'data-file-name': { access: 'readonly', description: 'Download filename.' },
+        'data-file-size': { access: 'readonly', description: 'File size in bytes.' },
+        'data-file-type': { access: 'readonly', description: 'MIME type.' },
+        'data-file-href': { access: 'readonly', description: 'Download URL.' }
+      }
+    }
+  },
+
   addOptions () {
     return {
       inline: true,
@@ -50,19 +66,24 @@ export const FileNode = Node.create<FileOptions>({
   addAttributes () {
     return {
       'file-id': {
-        default: null
+        default: null,
+        validate: 'string|null'
       },
       'data-file-name': {
-        default: null
+        default: null,
+        validate: 'string|null'
       },
       'data-file-size': {
-        default: null
+        default: null,
+        validate: 'string|number|null'
       },
       'data-file-type': {
-        default: null
+        default: null,
+        validate: 'string|null'
       },
       'data-file-href': {
-        default: null
+        default: null,
+        validate: 'string|null'
       }
     }
   },

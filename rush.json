@@ -405,6 +405,11 @@
       "shouldPublish": true
     },
     {
+      "packageName": "@hcengineering/text-agent",
+      "projectFolder": "foundations/core/packages/text-agent",
+      "shouldPublish": true
+    },
+    {
       "packageName": "@hcengineering/text-core",
       "projectFolder": "foundations/core/packages/text-core",
       "shouldPublish": true
