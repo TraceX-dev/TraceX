@@ -202,6 +202,24 @@ export function remapAuthoringReferences (
     const key = path[path.length - 1]
     const literal = inheritedLiteral || literalKeys.has(key) || isLiteral(doc, path)
     if (typeof value === 'string') {
+      if (key === 'filters' && path.includes('type')) {
+        const parsed: unknown = JSON.parse(value)
+        if (!Array.isArray(parsed)) fail(path.join('.'), 'Expected reference filters')
+        return JSON.stringify(
+          parsed.map((entry: unknown) => {
+            const filter = object(entry, 'filter')
+            const key = object(filter.key, 'filter.key')
+            return {
+              ...filter,
+              key: { ...key, _class: reference(String(key._class)), key: selector(String(key.key)) },
+              value:
+                key.key === '_class' && Array.isArray(filter.value)
+                  ? filter.value.map((id: unknown) => (typeof id === 'string' ? reference(id) : id))
+                  : filter.value
+            }
+          })
+        )
+      }
       // A symbolic field name can equal its definition id. Keep it consistent with
       // selectors when cloning that id, rather than treating it as display text.
       if (doc._class === 'core:class:Attribute' && path.length === 1 && key === 'name') return reference(value)

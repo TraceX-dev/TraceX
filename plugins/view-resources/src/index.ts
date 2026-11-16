@@ -19,6 +19,7 @@ import { type Resources } from '@hcengineering/platform'
 import { getEventPopupPositionElement, type PopupAlignment } from '@hcengineering/ui'
 import { canCopyLink } from '@hcengineering/view'
 import { actionImpl } from './actionImpl'
+import ClassFilter from './components/filter/ClassFilter.svelte'
 import ActionsPopup from './components/ActionsPopup.svelte'
 import ArrayEditor from './components/ArrayEditor.svelte'
 import AssociationPresenter from './components/AssociationPresenter.svelte'
@@ -196,6 +197,7 @@ export { default as StatusRefPresenter } from './components/status/StatusRefPres
 export { canArchiveSpace, canDeleteObject, canDeleteSpace, canEditSpace } from './visibilityTester'
 
 export * from './filter'
+export * from './reference-filters'
 export * from './relations'
 export * from './icons'
 export * from './middleware'
@@ -271,6 +273,7 @@ function PositionElementAlignment (e?: Event): PopupAlignment | undefined {
 export default async (): Promise<Resources> => ({
   actionImpl,
   component: {
+    ClassFilter,
     FilterSummary,
     AddRelationPopup,
     ArrayFilter,
@@ -400,3 +403,5 @@ export default async (): Promise<Resources> => ({
 })
 
 export * from './tableSource'
+
+export { default as ReferenceFilters } from './components/filter/ReferenceFilters.svelte'

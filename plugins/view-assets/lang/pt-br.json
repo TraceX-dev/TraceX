@@ -187,6 +187,7 @@
     "RoleLabel": "Cargo: {role}",
     "ForbidAttributeChanges": "Proibir alterações: ",
     "AllowAttributeChanges": "Permitir alterações: ",
-    "RelationshipTable": "Tabela de relacionamentos"
+    "RelationshipTable": "Tabela de relacionamentos",
+    "InvalidReferenceFilter": "O filtro de referências é inválido ou está indisponível. Corrija ou remova antes de salvar."
   }
 }

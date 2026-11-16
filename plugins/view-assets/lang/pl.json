@@ -192,6 +192,7 @@
     "RoleLabel": "Rola: {role}",
     "ForbidAttributeChanges": "Zablokuj zmiany: ",
     "AllowAttributeChanges": "Zezwól na zmiany: ",
-    "RelationshipTable": "Macierz powiązań"
+    "RelationshipTable": "Macierz powiązań",
+    "InvalidReferenceFilter": "Filtr odwołań jest nieprawidłowy lub niedostępny. Popraw go lub usuń przed zapisaniem."
   }
 }
