@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2023 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -1048,10 +1049,30 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(contact.class.Person, core.class.Class, view.mixin.ClassFilters, {
-    filters: []
+    filters: [
+      {
+        _class: contact.mixin.Employee,
+        key: 'role',
+        component: view.component.ValueFilter,
+        options: [
+          { id: 'USER', label: setting.string.User },
+          { id: 'GUEST', label: contact.string.Guest }
+        ]
+      }
+    ]
   })
   builder.mixin(contact.mixin.Employee, core.class.Class, view.mixin.ClassFilters, {
-    filters: []
+    filters: [
+      {
+        _class: contact.mixin.Employee,
+        key: 'role',
+        component: view.component.ValueFilter,
+        options: [
+          { id: 'USER', label: setting.string.User },
+          { id: 'GUEST', label: contact.string.Guest }
+        ]
+      }
+    ]
   })
   builder.mixin(contact.class.Organization, core.class.Class, view.mixin.ClassFilters, {
     filters: []

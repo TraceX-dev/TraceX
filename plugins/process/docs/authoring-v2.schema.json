@@ -272,6 +272,13 @@
             "class": {
               "$ref": "#/$defs/class"
             },
+            "filters": {
+              "description": "Static view Filter[] restricting Person/Card attribute candidates (including descendants); other reference editors ignore this setting; arrays are serialized as JSON in the native RefTo type.",
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "object" } }
+              ]
+            },
             "label": {
               "type": "string"
             },
