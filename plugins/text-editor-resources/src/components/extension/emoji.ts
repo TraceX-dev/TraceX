@@ -64,7 +64,10 @@ function handleEmoji (
   if (emojiString === undefined) return
   const emoji = getEmojiFunction(emojiString)
   if (emoji === undefined) return
-  if (match.length > 0) range.from = range.to - emojiString.length + 1
+  // Keep any leading whitespace captured by the rule; replace only the emoji text itself.
+  // Tiptap 3 inserts the typed text into the document before running input rules,
+  // so the whole match (including the last typed character) ends at range.to.
+  if (match.length > 0) range.from = range.to - emojiString.length
 
   if (typeof emoji === 'string' || !isCustomEmoji(emoji)) {
     commands.insertContentAt(range, [
