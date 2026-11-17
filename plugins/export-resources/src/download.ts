@@ -41,5 +41,13 @@ export function downloadBlob (blob: Blob, fileName: string): void {
  */
 export function fileNameFromResponse (res: Response, fallback: string): string {
   const disposition = res.headers.get('Content-Disposition')
+  const encoded = disposition?.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)?.[1]
+  if (encoded !== undefined) {
+    try {
+      return decodeURIComponent(encoded.trim())
+    } catch {
+      // A malformed extended filename must not prevent downloading the file.
+    }
+  }
   return disposition?.match(/filename="([^"]*)"/)?.[1] ?? fallback
 }

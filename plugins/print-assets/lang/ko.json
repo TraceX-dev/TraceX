@@ -5,6 +5,9 @@
         "DownloadAll": "모두 다운로드",
         "PrintFailed": "인쇄 실패",
         "PrintSettings": "Print settings",
-        "LandscapeMode": "Landscape mode"
+        "Orientation": "페이지 방향",
+    "PortraitMode": "세로 방향",
+    "OnlyContent": "콘텐츠만",
+    "LandscapeMode": "Landscape mode"
     }
 }

@@ -1,7 +1,9 @@
 {
   "string": {
     "WorkspaceNamePattern": "Nazwa musi mieć co najwyżej 40 znaków, nie może być pusta i nie może zawierać znaków specjalnych (<, >, /)",
+    "ExportList": "Eksportuj listę",
     "Export": "Eksportuj",
+    "ExportDots": "Eksportuj…",
     "DataToExport": "Dane do eksportu",
     "ExportDocuments": "Dokumenty",
     "ExportMilestones": "Cel",
@@ -70,6 +72,10 @@
     "DocumentContentConverted": "Dokument przekonwertowany",
     "DocumentContentImportFailed": "Import nie powiódł się",
     "ReviewDocumentContentChanges": "Przejrzyj zaimportowane zmiany",
-    "ApplyDocumentContentChanges": "Zastosuj"
+    "ApplyDocumentContentChanges": "Zastosuj",
+    "Orientation": "Orientacja",
+    "PortraitMode": "Orientacja pionowa",
+    "LandscapeMode": "Orientacja pozioma",
+    "OnlyContent": "Tylko treść"
   }
 }

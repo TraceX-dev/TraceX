@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,7 +13,70 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import type { Class, Doc, Ref } from '@hcengineering/core'
+import type { Blob as StorageBlob, Class, Doc, Ref } from '@hcengineering/core'
+import type { IntlString, Resource } from '@hcengineering/platform'
+
+export type DocumentExportOrientation = 'portrait' | 'landscape'
+
+/** A generated file, backed by browser data or workspace storage. */
+export interface DocumentExportResult {
+  file: Blob | Ref<StorageBlob>
+  name: string
+  contentType: string
+}
+
+export interface DocumentExporterOptions {
+  format: string
+  orientation?: DocumentExportOrientation
+  contentOnly: boolean
+}
+
+/** Additional action parameters are forwarded unchanged to the implementation. */
+export type DocumentExportFunction<P = Record<string, unknown>> = (
+  doc: Doc,
+  options: DocumentExporterOptions,
+  params?: P
+) => Promise<DocumentExportResult>
+export type DocumentBulkExportFunction<P = Record<string, unknown>> = (
+  docs: Doc[],
+  options: DocumentExporterOptions,
+  params?: P
+) => Promise<void>
+export type DocumentExportPreviewFunction = (result: DocumentExportResult) => Promise<void>
+export type DocumentExportAvailabilityFunction = (doc: Doc) => Promise<boolean>
+
+/** Model registration of a document format and its implementation resources. */
+export interface DocumentExporter extends Doc {
+  format: string
+  label: IntlString
+  export: Resource<DocumentExportFunction>
+  supportsOrientation: boolean
+  contentOnly: 'optional' | 'always' | 'never'
+  preview?: Resource<DocumentExportPreviewFunction>
+  isAvailable?: Resource<DocumentExportAvailabilityFunction>
+  bulkExport?: Resource<DocumentBulkExportFunction>
+  order: number
+}
+
+export interface DocumentExportSettingsValues {
+  exporter: Ref<DocumentExporter>
+  orientation: DocumentExportOrientation
+  contentOnly: boolean
+  preview: boolean
+}
+
+export type DocumentExportFormat = 'docx' | 'md'
+
+export interface DocumentExportOptions {
+  orientation?: DocumentExportOrientation
+  includeTitle?: boolean
+}
+
+export interface DocumentContentTarget {
+  _class: Ref<Class<Doc>>
+  _id: Ref<Doc>
+  title?: string
+}
 
 /**
  * @public

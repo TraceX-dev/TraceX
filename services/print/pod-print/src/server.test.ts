@@ -98,8 +98,8 @@ describe('print HTTP requests', () => {
     })
   })
 
-  async function requestPrint (): Promise<Response> {
-    return await fetch(`${origin}/print?objectClass=core:class:Doc&objectId=document`, {
+  async function requestPrint (query = ''): Promise<Response> {
+    return await fetch(`${origin}/print?objectClass=core:class:Doc&objectId=document${query}`, {
       headers: { Authorization: 'Bearer user-token' }
     })
   }
@@ -111,6 +111,22 @@ describe('print HTTP requests', () => {
     expect(accounts.selectWorkspace).not.toHaveBeenCalled()
     expect(createRestTxOperations).toHaveBeenCalledWith('http://localhost:3334', 'workspace', 'readonly-token', false)
     expect(print).toHaveBeenCalled()
+  })
+
+  it('passes content-only mode to the authenticated frontend route', async () => {
+    const response = await requestPrint('&orientation=landscape&contentOnly=true')
+    expect(response.status).toBe(200)
+    const url = new URL(jest.mocked(print).mock.calls[0][1])
+    expect(url.searchParams.get('contentOnly')).toBe('true')
+    expect(jest.mocked(print).mock.calls[0][2]).toEqual(
+      expect.objectContaining({ orientation: 'landscape', contentOnly: true })
+    )
+  })
+
+  it('rejects malformed content-only flags before rendering', async () => {
+    const response = await requestPrint('&contentOnly=yes')
+    expect(response.status).toBe(400)
+    expect(print).not.toHaveBeenCalled()
   })
 
   it('passes the original error and request context to the logger without authorization data', async () => {

@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import exportPlugin from '@hcengineering/export'
 import activity from '@hcengineering/activity'
 import chunter from '@hcengineering/chunter'
 import core, {
@@ -57,7 +58,6 @@ import {
 } from '@hcengineering/model'
 import { TAttachedDoc, TDoc, TType, TTypedSpace } from '@hcengineering/model-core'
 import presentation from '@hcengineering/model-presentation'
-import print from '@hcengineering/model-print'
 import tracker from '@hcengineering/model-tracker'
 import view, { type Viewlet, actionTemplates, classPresenter, createAction } from '@hcengineering/model-view'
 import workbench from '@hcengineering/model-workbench'
@@ -298,7 +298,7 @@ function defineDrive (builder: Builder): void {
   // Actions
 
   builder.mixin(drive.class.Drive, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [tracker.action.EditRelatedTargets, print.action.Print, tracker.action.NewRelatedIssue]
+    actions: [tracker.action.EditRelatedTargets, exportPlugin.action.ExportDocuments, tracker.action.NewRelatedIssue]
   })
 
   createAction(
@@ -485,7 +485,7 @@ function defineFolder (builder: Builder): void {
       view.action.Open,
       view.action.OpenInNewTab,
       view.action.Delete,
-      print.action.Print,
+      exportPlugin.action.ExportDocuments,
       tracker.action.EditRelatedTargets,
       tracker.action.NewRelatedIssue
     ]
@@ -581,7 +581,7 @@ function defineFileVersion (builder: Builder): void {
       view.action.Open,
       view.action.OpenInNewTab,
       view.action.Delete,
-      print.action.Print,
+      exportPlugin.action.ExportDocuments,
       tracker.action.EditRelatedTargets,
       tracker.action.NewRelatedIssue
     ]
@@ -683,7 +683,7 @@ function defineFile (builder: Builder): void {
       view.action.Open,
       view.action.OpenInNewTab,
       view.action.Delete,
-      print.action.Print,
+      exportPlugin.action.ExportDocuments,
       tracker.action.EditRelatedTargets,
       tracker.action.NewRelatedIssue
     ]

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -15,27 +16,28 @@
 
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte'
-  import type { Blob, Doc, Ref } from '@hcengineering/core'
-  import presentation, { Card, getClient, PDFViewer } from '@hcengineering/presentation'
-  import view from '@hcengineering/view'
+  import { Analytics } from '@hcengineering/analytics'
+  import type { Doc } from '@hcengineering/core'
+  import exportPlugin from '@hcengineering/export'
+  import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { Button, Label, Loading, Scroller } from '@hcengineering/ui'
+  import type { PrintPageOrientation } from '@hcengineering/print'
 
   import print from '../plugin'
   import { type PdfResult, printAll, downloadPdf, downloadAllPdfs } from '../printUtils'
 
   export let objects: Doc[] = []
   export let signed: boolean = false
+  export let orientation: PrintPageOrientation = 'portrait'
 
   const client = getClient()
 
   let results: PdfResult[] = []
   let currentIndex = 0
   let cancelled = false
-  let processing = true
+  let processing = false
+  let failed = false
   let downloadAllLoading = false
-  let selectedResult: PdfResult | undefined = undefined
-
-  $: viewerFile = (selectedResult !== undefined ? selectedResult.blobId : undefined) as Ref<Blob> | undefined
 
   $: total = objects.length
   $: successCount = results.filter((r) => r.error === undefined).length
@@ -44,11 +46,6 @@
   function cancel (): void {
     cancelled = true
     close()
-  }
-
-  function openPdf (result: PdfResult): void {
-    if (result.error !== undefined) return
-    selectedResult = result
   }
 
   async function doDownloadAll (): Promise<void> {
@@ -63,24 +60,38 @@
   const dispatch = createEventDispatcher()
 
   function close (): void {
+    cancelled = true
     dispatch('close')
   }
 
-  onMount(() => {
+  async function start (): Promise<void> {
     if (objects.length > 0) {
       results = []
       currentIndex = 0
       cancelled = false
       processing = true
-      void printAll(client, objects, signed, {
-        onProgress: (current) => {
-          currentIndex = current
-        },
-        getCancelled: () => cancelled
-      }).then((r) => {
-        results = r
+      failed = false
+      try {
+        results = await printAll(client, objects, signed, {
+          onProgress: (current) => {
+            currentIndex = current
+          },
+          getCancelled: () => cancelled,
+          printOptions: { orientation, contentOnly: false }
+        })
+      } catch (error) {
+        failed = true
+        Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+      } finally {
         processing = false
-      })
+      }
+    }
+  }
+
+  onMount(() => {
+    void start()
+    return () => {
+      cancelled = true
     }
   })
 </script>
@@ -88,108 +99,83 @@
 <svelte:window
   on:keydown={(e) => {
     if (e.key === 'Escape') {
-      if (selectedResult !== undefined) {
-        selectedResult = undefined
-      } else {
-        close()
-      }
+      close()
     }
   }}
 />
 
-{#if selectedResult === undefined}
-  <div class="flex p-4">
-    <Card
-      label={print.string.PrintToPDF}
-      okAction={() => {}}
-      canSave={false}
-      hideFooter={true}
-      width="medium"
-      on:close={close}
-    >
-      <div class="flex flex-col gap-2">
-        {#if processing && currentIndex <= total}
-          <div class="flex flex-col gap-2 py-2">
-            <div class="flex items-start gap-2">
-              <Label label={print.string.PrintingDocumentOf} params={{ current: currentIndex, total }} />
-              <div class="flex pl-2">
-                <Loading shrink={true} size="small" />
-              </div>
-            </div>
-            <div class="flex justify-end">
-              <Button kind="secondary" label={presentation.string.Cancel} on:click={cancel} />
+<div class="flex p-4">
+  <Card
+    label={exportPlugin.string.Export}
+    okAction={() => {}}
+    canSave={false}
+    hideFooter={true}
+    width="medium"
+    on:close={close}
+  >
+    <div class="flex flex-col gap-2">
+      {#if failed}<Label label={print.string.PrintFailed} />{/if}
+      {#if processing && currentIndex <= total}
+        <div class="flex flex-col gap-2 py-2">
+          <div class="flex items-start gap-2">
+            <Label label={print.string.PrintingDocumentOf} params={{ current: currentIndex, total }} />
+            <div class="flex pl-2">
+              <Loading shrink={true} size="small" />
             </div>
           </div>
-        {:else}
-          <div class="results-scroller">
-            <Scroller>
-              <div class="flex flex-col gap-1 w-full">
-                {#each results as result}
-                  <div class="flex items-center justify-between gap-2 py-1 w-full">
-                    <span class="truncate flex-1 min-w-0 secondary-textColor" title={result.title ?? ''}>
-                      {#if result.error !== undefined}
-                        {result.title} – <Label label={print.string.PrintFailed} />
-                      {:else}
-                        {result.title}
-                      {/if}
-                    </span>
-                    <div class="flex gap-1 shrink-0 w-[11rem] justify-end">
-                      {#if result.error === undefined}
-                        <Button
-                          kind="ghost"
-                          size="small"
-                          label={presentation.string.Download}
-                          on:click={() => {
-                            downloadPdf(result)
-                          }}
-                        />
-                        <Button
-                          kind="ghost"
-                          size="small"
-                          label={view.string.Open}
-                          on:click={() => {
-                            openPdf(result)
-                          }}
-                        />
-                      {/if}
-                    </div>
+          <div class="flex justify-end">
+            <Button kind="secondary" label={presentation.string.Cancel} on:click={cancel} />
+          </div>
+        </div>
+      {:else}
+        <div class="results-scroller">
+          <Scroller>
+            <div class="flex flex-col gap-1 w-full">
+              {#each results as result (result.blobId)}
+                <div class="flex items-center justify-between gap-2 py-1 w-full">
+                  <span class="truncate flex-1 min-w-0 secondary-textColor" title={result.title ?? ''}>
+                    {#if result.error !== undefined}
+                      {result.title} – <Label label={print.string.PrintFailed} />
+                    {:else}
+                      {result.title}
+                    {/if}
+                  </span>
+                  <div class="flex gap-1 shrink-0 justify-end">
+                    {#if result.error === undefined}
+                      <Button
+                        kind="ghost"
+                        size="small"
+                        label={presentation.string.Download}
+                        on:click={() => {
+                          downloadPdf(result)
+                        }}
+                      />
+                    {/if}
                   </div>
-                {/each}
-              </div>
-            </Scroller>
-          </div>
-          {#if successCount > 0}
-            <div class="flex justify-end pt-2">
-              <Button
-                kind="primary"
-                label={print.string.DownloadAll}
-                disabled={downloadAllLoading}
-                on:click={doDownloadAll}
-              />
+                </div>
+              {/each}
             </div>
-          {/if}
-          {#if failedList.length > 0}
-            <p class="secondary-textColor text-sm">
-              {successCount} succeeded, {failedList.length} failed.
-            </p>
-          {/if}
+          </Scroller>
+        </div>
+        {#if successCount > 0}
+          <div class="flex justify-end pt-2">
+            <Button
+              kind="primary"
+              label={print.string.DownloadAll}
+              disabled={downloadAllLoading}
+              on:click={doDownloadAll}
+            />
+          </div>
         {/if}
-      </div>
-    </Card>
-  </div>
-{:else}
-  <PDFViewer
-    file={viewerFile}
-    name={selectedResult.title}
-    contentType="application/pdf"
-    showIcon={false}
-    isLoading={false}
-    on:close={() => {
-      selectedResult = undefined
-    }}
-    on:fullsize
-  />
-{/if}
+        {#if failedList.length > 0}
+          <p class="secondary-textColor text-sm">
+            {successCount} succeeded, {failedList.length} failed.
+          </p>
+        {/if}
+      {/if}
+    </div>
+  </Card>
+</div>
 
 <style lang="scss">
   .results-scroller {

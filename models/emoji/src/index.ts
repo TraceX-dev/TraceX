@@ -1,5 +1,6 @@
 //
 // Copyright © 2024-2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,6 +14,7 @@
 // limitations under the License.
 //
 
+import exportPlugin from '@hcengineering/export'
 import { type Builder } from '@hcengineering/model'
 import core from '@hcengineering/model-core'
 
@@ -20,7 +22,6 @@ import presentation from '@hcengineering/model-presentation'
 import workbench from '@hcengineering/model-workbench'
 import setting from '@hcengineering/setting'
 import view from '@hcengineering/view'
-import print from '@hcengineering/model-print'
 import tracker from '@hcengineering/model-tracker'
 
 import { DOMAIN_EMOJI, TCustomEmoji } from './models'
@@ -49,7 +50,12 @@ export function createModel (builder: Builder): void {
   })
 
   builder.mixin(emojiPlugin.class.CustomEmoji, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [view.action.Open, view.action.OpenInNewTab, print.action.Print, tracker.action.NewRelatedIssue]
+    actions: [
+      view.action.Open,
+      view.action.OpenInNewTab,
+      exportPlugin.action.ExportDocuments,
+      tracker.action.NewRelatedIssue
+    ]
   })
 
   builder.createDoc(presentation.class.ComponentPointExtension, core.space.Model, {

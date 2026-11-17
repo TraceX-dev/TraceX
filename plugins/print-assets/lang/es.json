@@ -5,6 +5,9 @@
     "DownloadAll": "Descargar todo",
     "PrintFailed": "Error al imprimir",
     "PrintSettings": "Print settings",
+    "Orientation": "Orientación",
+    "PortraitMode": "Orientación vertical",
+    "OnlyContent": "Solo contenido",
     "LandscapeMode": "Landscape mode"
   }
 }

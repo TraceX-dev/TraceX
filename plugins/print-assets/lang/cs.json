@@ -5,6 +5,9 @@
     "DownloadAll": "Stáhnout vše",
     "PrintFailed": "Tisk se nezdařil",
     "PrintSettings": "Print settings",
+    "Orientation": "Orientace",
+    "PortraitMode": "Na výšku",
+    "OnlyContent": "Pouze obsah",
     "LandscapeMode": "Landscape mode"
   }
 }

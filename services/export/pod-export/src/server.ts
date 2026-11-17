@@ -40,7 +40,12 @@ import core, {
   type WorkspaceUuid
 } from '@hcengineering/core'
 import drive, { createFile, Drive } from '@hcengineering/drive'
-import exportPlugin, { type TransformConfig, type RelationDefinition } from '@hcengineering/export'
+import exportPlugin, {
+  type TransformConfig,
+  type RelationDefinition,
+  type DocumentExportOptions
+} from '@hcengineering/export'
+import { documentExportDisposition, parseDocumentExportOptions, withDocumentTitle } from './document-content'
 import {
   ContextNameMiddleware,
   DBAdapterInitMiddleware,
@@ -538,12 +543,13 @@ export function createServer (
   const renderDocumentExport = async (
     format: string,
     markup: string,
-    images: Map<string, Uint8Array>
+    images: Map<string, Uint8Array>,
+    options: DocumentExportOptions
   ): Promise<{ buffer: Buffer, contentType: string, ext: string }> => {
     switch (format) {
       case 'docx':
         return {
-          buffer: await markupToDocx(markup, { images }),
+          buffer: await markupToDocx(markup, { images, orientation: options.orientation }),
           contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           ext: 'docx'
         }
@@ -573,6 +579,7 @@ export function createServer (
     if (!supportedDocumentFormats.includes(format)) {
       throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
     }
+    const options = parseDocumentExportOptions(params)
     audit.set({ targetType: 'document', targetId: String(_id), objectClass: _class, format })
 
     const platformClient = await createPlatformClient(token)
@@ -610,15 +617,19 @@ export function createServer (
       }
     }
 
-    const rendered = await renderDocumentExport(format, markup, images)
-
-    const title = (doc as unknown as { title?: string }).title ?? 'document'
+    const title = (doc as Doc & { title?: string }).title || 'document'
+    const rendered = await renderDocumentExport(
+      format,
+      options.includeTitle === true ? withDocumentTitle(markup, title) : markup,
+      images,
+      options
+    )
     const fileName = `${sanitizeSpaceFileName(title)}.${rendered.ext}`
 
     // Explicit Content-Length: without it the response is chunked and some local setups
     // never see the terminating chunk, so downloads hang until a manual retry.
     res.setHeader('Content-Type', rendered.contentType)
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    res.setHeader('Content-Disposition', documentExportDisposition(fileName))
     res.setHeader('Content-Length', rendered.buffer.length)
     res.end(rendered.buffer)
   }

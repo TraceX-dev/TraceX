@@ -55,6 +55,20 @@ export class PrintPage {
       .toBe(true)
   }
 
+  async exportPdf (): Promise<void> {
+    await this.page.locator('.antiPopup').getByRole('button', { name: 'Export…', exact: true }).click()
+    const settings = this.page.locator('form[id="export:string:Export"]')
+    await expect(settings).toBeVisible()
+    await expect(settings.getByTestId('export-format')).toHaveText('PDF')
+    await expect(settings.getByTestId('export-orientation')).toHaveText('Portrait mode')
+    const contentOnly = settings.getByTestId('export-content-only').getByRole('checkbox')
+    const preview = settings.getByTestId('export-preview').getByRole('checkbox')
+    await expect(contentOnly).not.toBeChecked()
+    await expect(preview).toBeChecked()
+    await settings.getByRole('button', { name: 'Export', exact: true }).click()
+    await expect(settings).toHaveCount(0, { timeout: 120000 })
+  }
+
   async checkPdfPreview (title: string): Promise<void> {
     const preview = this.page.locator(`iframe[title*="${title}"][title$=".pdf"]`)
     await expect(preview).toBeVisible({ timeout: 120000 })

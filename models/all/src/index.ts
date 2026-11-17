@@ -391,8 +391,8 @@ export default function buildModel (): Builder {
         classFilter: defaultFilter
       }
     ],
-    [printModel, printId],
     [exportModel, exportId],
+    [printModel, printId],
     [aiBotModel, aiBotId],
     [
       processModel,

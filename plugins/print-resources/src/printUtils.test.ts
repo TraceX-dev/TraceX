@@ -16,7 +16,8 @@
 import type { Client, Doc, Ref, Class, Space, PersonId, TxOperations } from '@hcengineering/core'
 import { printToPDF } from '@hcengineering/print'
 import { signPDF } from '@hcengineering/sign'
-import { printAll, type PrintAllOptions } from './printUtils'
+import { printAll } from './printUtils'
+import type { PrintAllOptions } from './printUtils'
 
 jest.mock('@hcengineering/analytics', () => ({ Analytics: { handleError: jest.fn() } }))
 jest.mock('@hcengineering/platform', () => ({ getMetadata: jest.fn(() => 'token') }))
@@ -36,10 +37,15 @@ const doc: Doc = {
   modifiedBy: 'person' as PersonId,
   modifiedOn: 1
 }
-const client: Partial<Client> & Pick<TxOperations, 'createDoc'> = { findOne: jest.fn(), createDoc: jest.fn() }
+const client: Partial<Client> & Pick<TxOperations, 'createDoc' | 'createMixin' | 'updateMixin'> = {
+  findOne: jest.fn(),
+  createDoc: jest.fn(),
+  createMixin: jest.fn(),
+  updateMixin: jest.fn()
+}
 const options: PrintAllOptions = { onProgress: jest.fn(), getCancelled: () => false }
 
-describe('authenticated document printing', () => {
+describe('bulk PDF export', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.mocked(printToPDF).mockResolvedValue('pdf')
@@ -48,13 +54,25 @@ describe('authenticated document printing', () => {
 
   it('prints the target without creating or looking up public links', async () => {
     const result = await printAll(client as Client, [doc], false, options)
-    expect(printToPDF).toHaveBeenCalledWith(doc, 'token')
+    expect(printToPDF).toHaveBeenCalledWith(doc, 'token', undefined)
     expect(client.findOne).not.toHaveBeenCalled()
     expect(client.createDoc).not.toHaveBeenCalled()
     expect(result).toEqual([{ blobId: 'pdf', title: 'Document.pdf', error: undefined }])
   })
 
-  it('signs only the successfully rendered PDF', async () => {
+  it('uses the same selected orientation for every document and ignores legacy preferences', async () => {
+    const legacy: Record<string, unknown> = { 'print:mixin:PrintOptions': { orientation: 'landscape' } }
+    const secondDoc: Doc = { ...doc, ...legacy, _id: 'second-document' as Ref<Doc> }
+    const selection: PrintAllOptions = { ...options, printOptions: { orientation: 'portrait', contentOnly: false } }
+    await printAll(client as Client, [doc, secondDoc], true, selection)
+    expect(printToPDF).toHaveBeenNthCalledWith(1, doc, 'token', selection.printOptions)
+    expect(printToPDF).toHaveBeenNthCalledWith(2, secondDoc, 'token', selection.printOptions)
+    expect(signPDF).toHaveBeenCalledTimes(2)
+    expect(client.createMixin).not.toHaveBeenCalled()
+    expect(client.updateMixin).not.toHaveBeenCalled()
+  })
+
+  it('signs the successfully rendered PDF', async () => {
     const result = await printAll(client as Client, [doc], true, options)
     expect(signPDF).toHaveBeenCalledWith('pdf', 'token')
     expect(result[0].blobId).toBe('signed-pdf')
@@ -69,8 +87,8 @@ describe('authenticated document printing', () => {
   })
 
   it('does not begin a cancelled export', async () => {
-    const result = await printAll(client as Client, [doc], false, { ...options, getCancelled: () => true })
-    expect(result).toEqual([])
+    const selection: PrintAllOptions = { ...options, getCancelled: () => true }
+    expect(await printAll(client as Client, [doc], false, selection)).toEqual([])
     expect(printToPDF).not.toHaveBeenCalled()
   })
 })

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import type { Doc } from '@hcengineering/core'
+import core, { type Doc, type Hierarchy } from '@hcengineering/core'
 
 /**
  * Checks if a document should be skipped based on its state.
@@ -45,4 +46,10 @@ export function isEffectiveDocument (doc: Doc): boolean {
   if (!('state' in doc)) return true
   const docWithState = doc as Doc & { state?: string }
   return typeof docWithState.state === 'string' && docWithState.state === 'effective'
+}
+
+/** Whether an object has an inherited collaborative editor field named content. */
+export function hasDocumentContent (hierarchy: Hierarchy, doc: Doc): boolean {
+  const attribute = hierarchy.findAttribute(doc._class, 'content')
+  return attribute !== undefined && hierarchy.isDerived(attribute.type._class, core.class.TypeCollaborativeDoc)
 }

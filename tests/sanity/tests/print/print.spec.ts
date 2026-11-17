@@ -17,7 +17,6 @@ import { expect, test } from '@playwright/test'
 import { readFile } from 'fs/promises'
 import path from 'path'
 import { DocumentContentPage } from '../model/documents/document-content-page'
-import { CommonPage } from '../model/common-page'
 import { DriveCreateEditPopup } from '../model/drive/drive-create-edit-popup'
 import { DrivesPage } from '../model/drive/drive-drives-page'
 import { DriveFilesPage } from '../model/drive/drive-files-page'
@@ -62,8 +61,10 @@ test.describe('Printing', () => {
     await editor.inputImageFile().setInputFiles(path.join(__dirname, '../files/cat.jpeg'))
     await expect(editor.firstImageInDocument()).toBeVisible({ timeout: 60000 })
     await waitForPrintContent(document)
-    await editor.executeMoreAction('Print to PDF')
-    await new PrintPage(page).checkPdfPreview(document.title)
+    await editor.buttonMoreActions().click()
+    const preview = new PrintPage(page)
+    await preview.exportPdf()
+    await preview.checkPdfPreview(document.title)
 
     const printTab = await context.newPage()
     try {
@@ -136,8 +137,9 @@ test.describe('Printing', () => {
     await editor.fill(content)
     await waitForPrintContent(card, PRINT_CARD_CLASS)
     await page.locator('.hulyHeader-buttonsGroup').getByTestId('btnMoreActions').click()
-    await new CommonPage(page).selectFromDropdown(page, 'Print to PDF')
-    await new PrintPage(page).checkPdfPreview(card.title)
+    const preview = new PrintPage(page)
+    await preview.exportPdf()
+    await preview.checkPdfPreview(card.title)
 
     const printTab = await context.newPage()
     try {

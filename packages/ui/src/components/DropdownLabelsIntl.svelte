@@ -121,6 +121,7 @@
     {disabled}
     {justify}
     {noFocus}
+    pressed={opened}
     showTooltip={{ label, direction: labelDirection }}
     on:click={openPopup}
   >
