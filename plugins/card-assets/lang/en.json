@@ -46,6 +46,7 @@
     "MasterDetailViews": "Master Detail Views",
     "SelectType": "Select Type",
     "SelectTypeAndSpace": "Please select a Card Type and a Space to continue.",
+    "SelectParentFirst": "Select an item on the left first",
     "CreateSpace": "Create space",
     "NumberTypes": "{count, plural, one {# type} other {# types}}",
     "Labels": "Labels",

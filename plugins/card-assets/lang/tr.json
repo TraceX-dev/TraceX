@@ -46,6 +46,7 @@
     "MasterDetailViews": "Ana Detay Görünümleri",
     "SelectType": "Tip Seç",
     "SelectTypeAndSpace": "Devam etmek için bir Kart Türü ve bir Alan seçin.",
+    "SelectParentFirst": "Önce soldan bir öğe seçin",
     "CreateSpace": "Alan oluştur",
     "NumberTypes": "{count, plural, one {# tip} other {# tip}}",
     "Labels": "Etiketler",

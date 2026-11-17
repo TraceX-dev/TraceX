@@ -46,6 +46,7 @@
     "MasterDetailViews": "Viste Master-Detail",
     "SelectType": "Seleziona il tipo",
     "SelectTypeAndSpace": "Seleziona un Tipo di scheda e uno Spazio per continuare.",
+    "SelectParentFirst": "Seleziona prima un elemento a sinistra",
     "CreateSpace": "Crea spazio",
     "Labels": "Etichette",
     "Properties": "Proprietà",

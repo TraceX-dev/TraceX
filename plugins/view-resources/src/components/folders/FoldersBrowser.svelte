@@ -38,6 +38,8 @@
   export let plainList: boolean = false
   export let readonly: boolean = false
   export let reorderable: boolean = false
+  // Programmatically select an item (e.g. a newly created one) once it appears in the list.
+  export let selectId: Ref<Doc> | undefined = undefined
 
   const dispatch = createEventDispatcher()
 
@@ -88,6 +90,12 @@
       selected = _id
     }
     dispatch('select', _id)
+  }
+
+  let appliedSelectId: Ref<Doc> | undefined = undefined
+  $: if (selectId !== undefined && selectId !== appliedSelectId && foldersState.folderById.has(selectId)) {
+    appliedSelectId = selectId
+    void handleFolderSelected(selectId)
   }
 
   async function handleAllItemsSelected (): Promise<void> {
