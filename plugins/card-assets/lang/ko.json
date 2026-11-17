@@ -46,6 +46,7 @@
         "MasterDetailViews": "마스터 디테일 뷰",
         "SelectType": "유형 선택",
         "SelectTypeAndSpace": "계속하려면 카드 유형과 스페이스를 선택하세요.",
+        "SelectParentFirst": "먼저 왼쪽에서 항목을 선택하세요",
         "CreateSpace": "스페이스 만들기",
         "NumberTypes": "{count, plural, one {유형 #개} other {유형 #개}}",
         "Labels": "라벨",

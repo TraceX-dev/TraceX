@@ -46,6 +46,7 @@
     "MasterDetailViews": "マスター詳細ビュー",
     "SelectType": "タイプを選択",
     "SelectTypeAndSpace": "続行するには、カードタイプとスペースを選択してください。",
+    "SelectParentFirst": "まず左側の項目を選択してください",
     "CreateSpace": "スペースを作成",
     "NumberTypes": "{count, plural, one {# タイプ} other {# タイプ}}",
     "Labels": "ラベル",

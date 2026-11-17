@@ -46,6 +46,7 @@
     "MasterDetailViews": "主细节视图",
     "SelectType": "选择类型",
     "SelectTypeAndSpace": "请选择卡片类型和空间以继续。",
+    "SelectParentFirst": "请先在左侧选择一个项目",
     "CreateSpace": "创建空间",
     "NumberTypes": "{count, plural, one {# 类型} other {# 类型}}",
     "Labels": "标签",

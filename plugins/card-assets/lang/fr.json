@@ -46,6 +46,7 @@
     "MasterDetailViews": "Vues maître-détail",
     "SelectType": "Sélectionner le type",
     "SelectTypeAndSpace": "Veuillez sélectionner un Type de carte et un Espace pour continuer.",
+    "SelectParentFirst": "Sélectionnez d'abord un élément à gauche",
     "CreateSpace": "Créer un espace",
     "NumberTypes": "{count, plural, one {# type} other {# types}}",
     "Labels": "Étiquettes",

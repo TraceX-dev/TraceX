@@ -14,13 +14,33 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { Doc, DocumentQuery, FindOptions, Ref, Space, WithLookup, mergeQueries } from '@hcengineering/core'
+  import core, {
+    Association,
+    Doc,
+    DocumentQuery,
+    FindOptions,
+    Ref,
+    Relation,
+    Space,
+    WithLookup,
+    mergeQueries
+  } from '@hcengineering/core'
   import { MasterDetailConfig, ViewOptions, Viewlet, ViewletDescriptor } from '@hcengineering/view'
-  import { getClient } from '@hcengineering/presentation'
+  import { createQuery, getClient } from '@hcengineering/presentation'
 
   import MasterDetailBrowser from './MasterDetailBrowser.svelte'
   import ObjectPanelResolver from './ObjectPanelResolver.svelte'
   import view from '../../plugin'
+
+  /**
+   * Relation to create for cards created from a column.
+   * docIsA: true when docId is docA of the association.
+   */
+  interface CreateLink {
+    association: Ref<Association>
+    docId: Ref<Doc>
+    docIsA: boolean
+  }
 
   export let space: Ref<Space> | undefined = undefined
   export let query: DocumentQuery<Doc> = {}
@@ -29,6 +49,12 @@
   export let compactMode: boolean = false
   export let readonly: boolean = false
   export let reorderable: boolean = false
+  // Set by the parent level of a 3+ column view.
+  export let isChildLevel: boolean = false
+  // Filter for the master column, coming from the selection in the parent level.
+  export let masterFilter: DocumentQuery<Doc> | undefined = undefined
+  // Link for cards created in the master column (selected item of the parent level).
+  export let parentLink: CreateLink | undefined = undefined
 
   // Per _class configuration, if supported.
   export let viewOptions: ViewOptions
@@ -39,48 +65,84 @@
   let parentView: ViewletDescriptor | undefined = undefined
   let detailView: ViewletDescriptor | undefined = undefined
 
+  let selectedMaster: Ref<Doc> | undefined = undefined
+  let masterSelectId: Ref<Doc> | undefined = undefined
+  let association: Association | undefined = undefined
+  // true when the master class is classA of the association
+  let masterIsA: boolean = true
+
   const client = getClient()
+  const relationsQuery = createQuery()
 
-  $: void getViewlets()
-
-  async function getViewlets (): Promise<void> {
-    if (viewlet === undefined) return
-    const views: MasterDetailConfig[] = viewlet?.masterDetailOptions?.views ?? []
-    const results = await client.findAll(view.class.ViewletDescriptor, { _id: { $in: [views[0].view, views[1].view] } })
-    parentView = results.find((v) => v._id === views[0].view)
-    detailView = results.find((v) => v._id === views[1].view)
+  $: views = (viewlet?.masterDetailOptions?.views ?? []) as MasterDetailConfig[]
+  async function getViewlets (configs: MasterDetailConfig[]): Promise<void> {
+    if (configs.length < 2) return
+    const results = await client.findAll(view.class.ViewletDescriptor, {
+      _id: { $in: [configs[0].view, configs[1].view] }
+    })
+    parentView = results.find((v) => v._id === configs[0].view)
+    detailView = results.find((v) => v._id === configs[1].view)
+    await findAssociation(configs)
   }
 
-  async function selected (e: CustomEvent<any>): Promise<void> {
-    const views: MasterDetailConfig[] = viewlet?.masterDetailOptions?.views ?? []
-    if (detailView === undefined) return
-    if (detailView?._id === view.viewlet.Document) {
+  async function findAssociation (configs: MasterDetailConfig[]): Promise<void> {
+    const masterClass = configs[0].class
+    const detailClass = configs[1].class
+    const configured = configs[1].associationId as Ref<Association> | undefined
+    let result =
+      configured !== undefined ? await client.findOne(core.class.Association, { _id: configured }) : undefined
+    result =
+      result ??
+      (await client.findOne(core.class.Association, { classA: masterClass, classB: detailClass })) ??
+      (await client.findOne(core.class.Association, { classA: detailClass, classB: masterClass }))
+    association = result
+    masterIsA = result === undefined || result.classA === masterClass
+  }
+
+  $: void getViewlets(views)
+
+  $: isDocumentDetail = detailView?._id === view.viewlet.Document
+
+  function selected (e: CustomEvent<any>): void {
+    selectedMaster = e.detail
+    if (isDocumentDetail) {
       _id = e.detail
-    } else {
-      let association = await client.findOne(core.class.Association, {
-        classA: views[0].class,
-        classB: views[1].class
-      })
-      association =
-        association ??
-        (await client.findOne(core.class.Association, {
-          classB: views[0].class,
-          classA: views[1].class
-        }))
-      if (association === undefined) return
-      const relations = await client.findAll(core.class.Relation, {
-        association: association._id,
-        docA: e.detail
-      })
-      const ids = relations.flatMap((r) => [r.docA, r.docB])
-      _query = mergeQueries(query ?? {}, { _id: { $in: ids } })
     }
   }
 
-  $: remainingViews = viewlet?.masterDetailOptions?.views?.slice(1) ?? []
-  $: isSimpleView = (viewlet?.masterDetailOptions?.views?.length ?? 0) <= 2
+  // Live list of cards related to the selected master: refreshes when a related card is created.
+  $: if (!isDocumentDetail && association !== undefined && selectedMaster !== undefined) {
+    relationsQuery.query(
+      core.class.Relation,
+      {
+        association: association._id,
+        [masterIsA ? 'docA' : 'docB']: selectedMaster
+      } as unknown as DocumentQuery<Relation>,
+      (relations: Relation[]) => {
+        const ids = relations.map((r) => (masterIsA ? r.docB : r.docA))
+        _query = mergeQueries(query ?? {}, { _id: { $in: ids } })
+      }
+    )
+  } else {
+    relationsQuery.unsubscribe()
+  }
+
+  $: detailLink =
+    association !== undefined && selectedMaster !== undefined
+      ? { association: association._id, docId: selectedMaster, docIsA: masterIsA }
+      : undefined
+
+  // Detail cards appear through the live relations query: stay in the view instead of navigating.
+  function noop (): void {}
+
+  function onMasterCreated (id: Ref<Doc>): void {
+    masterSelectId = id
+  }
+
+  $: remainingViews = views.slice(1)
+  $: isSimpleView = views.length <= 2
   $: detailViewComponent = isSimpleView
-    ? detailView?._id === view.viewlet.Document
+    ? isDocumentDetail
       ? ObjectPanelResolver
       : (detailView?.component ?? view.component.EditDoc)
     : (viewlet?.$lookup?.descriptor?.component ?? view.component.MasterDetailBrowser)
@@ -95,7 +157,7 @@
       }
   $: detailProps = isSimpleView
     ? {
-        _class: viewlet?.masterDetailOptions?.views[1].class,
+        _class: views[1]?.class,
         space,
         options,
         config: viewlet.config,
@@ -110,33 +172,53 @@
       }
     : {
         space,
-        parentQuery: _query,
         options,
         viewlet: nestedViewlet,
-        viewOptions
+        viewOptions,
+        readonly,
+        reorderable,
+        isChildLevel: true,
+        masterFilter: selectedMaster !== undefined ? _query : undefined,
+        parentLink: detailLink
       }
+  $: masterQuery = masterFilter !== undefined ? mergeQueries(query ?? {}, masterFilter) : query
+  // In a child level the master column holds related cards, so creating requires a selected parent.
+  $: masterCreateDisabled = isChildLevel && parentLink === undefined
 </script>
 
 {#if viewlet !== undefined && parentView !== undefined && detailView !== undefined && viewlet.masterDetailOptions !== undefined}
   <MasterDetailBrowser
     query={_query}
-    masterQuery={query}
+    {masterQuery}
     {space}
     detailComponent={detailViewComponent}
     detailComponentProps={detailProps}
     masterComponent={parentView.component}
     masterComponentProps={{
-      _class: viewlet?.masterDetailOptions?.views[0].class,
+      _class: views[0].class,
       plainList: true,
       readonly,
-      reorderable
+      reorderable,
+      selectId: masterSelectId
     }}
-    createMasterComponent={viewlet?.masterDetailOptions?.views[1]?.createComponent}
-    createMasterComponentProps={{ _class: viewlet?.masterDetailOptions?.views[0].class }}
-    createDetailComponent={viewlet?.masterDetailOptions?.views[0]?.createComponent}
-    createDetailComponentProps={{ _class: viewlet?.masterDetailOptions?.views[1].class }}
-    detailClass={viewlet.masterDetailOptions.views[1].class}
-    parentClass={viewlet.masterDetailOptions.views[0].class}
+    createMasterComponent={views[0]?.createComponent}
+    createMasterComponentProps={{
+      _class: views[0].class,
+      space,
+      link: parentLink,
+      disabled: masterCreateDisabled,
+      onCreated: onMasterCreated
+    }}
+    createDetailComponent={isDocumentDetail ? undefined : views[1]?.createComponent}
+    createDetailComponentProps={{
+      _class: views[1].class,
+      space,
+      link: detailLink,
+      disabled: detailLink === undefined,
+      onCreated: noop
+    }}
+    detailClass={views[1].class}
+    parentClass={views[0].class}
     isNested={!isSimpleView}
     on:select={selected}
   />
