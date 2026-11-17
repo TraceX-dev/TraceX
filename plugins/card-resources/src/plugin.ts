@@ -157,6 +157,7 @@ export default mergeIds(cardId, card, {
     MasterDetailViews: '' as IntlString,
     SelectType: '' as IntlString,
     SelectTypeAndSpace: '' as IntlString,
+    SelectParentFirst: '' as IntlString,
     CreateSpace: '' as IntlString,
     NumberTypes: '' as IntlString,
     Properties: '' as IntlString,

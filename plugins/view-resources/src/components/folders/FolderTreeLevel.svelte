@@ -174,6 +174,7 @@
 
   {#if doc}
     <div
+      class="folder-row"
       class:dragging={dragged?._id === doc._id}
       class:drop-before={dropTarget === doc._id && !dropAfter}
       class:drop-after={dropTarget === doc._id && dropAfter}
@@ -210,6 +211,12 @@
 {/each}
 
 <style lang="scss">
+  // Flex column so the nav item stretches to full width (the wrapper exists for drag & drop).
+  .folder-row {
+    display: flex;
+    flex-direction: column;
+  }
+
   .dragging {
     opacity: 0.5;
   }

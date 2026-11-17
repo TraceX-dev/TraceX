@@ -46,6 +46,7 @@
     "MasterDetailViews": "Widoki list ze szczegółami",
     "SelectType": "Wybierz typ",
     "SelectTypeAndSpace": "Aby kontynuować, wybierz Typ karty i Przestrzeń.",
+    "SelectParentFirst": "Najpierw wybierz element po lewej",
     "CreateSpace": "Utwórz przestrzeń",
     "NumberTypes": "{count, plural, one {# typ} few {# typy} other {# typów}}",
     "Labels": "Etykiety",

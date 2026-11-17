@@ -46,6 +46,7 @@
     "MasterDetailViews": "Visualizações de Detalhe Master",
     "SelectType": "Selecionar tipo",
     "SelectTypeAndSpace": "Selecione um Tipo de cartão e um Espaço para continuar.",
+    "SelectParentFirst": "Selecione primeiro um item à esquerda",
     "CreateSpace": "Criar espaço",
     "NumberTypes": "{count, plural, one {# tipo} other {# tipos}}",
     "Labels": "Etiquetas",

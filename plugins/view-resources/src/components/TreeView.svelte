@@ -33,6 +33,8 @@
   export let plainList: boolean = false
   export let readonly: boolean = false
   export let reorderable: boolean = false
+  // Programmatically select an item (e.g. a newly created one) once it appears in the list.
+  export let selectId: Ref<Doc> | undefined = undefined
 </script>
 
 <FoldersBrowser
@@ -47,5 +49,6 @@
   {plainList}
   {readonly}
   {reorderable}
+  {selectId}
   on:select
 />

@@ -46,6 +46,7 @@
     "MasterDetailViews": "Zobrazení master-detail",
     "SelectType": "Vybrat typ",
     "SelectTypeAndSpace": "Pro pokračování vyberte typ karty a prostor.",
+    "SelectParentFirst": "Nejprve vyberte položku vlevo",
     "CreateSpace": "Vytvořit prostor",
     "NumberTypes": "{count, plural, one {# typ} few {# typy} other {# typů}}",
     "Labels": "Štítky",
