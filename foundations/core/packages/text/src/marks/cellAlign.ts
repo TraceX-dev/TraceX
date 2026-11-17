@@ -14,6 +14,7 @@
 //
 
 import { Extension } from '@tiptap/core'
+import { enumValidator } from '../nodes/utils'
 
 // Picks the first non-empty value, treating '' the same as unset (CSSStyleDeclaration properties
 // are always strings, never null/undefined, so a plain `||`/`??` chain would not skip an unset
@@ -28,7 +29,8 @@ function firstNonEmpty (...values: Array<string | null | undefined>): string | n
 }
 
 // Horizontal alignment of the cell content, mirrors CSS `text-align`.
-export type CellTextAlign = 'left' | 'center' | 'right'
+const CELL_TEXT_ALIGNMENTS = ['left', 'center', 'right'] as const
+export type CellTextAlign = (typeof CELL_TEXT_ALIGNMENTS)[number]
 
 // Vertical alignment of the cell content, mirrors CSS `vertical-align`.
 export type CellVerticalAlign = 'top' | 'middle' | 'bottom'
@@ -79,6 +81,7 @@ export const CellAlign = Extension.create<CellAlignOptions>({
         attributes: {
           textAlign: {
             default: null,
+            validate: enumValidator(CELL_TEXT_ALIGNMENTS, true),
             parseHTML: (element) => firstNonEmpty(element.style.textAlign, element.getAttribute('data-text-align')),
             renderHTML: (attributes) => {
               if (typeof attributes.textAlign !== 'string') {

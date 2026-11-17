@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 //
 import type { Blob, Ref } from '@hcengineering/core'
 import { Node, mergeAttributes } from '@tiptap/core'
-import { getDataAttribute } from './utils'
+import { enumValidator, getDataAttribute } from './utils'
 
 /**
  * @public
@@ -93,6 +94,25 @@ export interface ImageOptions {
 export const ImageNode = Node.create<ImageOptions>({
   name: 'image',
 
+  addSchemaAwareness () {
+    return {
+      label: 'Stored image',
+      description:
+        'Image displayed inline or on its own line. Preserve existing file references; this node does not upload or allocate image resources.',
+      attributes: {
+        'file-id': { access: 'readonly', description: 'Existing attachment ID. Do not invent it.' },
+        src: { description: 'Source URL.' },
+        alt: { description: 'Alternative text.' },
+        title: { description: 'Optional title.' },
+        width: { description: 'Displayed width in pixels or a CSS length.' },
+        height: { description: 'Displayed height in pixels or a CSS length.' },
+        align: { description: 'Horizontal image alignment.' },
+        display: { description: 'Image layout mode.' },
+        'data-file-type': { access: 'readonly', description: 'MIME type.' }
+      }
+    }
+  },
+
   addOptions () {
     return {
       inline: true,
@@ -116,27 +136,34 @@ export const ImageNode = Node.create<ImageOptions>({
   addAttributes () {
     return {
       'file-id': {
-        default: null
+        default: null,
+        validate: 'string|null'
       },
       width: {
-        default: null
+        default: null,
+        validate: 'string|number|null'
       },
       height: {
-        default: null
+        default: null,
+        validate: 'string|number|null'
       },
       src: {
-        default: null
+        default: null,
+        validate: 'string|null'
       },
       alt: {
-        default: null
+        default: null,
+        validate: 'string|null'
       },
       title: {
-        default: null
+        default: null,
+        validate: 'string|null'
       },
-      align: getDataAttribute('align'),
-      display: getDataAttribute('display'),
+      align: getDataAttribute('align', { validate: enumValidator(['left', 'center', 'right'], true) }),
+      display: getDataAttribute('display', { validate: enumValidator(['block', 'inline'], true) }),
       'data-file-type': {
-        default: null
+        default: null,
+        validate: 'string|null'
       }
     }
   },

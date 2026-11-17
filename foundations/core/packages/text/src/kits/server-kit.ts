@@ -42,8 +42,10 @@ export const ServerKitFactory = (e: ExtensionFactory) =>
     tables: e(TableKit),
     textColorStyling: e(TextColorStylingKit),
 
-    hardBreak: e(HardBreak),
-    highlight: e(Highlight, { multicolor: false }),
+    hardBreak: e(HardBreak.extend({ addSchemaAwareness: () => ({ description: 'Inline line break.' }) })),
+    highlight: e(Highlight.extend({ addSchemaAwareness: () => ({ description: 'Highlighted text.' }) }), {
+      multicolor: false
+    }),
     reference: e(ReferenceNode),
     file: e(FileNode),
     image: e(ImageNode),

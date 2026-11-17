@@ -23,9 +23,18 @@ import process, { type AuthoringNativeDocument, type Process } from '@hcengineer
 import { fromJsonSchema, type CallToolResult, type McpServer } from '@modelcontextprotocol/server'
 import type { TraceXAuthInfo } from './auth'
 import type { WorkspaceConnection } from './workspace'
+import {
+  packageInspectInstalledToolId,
+  packageInspectToolId,
+  packageInstalledToolId,
+  packageReleasesToolId,
+  packageSearchToolId
+} from './tools/package/tool-ids'
+import { meWorkspacesToolId } from './tools/me/tool-ids'
 
 /** Applies the shared authoring permission and workspace checks before a discovery operation. */
 export type PackageToolExecutor = (
+  tool: string,
   workspace: string,
   operation: (connection: WorkspaceConnection) => Promise<Record<string, unknown>>
 ) => Promise<CallToolResult>
@@ -174,19 +183,21 @@ export function registerPackageDiscoveryTools (
     }
     return new MarketplaceClient(marketplaceUrl, auth.extra.accountToken)
   }
-  const workspace = { type: 'string', minLength: 1, description: 'Exact workspace ID from my.workspaces.' }
-  const id = { type: 'string', minLength: 1, description: 'Exact package ID returned by package.search.' }
+  const workspace = { type: 'string', minLength: 1, description: `Exact workspace ID from ${meWorkspacesToolId}.` }
+  const id = { type: 'string', minLength: 1, description: `Exact package ID returned by ${packageSearchToolId}.` }
   const author = {
     type: 'string',
     minLength: 1,
-    description: 'Original author account UUID returned by package.search; names alone are not identities.'
+    description: `Original author account UUID returned by ${packageSearchToolId}; names alone are not identities.`
   }
   const offset = { type: 'integer', minimum: 0, maximum: 1000000 }
   const limit = { type: 'integer', minimum: 1, maximum: 100, default: 30 }
 
   server.registerTool(
-    'package.search',
+    packageSearchToolId,
     {
+      title: 'Search packages',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
       description:
         'Search existing Marketplace packages before creating a workflow. Returns public packages and private packages accessible to the authenticated account, with exact author/ID/latest-version identities and pagination. Does not install or publish.',
       inputSchema: fromJsonSchema<{
@@ -203,7 +214,7 @@ export function registerPackageDiscoveryTools (
       })
     },
     async (args) =>
-      await execute(args.workspace, async () => {
+      await execute(packageSearchToolId, args.workspace, async () => {
         return {
           ...(await catalog().list({
             search: args.search,
@@ -217,10 +228,11 @@ export function registerPackageDiscoveryTools (
   )
 
   server.registerTool(
-    'package.releases',
+    packageReleasesToolId,
     {
-      description:
-        'List accessible releases of an exact Marketplace package. Use the original author and ID from package.search and preserve explicit release versions when reviewing reuse.',
+      title: 'List package releases',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+      description: `List accessible releases of an exact Marketplace package. Use the original author and ID from ${packageSearchToolId} and preserve explicit release versions when reviewing reuse.`,
       inputSchema: fromJsonSchema<{ workspace: string, id: string, author: string, offset?: number }>({
         type: 'object',
         properties: { workspace, id, author, offset },
@@ -229,14 +241,16 @@ export function registerPackageDiscoveryTools (
       })
     },
     async (args) =>
-      await execute(args.workspace, async () => ({
+      await execute(packageReleasesToolId, args.workspace, async () => ({
         ...(await catalog().releases({ id: args.id, author: args.author as AccountUuid }, args.offset))
       }))
   )
 
   server.registerTool(
-    'package.inspect',
+    packageInspectToolId,
     {
+      title: 'Inspect package release',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
       description:
         'Read and verify a selected Marketplace release: plain YAML, content hash, process slots, declared context and result types. Defaults to the latest version observed at lookup and downloads that exact version. This is a template, not an installed process. Does not install or execute anything.',
       inputSchema: fromJsonSchema<{ workspace: string, id: string, author: string, version?: string }>({
@@ -247,7 +261,7 @@ export function registerPackageDiscoveryTools (
       })
     },
     async (args) =>
-      await execute(args.workspace, async () => {
+      await execute(packageInspectToolId, args.workspace, async () => {
         const client = catalog()
         const identity: CatalogPackageIdentity = { id: args.id, author: args.author as AccountUuid }
         const { release, latestVersion } = await readCatalogPackageRelease(client, identity, args.version)
@@ -264,10 +278,11 @@ export function registerPackageDiscoveryTools (
   )
 
   server.registerTool(
-    'package.installed',
+    packageInstalledToolId,
     {
-      description:
-        'List visible package installations in this workspace, including independent repeated installations. Filter by package ID and original author from package.search. Use package.inspect_installed to get actual local process IDs and current graphs for reuse.',
+      title: 'List installed packages',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+      description: `List visible package installations in this workspace, including independent repeated installations. Filter by package ID and original author from ${packageSearchToolId}. Use ${packageInspectInstalledToolId} to get actual local process IDs and current graphs for reuse.`,
       inputSchema: fromJsonSchema<{ workspace: string, id?: string, author?: string, after?: string, limit?: number }>({
         type: 'object',
         properties: {
@@ -277,7 +292,7 @@ export function registerPackageDiscoveryTools (
           after: {
             type: 'string',
             minLength: 1,
-            description: 'Exact nextCursor returned by package.installed with the same filters.'
+            description: `Exact nextCursor returned by ${packageInstalledToolId} with the same filters.`
           },
           limit
         },
@@ -286,7 +301,7 @@ export function registerPackageDiscoveryTools (
       })
     },
     async (args) =>
-      await execute(args.workspace, async (connection) => {
+      await execute(packageInstalledToolId, args.workspace, async (connection) => {
         const count = args.limit ?? 30
         // Storage adapters support string ID ranges; QuerySelector only types numeric ranges.
         const boundary: Record<string, unknown> = args.after === undefined ? {} : { _id: { $gt: args.after } }
@@ -310,8 +325,10 @@ export function registerPackageDiscoveryTools (
   )
 
   server.registerTool(
-    'package.inspect_installed',
+    packageInspectInstalledToolId,
     {
+      title: 'Inspect installed package',
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
       description:
         'Read the actual local process IDs, current graphs, result types and saved bindings of a visible package installation. Local edits and unavailable members are reported. Use compatible local IDs to bind process slots; catalog member IDs are not callable workspace processes.',
       inputSchema: fromJsonSchema<{ workspace: string, installationId: string }>({
@@ -323,6 +340,7 @@ export function registerPackageDiscoveryTools (
     },
     async (args) =>
       await execute(
+        packageInspectInstalledToolId,
         args.workspace,
         async (connection) => await inspectInstalledPackage(connection, args.installationId)
       )

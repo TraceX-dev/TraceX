@@ -1,6 +1,5 @@
 //
 // Copyright © 2026 TraceX.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -28,6 +27,7 @@ import { type StorageAdapter } from '@hcengineering/server-core'
 import { decodeToken, type Token } from '@hcengineering/server-token'
 
 import type { McpConfig } from './config'
+import { meWorkspacesToolId } from './tools/me/tool-ids'
 
 export interface WorkspaceConnection {
   token: Token
@@ -77,7 +77,7 @@ export class WorkspaceManager {
     // Check current membership before using cached clients; selectWorkspace also supports guest/admin fallbacks.
     const workspace = (await this.getWorkspaces(accountToken)).find((entry) => entry.id === workspaceId)
     if (workspace === undefined) {
-      throw new Error('Workspace is not accessible. Use my.workspaces to choose an available workspace ID.')
+      throw new Error(`Workspace is not accessible. Use ${meWorkspacesToolId} to choose an available workspace ID.`)
     }
     const login = await getAccountClient(this.config.AccountsURL, accountToken).selectWorkspace(
       workspace.url,

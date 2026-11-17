@@ -20,6 +20,12 @@ export type ToolInputSchema = TObject
 export type ToolOutputSchema = TObject | TString
 export type ToolMetadata = Record<string, any>
 
+export interface ToolAnnotations {
+  readOnlyHint?: boolean
+  destructiveHint?: boolean
+  idempotentHint?: boolean
+}
+
 export interface ToolExecutorContext {
   ctx: MeasureContext
 }
@@ -55,8 +61,10 @@ export interface ToolAction<
   TContext extends ToolExecutorContext,
   TMetadata extends ToolMetadata
 > {
-  // Tool name for LLM
+  // Tool identifier for LLM
   name: string
+  // Human-readable display name
+  title?: string
   // Tool description for LLM
   description: string
   // Tool input arguments schema
@@ -65,6 +73,8 @@ export interface ToolAction<
   outputSchema?: TOutputSchema
   // Tool metadata
   metadata?: TMetadata
+  // Tool annotations
+  annotations?: ToolAnnotations
   // Tool executor
   execute: ToolExecutor<TInputSchema, TOutputSchema, TContext>
 }

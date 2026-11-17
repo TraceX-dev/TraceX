@@ -39,15 +39,18 @@ import { type McpConfig } from './config'
 import { createMcpTokenVerifier, type TraceXAuthInfo } from './auth'
 import { jsonStructuredText, jsonText } from './mcp'
 import { registerMeWorkspacesTool } from './tools/me/workspaces'
+import { meWorkspacesToolId } from './tools/me/tool-ids'
+import { packageAuthoringGuideToolId } from './tools/package/tool-ids'
 import type { WorkspaceConnection, WorkspaceManager } from './workspace'
 import { registerPackageAuthoringTools } from './package-authoring'
 import { createPackageAuthorizer, type PackageAuthorizer } from './package-authoring-access'
 
 const SERVER_NAME = 'tracex-mcp'
 const SERVER_VERSION = '0.1.0'
-const SERVER_INSTRUCTIONS = `Use only authorized TraceX workspaces. Never request or expose tokens. Call my.workspaces and pass an exact returned ID on every other call; clarify the target only if ambiguous. Discover IDs and fields through read-only tools and follow their schemas. Mutate only with user intent, reload existing objects, respect readonly/history errors and report the target workspace.
+const SERVER_INSTRUCTIONS = `Use only authorized TraceX workspaces. Never request or expose tokens. Discover IDs and fields through read-only tools and follow their schemas. Mutate only with user intent, reload existing objects, respect readonly/history errors and report the target workspace.
 
-For packages, read package.authoring_guide, then only relevant sections and installed contracts. Own technical choices; do not ask managers to select triggers, storage keys or process architecture. Record reasonable assumptions in the draft review. Ask concise business questions only for material contradictions, outcome-changing missing rules or unconfirmed required capabilities. Search reusable packages before new logic; never invent APIs or runtime behavior. Validate and save the requested private draft; installation, execution and publication are separate actions. The guide distinguishes draft edits from new package versions.
+Call ${meWorkspacesToolId} to discover workspaces authorized by this connection. A connection may be restricted to one workspace. Every other tool requires the exact workspace ID returned by ${meWorkspacesToolId}. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes.
+For packages, read ${packageAuthoringGuideToolId}, then only relevant sections and installed contracts. Own technical choices; do not ask managers to select triggers, storage keys or process architecture. Record reasonable assumptions in the draft review. Ask concise business questions only for material contradictions, outcome-changing missing rules or unconfirmed required capabilities. Search reusable packages before new logic; never invent APIs or runtime behavior. Validate and save the requested private draft; installation, execution and publication are separate actions. The guide distinguishes draft edits from new package versions.
 
 Prefer narrow queries, practical limits and structuredContent. Reuse retrieved guidance and contracts during the task instead of repeatedly loading whole documents or unchanged YAML. Correct invalid arguments from tool diagnostics.`
 
@@ -133,12 +136,12 @@ export function createMcpServer (
       version: SERVER_VERSION
     },
     {
-      instructions: `${SERVER_INSTRUCTIONS}\n\nConnected TraceX installation: ${String(auth.resource)}`
+      instructions: SERVER_INSTRUCTIONS
     }
   )
 
-  registerMeWorkspacesTool(server, workspaceManager, auth)
-  registerPackageAuthoringTools(server, auth, workspaceManager, authorizePackages, marketplaceUrl)
+  registerMeWorkspacesTool(server, workspaceManager, auth, ctx)
+  registerPackageAuthoringTools(server, auth, workspaceManager, authorizePackages, ctx, marketplaceUrl)
 
   for (const tool of tools) {
     const inputSchema = {
@@ -147,8 +150,7 @@ export function createMcpServer (
         ...tool.inputSchema.properties,
         workspace: {
           type: 'string',
-          description:
-            'Exact workspace ID returned by my.workspaces. Required for every call; never infer an implicit current workspace.'
+          description: `Exact workspace ID returned by ${meWorkspacesToolId}. Required for every call; never infer an implicit current workspace.`
         }
       },
       required: [...(tool.inputSchema.required ?? []), 'workspace']
@@ -156,42 +158,58 @@ export function createMcpServer (
     server.registerTool(
       tool.name,
       {
+        ...(tool.title !== undefined ? { title: tool.title } : {}),
         description: tool.description,
         inputSchema: fromJsonSchema<Record<string, unknown>>(inputSchema),
-        ...(tool.outputSchema !== undefined ? { outputSchema: fromJsonSchema(tool.outputSchema) } : {})
+        ...(tool.outputSchema !== undefined ? { outputSchema: fromJsonSchema(tool.outputSchema) } : {}),
+        ...(tool.annotations !== undefined ? { annotations: tool.annotations } : {})
       },
       async (args) => {
         const { workspace, ...input } = args
-        if (typeof workspace !== 'string' || workspace === '') {
-          return jsonText(
-            { error: { code: 'workspace_required', message: 'Choose an explicit workspace ID from my.workspaces.' } },
-            true
-          )
-        }
         try {
-          const connection = await workspaceManager.getConnection(
-            auth.extra.accountToken,
-            workspace,
-            auth.extra.workspaceId
-          )
-          const result = toToolResult(tool, await tool.execute(input, createToolContext(ctx, connection)))
-          return {
-            ...result,
-            content: [
-              {
-                type: 'text' as const,
-                text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})\nInstallation: ${String(auth.resource)}`
-              },
-              ...result.content
-            ]
-          }
+          return await ctx.with('mcp-tool', { tool: tool.name }, async (ctx) => {
+            if (typeof workspace !== 'string' || workspace === '') {
+              return jsonText(
+                {
+                  error: {
+                    code: 'workspace_required',
+                    message: `Choose an explicit workspace ID from ${meWorkspacesToolId}.`
+                  }
+                },
+                true
+              )
+            }
+            const connection = await ctx.with(
+              'connect',
+              {},
+              async () =>
+                await workspaceManager.getConnection(auth.extra.accountToken, workspace, auth.extra.workspaceId)
+            )
+            const result = toToolResult(
+              tool,
+              await ctx.with(
+                'execute',
+                {},
+                async (ctx) => await tool.execute(input, createToolContext(ctx, connection))
+              )
+            )
+            return {
+              ...result,
+              content: [
+                {
+                  type: 'text' as const,
+                  text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})`
+                },
+                ...result.content
+              ]
+            }
+          })
         } catch {
           return jsonText(
             {
               error: {
                 code: 'workspace_operation_failed',
-                message:
-                  'The operation failed. Verify the workspace with my.workspaces and reload the object before retrying. If the TraceX session has expired, reconnect.',
+                message: `The operation failed. Verify the workspace with ${meWorkspacesToolId} and reload the object before retrying. If the TraceX session has expired, reconnect.`,
                 workspace
               }
             },
@@ -221,11 +239,17 @@ function createToolContext (ctx: MeasureContext, connection: WorkspaceConnection
 }
 
 export function toToolResult (tool: ToolDefinition, result: ToolExecutionResult): CallToolResult {
-  return result.ok
-    ? tool.outputSchema !== undefined
-      ? jsonStructuredText(result.output)
-      : jsonText(result.output)
-    : jsonText({ error: result.error }, true)
+  if (!result.ok) {
+    const error = tool.name.startsWith('collab_')
+      ? {
+          outcome: result.error.code === 'input_format_error' ? 'not_applied' : 'unknown',
+          ...result.error,
+          retryable: false
+        }
+      : result.error
+    return jsonText({ error }, true)
+  }
+  return tool.outputSchema !== undefined ? jsonStructuredText(result.output) : jsonText(result.output)
 }
 
 function getTraceXAuthInfo (authInfo: AuthInfo | undefined): TraceXAuthInfo {

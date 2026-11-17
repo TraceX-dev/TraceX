@@ -435,6 +435,7 @@
     "@hcengineering/test-management-resources",
     "@hcengineering/tests-sanity",
     "@hcengineering/tests-ws-sanity",
+    "@hcengineering/text-agent",
     "@hcengineering/text-core",
     "@hcengineering/text-editor",
     "@hcengineering/text-editor-assets",
