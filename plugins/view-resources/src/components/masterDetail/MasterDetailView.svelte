@@ -196,7 +196,8 @@
     masterComponent={parentView.component}
     masterComponentProps={{
       _class: views[0].class,
-      plainList: true,
+      // Nested tree: child cards (parent field) are shown under their parent.
+      plainList: false,
       readonly,
       reorderable,
       selectId: masterSelectId
