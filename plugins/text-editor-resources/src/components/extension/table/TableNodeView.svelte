@@ -16,7 +16,7 @@
 //
 -->
 <script lang="ts">
-  import { IconAdd } from '@hcengineering/ui'
+  import { IconAdd, resizeObserver } from '@hcengineering/ui'
   import { onDestroy, onMount } from 'svelte'
   import { NodeViewContent, NodeViewProps, NodeViewWrapper } from '../../node-view'
   import { findTable, insertColumn, insertRow } from './utils'
@@ -81,6 +81,7 @@
   }
 
   let tableElement: HTMLTableElement
+  let tableHeight = 0
   let colgroupElement: HTMLTableColElement
   let printTableContainer: HTMLDivElement
   let tablePrintController: TablePrintController | undefined
@@ -116,9 +117,9 @@
 
 <!-- prettier-ignore -->
 <NodeViewWrapper class="table-node-wrapper" data-drag-handle>
-  <div class="table-wrapper" class:table-selected={editable && focused}>
+  <div class="table-wrapper" class:table-selected={editable && focused} style:--table-height={`${tableHeight}px`}>
     <div class="table-scroller" on:scroll={(e) => { onScroll(e) }}>
-      <table class={className} bind:this={tableElement}>
+      <table class={className} bind:this={tableElement} use:resizeObserver={() => { tableHeight = tableElement.offsetHeight }}>
         <colgroup bind:this={colgroupElement} />
         <NodeViewContent as="tbody" />
       </table><!-- this comment is necessary to remove the whitespace character that Svelte adds between elements, which causes various problems in prosemirror
@@ -144,8 +145,8 @@
           </div>
         </div>
       {/if}
-    </div>
-    <div class="table-print" contenteditable="false" bind:this={printTableContainer}></div>
+    </div><!-- Keep whitespace from creating a line before the hidden print container.
+    --><div class="table-print" contenteditable="false" bind:this={printTableContainer}></div>
   </div>
 </NodeViewWrapper>
 
@@ -204,9 +205,8 @@
 
       &__col {
         right: calc(var(--table-offscreen-spacing) - 1.5rem);
-        top: 0;
-        bottom: 1rem;
-        margin: 1.5rem 0;
+        top: 1.5rem;
+        height: var(--table-height);
 
         .table-button {
           width: 1.25rem;
@@ -214,7 +214,7 @@
       }
 
       &__row {
-        bottom: 1rem;
+        top: calc(1.5rem + var(--table-height) + var(--spacing-0_5));
         left: var(--table-offscreen-spacing);
         right: var(--table-offscreen-spacing);
 

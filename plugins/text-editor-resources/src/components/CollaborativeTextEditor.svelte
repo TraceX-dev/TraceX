@@ -35,8 +35,6 @@
     getAttribute,
     getClient,
     getFileUrl,
-    getImageSize,
-    imageSizeToRatio,
     getPrintContext,
     KeyedAttribute
   } from '@hcengineering/presentation'
@@ -45,19 +43,14 @@
   import {
     AnySvelteComponent,
     Button,
-    getEventPositionElement,
-    getPopupPositionElement,
-    IconScribble,
     IconSize,
     Loading,
     getRenderContext,
-    PopupAlignment,
     themeStore,
     ThrottledCaller,
     trackRenderResource
   } from '@hcengineering/ui'
-  import view from '@hcengineering/view'
-  import { type Command, Editor, FocusPosition, mergeAttributes } from '@tiptap/core'
+  import { Editor, FocusPosition, mergeAttributes } from '@tiptap/core'
   import { isChangeOrigin } from '@tiptap/extension-collaboration'
   import { createEventDispatcher, getAllContexts, getContext, onDestroy, onMount, tick } from 'svelte'
   import { Doc as YDoc } from 'yjs'
@@ -74,13 +67,12 @@
   import { textEditorCommandHandler } from '../commands'
   import { Provider } from '../provider/types'
   import { createRemoteProvider } from '../provider/utils'
-  import { addTableHandler } from '../utils'
 
   import { noSelectionRender, renderCursor } from './editor/collaboration'
   import { defaultEditorAttributes } from './editor/editorProps'
   import { SavedBoard } from './extension/drawingBoard'
-  import { getDefaultImageDisplay } from './extension/imageDisplay'
-  import { insertEditableBlock, saveInsertionSelection } from './extension/insertion-selection'
+  import { createInsertMenuItems, insertMenuOptions } from './editor/editor-insertion'
+  import { pickSelectionImages } from './editor/insert-images'
   import { type FileAttachFunction } from './extension/types'
   import { inlineCommandsConfig } from './extensions'
 
@@ -244,124 +236,13 @@
     editor.setEditable(editable, emitUpdate)
   }
 
-  let inputImage: HTMLInputElement
-  let imageInsertionSelection: Command | undefined
-
-  function selectImage (restoreSelection: Command): void {
-    imageInsertionSelection = restoreSelection
-    inputImage.click()
-  }
+  const { items: insertItems, getAttachFile } = createInsertMenuItems({
+    getAttachFile: () => attachFile,
+    isReadonly: () => readonly
+  })
 
   export function handleAttachImage (): void {
-    const tiptap = editor
-    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
-    selectImage(saveInsertionSelection(tiptap))
-  }
-
-  async function createInlineImage (file: File, restoreSelection: Command): Promise<Command> {
-    if (!file.type.startsWith('image/') || attachFile === undefined) {
-      return restoreSelection
-    }
-
-    const tiptap = editor
-    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
-    const attached = await attachFile(file)
-    if (attached === undefined) {
-      return restoreSelection
-    }
-
-    const size = await getImageSize(file)
-    if (tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
-
-    tiptap
-      .chain()
-      .focus()
-      .command(restoreSelection)
-      .command(({ tr, chain }) => {
-        return chain()
-          .insertContent({
-            type: 'image',
-            attrs: {
-              'file-id': attached.file,
-              width: imageSizeToRatio(size.width, size.pixelRatio),
-              display: getDefaultImageDisplay(tr.doc, tr.selection.from)
-            }
-          })
-          .run()
-      })
-      .run()
-    return saveInsertionSelection(tiptap)
-  }
-
-  async function fileSelected (): Promise<void> {
-    const tiptap = editor
-    const restoreSelection = imageInsertionSelection
-    imageInsertionSelection = undefined
-    const files = Array.from(inputImage.files ?? [])
-    inputImage.value = ''
-    if (readonly || tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
-
-    try {
-      let nextSelection = restoreSelection ?? saveInsertionSelection(tiptap)
-      for (const file of files) {
-        nextSelection = await createInlineImage(file, nextSelection)
-      }
-    } catch (error) {
-      console.error('Failed to insert image:', error)
-    }
-  }
-
-  async function handleLeftMenuClick (id: string, pos: number, targetItem?: MouseEvent | HTMLElement): Promise<void> {
-    const tiptap = editor
-    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
-    const restoreSelection = saveInsertionSelection(tiptap, pos)
-    const insertion = (): ReturnType<typeof tiptap.chain> => tiptap.chain().focus().command(restoreSelection)
-
-    switch (id) {
-      case 'image':
-        selectImage(restoreSelection)
-        break
-      case 'table': {
-        let position: PopupAlignment | undefined = undefined
-        if (targetItem !== undefined) {
-          position =
-            targetItem instanceof MouseEvent ? getEventPositionElement(targetItem) : getPopupPositionElement(targetItem)
-        }
-
-        await addTableHandler((options) => {
-          if (!tiptap.isDestroyed && tiptap.isEditable) insertion().insertTable(options).run()
-        }, position)
-        break
-      }
-      case 'code-block':
-        insertion()
-          .command(insertEditableBlock({ type: 'codeBlock' }))
-          .run()
-        break
-      case 'todo-list':
-        insertion()
-          .command(
-            insertEditableBlock({
-              type: 'todoList',
-              content: [{ type: 'todoItem', content: [{ type: 'paragraph' }] }]
-            })
-          )
-          .run()
-        break
-      case 'separator-line':
-        insertion().setHorizontalRule().run()
-        break
-      case 'drawing-board':
-        insertion()
-          .insertContent({ type: 'drawingBoard', attrs: { id: generateId() } })
-          .run()
-        break
-      case 'mermaid':
-        insertion()
-          .command(insertEditableBlock({ type: 'mermaid' }))
-          .run()
-        break
-    }
+    pickSelectionImages(editor, getAttachFile)
   }
 
   const throttle = new ThrottledCaller(100)
@@ -432,29 +313,8 @@
           codeBlockMermaid: { ydoc, ydocContentField: field }
         },
         drawingBoard: { getSavedBoard },
-        leftMenu: withSideMenu && {
-          width: 20,
-          height: 20,
-          marginX: 8,
-          className: 'tiptap-left-menu no-print',
-          icon: view.icon.Add,
-          iconProps: {
-            className: 'svg-tiny',
-            fill: 'currentColor'
-          },
-          items: [
-            { id: 'image', label: textEditor.string.Image, icon: view.icon.Image },
-            { id: 'table', label: textEditor.string.Table, icon: view.icon.Table2 },
-            { id: 'code-block', label: textEditor.string.CodeBlock, icon: view.icon.CodeBlock },
-            { id: 'separator-line', label: textEditor.string.SeparatorLine, icon: view.icon.SeparatorLine },
-            { id: 'todo-list', label: textEditor.string.TodoItem, icon: view.icon.TodoList },
-            { id: 'drawing-board', label: textEditor.string.DrawingBoard, icon: IconScribble as any },
-            { id: 'mermaid', label: textEditor.string.MermaidDiargram, icon: view.icon.Model }
-          ],
-          handleSelect: handleLeftMenuClick
-        },
-        inlineCommands:
-          withInlineCommands && inlineCommandsConfig(handleLeftMenuClick, canAttachFiles ? [] : ['image']),
+        leftMenu: withSideMenu && insertMenuOptions(insertItems, 'tiptap-left-menu no-print'),
+        inlineCommands: withInlineCommands && inlineCommandsConfig(insertItems),
         placeholder: {
           placeholderIntl: placeholder,
           placeholderIntlParams: placeholderParams,
@@ -556,16 +416,6 @@
   })
 </script>
 
-<input
-  bind:this={inputImage}
-  multiple
-  type="file"
-  name="file"
-  id="imageInput"
-  accept="image/*"
-  style="display: none"
-  on:change={fileSelected}
-/>
 <div class="editorPopupContainer no-print" bind:this={editorPopupContainer}></div>
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -629,8 +479,6 @@
 
     :global(.tiptap-left-menu) {
       color: var(--theme-trans-color);
-      width: 20px;
-      height: 20px;
       border-radius: 20%;
       display: flex;
       align-items: center;
