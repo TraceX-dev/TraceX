@@ -63,6 +63,7 @@
   export let highlightRows: boolean = false
   export let hiddenHeader: boolean = false
   export let options: FindOptions<Doc> | undefined = undefined
+  // svelte-ignore unused-export-let
   export let baseMenuClass: Ref<Class<Doc>> | undefined = undefined
   export let config: Array<BuildModelKey | string>
   export let tableId: string | undefined = undefined

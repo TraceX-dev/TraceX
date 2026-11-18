@@ -20,6 +20,7 @@
 
   export let object: MeetingMinutes | undefined
   export let value: MeetingStatus | undefined
+  // svelte-ignore unused-export-let
   export let attributeKey: string | undefined
 
   const displayData = {

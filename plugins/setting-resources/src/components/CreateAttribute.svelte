@@ -126,12 +126,16 @@
   const handleSelection = (e: { detail: Ref<Class<Type<any>>> }): void => {
     selectType(e.detail)
   }
+  let typeValid = true
   const handleChange = (e: any): void => {
+    typeValid = e.detail.valid ?? (e.detail.type?._class !== type?._class ? true : typeValid)
     if (e.detail.type !== undefined && e.detail.type !== type) {
       type = e.detail?.type
-      index = e.detail?.index
-      defaultValue = e.detail?.defaultValue
-      extra = e.detail?.extra ?? {}
+      if (e.detail.preserveOptions !== true) {
+        index = e.detail?.index
+        defaultValue = e.detail?.defaultValue
+        extra = e.detail?.extra ?? {}
+      }
     } else {
       index = e.detail?.index ?? index
       defaultValue = e.detail?.defaultValue ?? defaultValue
@@ -152,7 +156,7 @@
   type={'type-aside'}
   okLabel={presentation.string.Create}
   okAction={save}
-  canSave={!(type === undefined || name === undefined || name.trim().length === 0)}
+  canSave={typeValid && !(type === undefined || name === undefined || name.trim().length === 0)}
   onCancel={() => {
     clearSettingsStore()
   }}

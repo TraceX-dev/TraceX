@@ -13,11 +13,11 @@ Health: http://localhost:4020/health
 
 MCP uses OAuth authorization code with PKCE. Add the server URL in your client and sign in through TraceX in the browser. No manual API-key creation or copying is required.
 
-One connection can work with every workspace the authenticated account can currently access. Call `my.workspaces` first, then pass an exact returned workspace ID in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
+One connection can work with every workspace the authenticated account can currently access. Call `my_workspaces` first, then pass an exact returned workspace ID in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
 
 OAuth access tokens are opaque, short-lived, and bound to this MCP resource. TraceX account tokens stay on the issuer. Workspace tokens are obtained through the existing accounts `selectWorkspace` exchange when a tool runs. Membership is checked even when a workspace client is cached.
 
-Consent grants access to one explicitly selected workspace or all currently accessible workspaces, including future memberships. `my.workspaces` only lists workspaces allowed by that connection. Calls for a different workspace are rejected before token exchange or cache access. Refresh preserves the original restriction; changing it requires a new authorization.
+Consent grants access to one explicitly selected workspace or all currently accessible workspaces, including future memberships. `my_workspaces` only lists workspaces allowed by that connection. Calls for a different workspace are rejected before token exchange or cache access. Refresh preserves the original restriction; changing it requires a new authorization.
 
 ## Local Docker Compose
 
@@ -64,23 +64,113 @@ The server returns JSON text for all tool results and also fills MCP `structured
 
 ## Tools
 
+Tool IDs use underscores, for example `card_get` and `chat_send`. Each tool also advertises a separate human-readable `title`, such as **Get card** or **Send chat message**. Use the ID when calling a tool. Refresh the client's tool list after updating the server to load the current IDs and titles.
+
+### Collaborative editing
+
+`collab_schema`, `collab_outline`, `collab_find`, `collab_read`, and `collab_apply` read and edit live collaborative fields. Obtain an opaque `docName` from `collaborativeFields` in card or object search/read results; workspace is supplied separately. Fields on the object's actual class and its ancestors are supported, including ordinary document and card content. Tag mixin fields are excluded.
+
+See the [end-to-end workflow](../../ai-bot/ai-tools/src/tools/collab/README.md) for schema filters, targeted edits, deletion hashes, and verification in the open editor.
+
 ### Cards
 
-Card tools use the `card.` namespace:
+Card tools use the `card_` prefix:
 
 ```text
-card.list_spaces
-card.list_master_tags
-card.master_tag_details
-card.get
-card.search
-card.create
-card.update
+card_list_spaces
+card_list_master_tags
+card_master_tag_details
+card_get
+card_search
+card_create
+card_update
 ```
 
-Use `card.list_spaces` to discover visible card spaces. Use `card.list_master_tags` and `card.master_tag_details` to discover available card types, master attributes, versioning settings, and tag mixins before creating or updating cards.
+Use `card_list_spaces` to discover visible card spaces. Use `card_list_master_tags` and `card_master_tag_details` to discover available card types, master attributes, versioning settings, and tag mixins before creating or updating cards.
 
-`card.get`, `card.create`, and `card.update` support top-level collaborative card content as HTML. `card.update` also supports `TypeCollaborativeDoc` attribute updates through the collaborator service.
+`card_get`, `card_create`, and `card_update` support top-level collaborative card content as HTML. `card_update` also supports `TypeCollaborativeDoc` attribute updates through the collaborator service.
+
+### Package authoring
+
+Package authoring uses the manager's external AI client. The MCP service does not call an LLM or use a shared AI API key. AI usage follows the client's provider and billing arrangement; TraceX still hosts the MCP service, validation and draft storage.
+
+Authoring is disabled by default. An installation administrator enables individual accounts with comma-separated verified email addresses in `MCP_PACKAGE_AUTHOR_EMAILS`, or global account UUIDs in `MCP_PACKAGE_AUTHOR_ACCOUNTS`. The two allowlists are additive; an empty configuration denies everyone, including package discovery calls. UUID entries must be `AccountUuid`, not employee document IDs or social IDs. Changing either environment setting requires recreating the MCP container. Normal OAuth consent, the selected workspace restriction and current membership checks apply to every call, including guide/catalog reads. The allowlists do not grant workspace membership or installation privileges.
+
+```text
+MCP_PACKAGE_AUTHOR_EMAILS=manager@example.com,another@example.com
+# Optional stable UUID grants:
+MCP_PACKAGE_AUTHOR_ACCOUNTS=<manager-account-uuid>
+```
+
+Email addresses are trimmed and compared case-insensitively. On every package tool call, the service resolves configured addresses through the trusted `ACCOUNTS_URL` using the authenticated account session. Only active, verified email identities of registered accounts can resolve, and their UUID must equal the authenticated account UUID. Email values supplied in tool arguments, profiles or workspace documents never grant access. Unverified, deleted or unknown addresses do not grant access. Resolution errors deny the call with `package_authoring_unavailable`; internal errors and account tokens are not returned. Email resolution is not cached, so changing email ownership is reflected on the next call. A verified address reassigned to another account grants access to that account; use UUID grants when permission must stay with a person across email changes. Draft authorship and package identity always use the account UUID.
+
+The tools are:
+
+| Tool | Purpose |
+| --- | --- |
+| `package_authoring_guide` | Read canonical authoring instructions, named sections, `schema`, or listed `example:<filename>` documents |
+| `package_contracts` | Read methods, triggers and functions from the installed workspace model |
+| `package_search` | Search public and accessible private Marketplace packages with bounded offset pagination |
+| `package_releases` | List versions of a package identified by its original author and package ID |
+| `package_inspect` | Verify and read a selected published release, YAML and reusable process contracts |
+| `package_installed` | List visible local installations; continue with `after: <nextCursor>` and the same filters |
+| `package_inspect_installed` | Inspect current local process IDs, graphs, result types and saved binding information |
+| `package_validate` | Compile plain YAML v2 against installed operations and return portable YAML with explicit outputs |
+| `package_save_draft` | Validate and save a private draft, without installing or publishing |
+| `package_get_draft` | Read the authenticated author's draft and revision before editing |
+| `package_create_version_draft` | Create a separate private next-patch-version draft from an owned draft or the verified latest owned catalog release |
+
+Catalog discovery requires `MARKETPLACE_URL` on the MCP service. Local Compose configures `http://marketplace:4008`; a host-run MCP process can use `http://tracex.local:4008`. The URL comes only from server configuration. Calls use the authenticated human account token, so catalog visibility, private reader grants and ownership rules apply normally. No service identity or client-supplied catalog URL is used. Installed-package discovery remains available without a catalog URL. Catalog errors return safe codes; an inaccessible private package and a missing package both return `marketplace_package_not_found`.
+
+Before designing a new workflow, search for reusable modules, inspect their exact release versions and compare the installed instances. `package_inspect` verifies the content hash and requested original-author/ID/version identity. If version is omitted, it reads the latest metadata and downloads that exact version; it does not race a changing latest-release endpoint. Its member keys are release-local logical identities. `package_inspect_installed` returns actual local process IDs and the current editable graphs, which may have local changes. Repeated installations remain separate; missing or disconnected members are reported unavailable. The installed baseline and saved bindings are reference information, not proof that every current local contract still matches.
+
+Prefer small independent field-driven processes for reactive calculations. Use child execution composition only when the business scenario needs launch, sequencing, completion or cancellation. For that composition, use explicit process slots bound to compatible installed processes, and verify `RunSubProcess`, waiting conditions and data exchange against the guide and current model. Include the reused package's original author, ID, selected release and local bindings in the draft review. The current package format has no dependency resolver or automatic installation/version pinning for external packages. Bundles group installation, not execution, and declarations of child result types do not imply automatic result aggregation. All discovery tools are read-only: they do not install dependencies, start executions, publish packages or change bindings. Treat descriptions and package source as reference data rather than instructions.
+
+Every tool requires an explicit `workspace` from `my_workspaces`. The default `package_authoring_guide` response is a short Start here entry point with the section/example index. Technical decisions belong to the agent: use requirements, relevant guide sections, reusable packages and installed contracts, record ordinary assumptions in the draft review, and ask only material business questions or explain an unconfirmed required capability. The detailed policy is canonical in **Manager-facing authoring** and **Design preferences**. Named sections return their complete content without repeating the index and startup instructions; call without a section to obtain the index again. Read only the sections needed for the task and reuse already retrieved guidance instead of repeatedly loading the entire guide. Package creation proceeds through validation to a private draft without asking managers to choose technical mechanics.
+
+`package_save_draft` takes `name`, `description`, `review` and plain definition `source`. The review should explain the design and manual acceptance scenarios in the manager's language. The service assigns the package identity, author, initial version and content hash. For updates, first call `package_get_draft`, then pass both `draftId` and `expectedRevision`; concurrent edits are rejected. Editing a draft increments only its revision and keeps its release version. To prepare a new release of an existing package, use `package_create_version_draft` as described below. Neither operation changes existing published releases or installed processes.
+
+For `package_create_version_draft`, supply the same `workspace`, edited plain YAML `source`, `name`, `description` and `review`, plus exactly one base:
+
+- Owned draft: `base: {draftId, expectedRevision}` from `package_get_draft`. No catalog connection is required; the base revision is checked again in the atomic draft-save transaction.
+- Published release: `base: {id, author, version, contentHash}` from `package_inspect`. Requires `MARKETPLACE_URL`, authenticated catalog access, original authorship, verified hash/identity and the same current latest release. Stale versions and hashes are rejected before saving.
+
+The service retains package ID and author, advances the patch version automatically (for example `1.0.0` to `1.0.1`) and creates a new private draft at revision 1. Package kind must stay the same. Further edits use `package_get_draft` and `package_save_draft` on the new ID without another release bump. The original draft/release is unchanged. A draft does not reserve a Marketplace version; competing drafts or a later publication can still conflict, and publication remains an explicit UI review. For the full workflow read **Editing packages and creating versions** through `package_authoring_guide`.
+
+Drafts are stored in the author's private person space; no public-space fallback is used. The manager must have signed in to the TraceX UI so that this space exists. Open **Settings → Package drafts** to review the artifact in a bounded, scrollable dialog with fixed footer actions and an optional full-screen view. **Overview** renders the explanation as Markdown; **Card types** shows field types, required flags and defaults; **Processes** selects one process at a time and shows its generated state graph, bindings, declared outputs and expandable transitions with trigger/action parameters; **YAML** shows the exact downloadable release as selectable code. Download the `.package.yaml`, or open the existing publication dialog. The catalog verifies package ownership on publication. Installation controls are available to maintainers/owners; other managers can download the package and hand it to a maintainer. Saving a draft never changes card types, process graphs, active executions or catalog releases.
+
+Validation checks syntax, compiler semantics and registered operation contracts. It does not prove destination bindings, all optional parameter semantics, producer availability along every path, or successful runtime execution. The existing installation dialog checks destination bindings; manually exercise acceptance scenarios before publication.
+
+The bundle script copies the canonical process authoring guide, schema and examples into `bundle/authoring`; the Docker image ships them beside `bundle.js`. The entire `bundle/` directory is generated output and is ignored by Git. Do not stage or commit its files: Rush requires bundle outputs to be separate from tracked inputs. The source guide, schema and examples remain in `plugins/process/docs`. No repository access is needed at runtime. After updating dependencies and refreshing the model/compiler artifacts through the normal development workflow, rebuild the MCP image and recreate its container. This also refreshes the allowlist from Compose. The workspace must load the updated Marketplace model and UI.
+
+### Updating the shipped authoring guidance
+
+`plugins/process/docs/authoring.md` is the canonical source of the design preferences and runtime descriptions. Keep server startup instructions and the guide tool's follow-up instructions short: they route MCP-only agents to named sections instead of maintaining a second rulebook. List new downloadable examples in `src/package-authoring-guide.ts`. The bundle script copies the complete examples directory, so `risk-management-reactive.card.yaml` is shipped with the guide and schema.
+
+A running container reads its **bundled copy**, not the repository guide. Editing source documentation, restarting an old image or reconnecting the client cannot update that copy. After the normal dependency/compiler preparation, the operator must regenerate the bundle, rebuild the MCP image and recreate the container. From the repository root:
+
+```bash
+rtk rush bundle --to @hcengineering/pod-mcp
+rtk rush docker:build --to @hcengineering/pod-mcp
+rtk proxy docker compose -f dev/docker-compose.yaml up -d --no-deps --force-recreate mcp
+```
+
+These are operator actions, not commands an authoring agent should run automatically. If compiler/model code also changed, refresh its normal build artifacts first. A documentation-only update does not change operation contracts or require changing workspace data.
+
+After recreation, reconnect the MCP client if it caches server startup instructions. Call `my_workspaces`, then `package_authoring_guide` with the returned workspace ID. Confirm that the short entry point lists `Manager-facing authoring`, `Design preferences`, `Value is set`, `Worked risk management example` and `example:risk-management-reactive.card.yaml`; fetch both the section and the complete example. Call `package_validate` on the returned example and expect three processes. This confirms delivery and compilation, not execution in a deployed workspace. The documentation tests also exercise the registered MCP tool and the packaged-docs read path with repository fallback denied; the native-operation regression tests exercise the 25-cell policy and reactive event behavior without installing anything.
+
+Manual acceptance:
+
+1. With both allowlists empty, verify that all `package_*` calls return `package_authoring_forbidden` without accessing a workspace.
+2. Enable one manager by verified email, authorize one workspace, and verify that another workspace is rejected. Verify that an unverified or unknown address does not grant access.
+3. Ask the AI client to design a small supported process, validate it and save a draft. Verify that no definitions are installed.
+4. Open **Package drafts**, inspect the explanation and transitions, download the file, and install it through the ordinary reviewed installation flow as a maintainer.
+5. Edit the same draft through two clients; verify that the stale `expectedRevision` is rejected and the package identity stays the same.
+6. Verify that another account cannot read the private draft; remove the manager from the allowlist, recreate the MCP container, and verify that authoring is denied again.
+7. Configure `MARKETPLACE_URL`, search a known package, inspect a selected version, and verify that a private package without a reader grant cannot be read.
+8. Install a small process package twice through the UI. Verify separate installation IDs, inspect each local graph, then edit one process and confirm that `package_inspect_installed` shows its local changes. Plan reuse through explicit process slots; verify that discovery alone performs no installation or execution.
+9. Create a next-version draft from your own private draft and from your latest catalog release. Check retained package ID/author, a patch bump, independent draft ID and revision 1. Edit the result and check that only its revision increases. Test foreign authors, inaccessible bases, stale revisions/hashes/releases and a conflicting conditional save; none may write installed definitions or publish a release.
+
 
 ### Chat
 
@@ -89,14 +179,14 @@ All six tools use the same stream address, `target: { "class": "<class-id>", "id
 
 | Tool | Purpose |
 | --- | --- |
-| `chat.list` | Discover streams, optionally filtered by `type`, `parent` or `name` |
-| `chat.unread` | List streams with unread messages and database-calculated `unreadCount` |
-| `chat.messages` | Read ordinary history from one required `target` |
-| `chat.unread_messages` | Read unread messages everywhere, or within optional `target` |
-| `chat.send` | Send Markdown to the required `target` as the authenticated user |
-| `chat.mark_read` | Explicitly mark the whole required `target` read |
+| `chat_list` | Discover streams, optionally filtered by `type`, `parent` or `name` |
+| `chat_unread` | List streams with unread messages and database-calculated `unreadCount` |
+| `chat_messages` | Read ordinary history from one required `target` |
+| `chat_unread_messages` | Read unread messages everywhere, or within optional `target` |
+| `chat_send` | Send Markdown to the required `target` as the authenticated user |
+| `chat_mark_read` | Explicitly mark the whole required `target` read |
 
-Every call requires an explicit `workspace` from `my.workspaces`.
+Every call requires an explicit `workspace` from `my_workspaces`.
 
 #### Stream identity and context
 
@@ -123,7 +213,7 @@ Tools never join chats or add followers.
 
 #### Discovery
 
-Without filters, `chat.list` returns active channels, directs and discussions.
+Without filters, `chat_list` returns active channels, directs and discussions.
 Use `type: "thread"` for threads with existing replies, including threads the account does not follow.
 A root without replies can still be used as a target to send its first reply.
 
@@ -134,7 +224,7 @@ Discovery pages use stable identifier order, across the different storage domain
 
 #### Unread streams and messages
 
-`chat.unread` returns one row for every stream with a positive unread-message count.
+`chat_unread` returns one row for every stream with a positive unread-message count.
 A thread is a separate row: its replies are not added to its parent chat's count.
 Optional `type` filters the rows. Each row includes `unreadCount` and `readFrom`.
 Counts use a database total with the same filters as message retrieval; history is not downloaded
@@ -145,7 +235,7 @@ unfollowed threads. It does not require a UI timestamp marker or unviewed reply 
 those signals do not necessarily match the unread-history range.
 Archived and unjoined chats are omitted.
 
-`chat.unread_messages` returns messages oldest first, with `stream` metadata on every message.
+`chat_unread_messages` returns messages oldest first, with `stream` metadata on every message.
 Omit `target` for the global feed, or supply any supported target for one stream.
 Reading uses the same personal boundary and own-identity exclusion as the counter:
 
@@ -163,10 +253,10 @@ not an individual read receipt for each returned row. See the
 
 #### History, pagination and read actions
 
-`chat.messages` returns `stream`, `messages` and, for a thread, its separate `root`.
+`chat_messages` returns `stream`, `messages` and, for a thread, its separate `root`.
 Main-stream history excludes replies. History defaults to the latest page (`direction: "older"`);
 `direction: "newer"` traverses forward. Each returned page is chronological.
-Unread selection belongs only to `chat.unread_messages`; history has no `unreadOnly` flag.
+Unread selection belongs only to `chat_unread_messages`; history has no `unreadOnly` flag.
 
 Readers accept `limit` (default `50`, maximum `200`), and return `hasMore` and optional `nextCursor`.
 Pass the cursor unchanged with the same target and filters. History/feed cursors retain both
@@ -175,7 +265,7 @@ Discovery and global unread scanning can return an empty filtered page with `has
 continue with its cursor.
 
 Fetching history or discovering streams does not mark anything read.
-`chat.mark_read` updates the selected context's timestamp and unviewed notifications together.
+`chat_mark_read` updates the selected context's timestamp and unviewed notifications together.
 It affects the whole stream, including beyond a fetched page. A chat and each thread are
 independent. The result contains `readAt` and `readCount` (notifications, not messages).
 Without a personal context it returns `readCount: 0` without `readAt` and creates nothing.
@@ -185,9 +275,9 @@ For example, read unread replies under a root message:
 
 ```json
 {
-  "name": "chat.unread_messages",
+  "name": "chat_unread_messages",
   "arguments": {
-    "workspace": "<workspace-id-from-my.workspaces>",
+    "workspace": "<workspace-id-from-my_workspaces>",
     "target": {
       "class": "chunter:class:ChatMessage",
       "id": "<root-message-id>"
@@ -196,7 +286,7 @@ For example, read unread replies under a root message:
 }
 ```
 
-Use the same target in `chat.send` with Markdown `content` or in `chat.mark_read`.
+Use the same target in `chat_send` with Markdown `content` or in `chat_mark_read`.
 The actual root class comes from tool results; do not infer it from a document title.
 
 Sending to archived chats is rejected. Native reference mentions become text, while plain
@@ -210,13 +300,13 @@ without a URL. Workspace storage identity comes from the authenticated workspace
 
 ### Fulltext
 
-Use `fulltext.search` to search indexed workspace objects and return compact object references:
+Use `fulltext_search` to search indexed workspace objects and return compact object references:
 
 ```json
 {
-  "name": "fulltext.search",
+  "name": "fulltext_search",
   "arguments": {
-    "workspace": "<workspace-id-from-my.workspaces>",
+    "workspace": "<workspace-id-from-my_workspaces>",
     "query": "risk",
     "classes": ["card:class:Card"],
     "limit": 20
@@ -228,13 +318,13 @@ Optional filters include `classes`, `spaces`, and `includeClassDescendants`.
 
 ### Object Lookup
 
-Use `object.lookup` to list recent objects by class or mixin and return compact references:
+Use `object_lookup` to list recent objects by class or mixin and return compact references:
 
 ```json
 {
-  "name": "object.lookup",
+  "name": "object_lookup",
   "arguments": {
-    "workspace": "<workspace-id-from-my.workspaces>",
+    "workspace": "<workspace-id-from-my_workspaces>",
     "classId": "contact:mixin:Employee",
     "limit": 50
   }

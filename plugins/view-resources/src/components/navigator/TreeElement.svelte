@@ -35,6 +35,7 @@
   export let iconSize: IconSize = 'small'
   export let label: IntlString | undefined = undefined
   export let title: string | undefined = undefined
+  // svelte-ignore unused-export-let
   export let notifications = 0
   export let parent: boolean = false
   export let type: 'default' | 'nested' | 'nested-selectable' = 'default'
@@ -51,6 +52,7 @@
   export let shouldTooltip: boolean = false
   export let showMenu: boolean = false
   export let noDivider: boolean = false
+  // svelte-ignore unused-export-let
   export let showNotify: boolean = false
   export let forciblyCollapsed: boolean = false
   export let actions: (originalEvent?: MouseEvent) => Promise<Action[]> = async () => []

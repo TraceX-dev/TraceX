@@ -12,6 +12,7 @@
 
 import core, {
   type AnyAttribute,
+  getReferenceFilterClasses,
   type ArrOf,
   type AttachedData,
   type AttachedDoc,
@@ -127,9 +128,17 @@ export async function exportModulePackageSource (ids: Array<Ref<Class<Doc>>>): P
 }
 
 async function exportModules (ids: Array<Ref<Class<Doc>>>, format: 'json' | 'yaml'): Promise<string> {
+  const model = getClient().getModel()
+  const hierarchy = getClient().getHierarchy()
+  // Resolve the full module first so dependency traversal cannot narrow a package member's export.
+  const moduleTypes = new Set(ids)
+  for (const id of ids) {
+    if (id === card.class.Card || model.findObject(id) === undefined) continue
+    for (const descendant of hierarchy.getDescendants(id)) moduleTypes.add(descendant)
+  }
   const processed = new Set<Ref<Doc>>()
   const res: Doc[] = []
-  for (const id of ids) res.push(...(await exportType(id, processed, false, format === 'yaml')))
+  for (const id of ids) res.push(...(await exportType(id, processed, moduleTypes, format === 'yaml')))
   const unique = Array.from(new Map(res.map((d) => [d._id, d])).values())
   const clear = unique.map(strip)
   if (format === 'json') return JSON.stringify(clear)
@@ -172,17 +181,17 @@ async function exportAttribute (
     if (val !== undefined) docs.push(val)
   }
   if (attr.type._class === core.class.RefTo) {
-    const to = (attr.type as RefTo<Doc>).to
-    if (h.isDerived(to, card.class.Card)) {
-      required.push(to)
+    const type = attr.type as RefTo<Doc>
+    for (const clazz of [type.to, ...getReferenceFilterClasses(type)]) {
+      if (h.isDerived(clazz, card.class.Card)) required.push(clazz)
     }
   }
   if (attr.type._class === core.class.ArrOf) {
     const of = (attr.type as ArrOf<Doc>).of
     if (of._class === core.class.RefTo) {
-      const to = (of as RefTo<Doc>).to
-      if (h.isDerived(to, card.class.Card)) {
-        required.push(to)
+      const type = of as RefTo<Doc>
+      for (const clazz of [type.to, ...getReferenceFilterClasses(type)]) {
+        if (h.isDerived(clazz, card.class.Card)) required.push(clazz)
       }
     }
     if (of._class === core.class.EnumOf) {
@@ -196,7 +205,7 @@ async function exportAttribute (
 async function exportType (
   _id: Ref<Class<Doc>>,
   processed: Set<Ref<Doc>>,
-  withoutDesc: boolean = false,
+  moduleTypes: ReadonlySet<Ref<Class<Doc>>>,
   preserveIcon: boolean = false
 ): Promise<Doc[]> {
   if (processed.has(_id)) return []
@@ -212,7 +221,7 @@ async function exportType (
   const parent = h.getClass(_id).extends
   if (parent !== undefined && h.isDerived(parent, card.class.Card) && parent !== card.class.Card) {
     if (!processed.has(parent)) {
-      res.push(...(await exportType(parent, processed, withoutDesc, preserveIcon)))
+      res.push(...(await exportType(parent, processed, moduleTypes, preserveIcon)))
     }
   }
 
@@ -233,7 +242,7 @@ async function exportType (
     required.push(...at.required)
   }
 
-  if (!withoutDesc && _id !== card.class.Card) {
+  if (moduleTypes.has(_id) && _id !== card.class.Card) {
     const descendants = h.getDescendants(_id)
     for (const desc of descendants) {
       if (h.getClass(desc).extends !== _id) continue
@@ -243,16 +252,18 @@ async function exportType (
 
   res.push(...m.findAllSync(card.class.Role, { types: _id }))
 
-  const assocA = m.findAllSync(core.class.Association, { classA: _id })
-  for (const assoc of assocA) {
-    res.push(assoc)
-    required.push(assoc.classB)
-  }
+  if (moduleTypes.has(_id)) {
+    const assocA = m.findAllSync(core.class.Association, { classA: _id })
+    for (const assoc of assocA) {
+      res.push(assoc)
+      required.push(assoc.classB)
+    }
 
-  const assocB = m.findAllSync(core.class.Association, { classB: _id })
-  for (const assoc of assocB) {
-    res.push(assoc)
-    required.push(assoc.classA)
+    const assocB = m.findAllSync(core.class.Association, { classB: _id })
+    for (const assoc of assocB) {
+      res.push(assoc)
+      required.push(assoc.classA)
+    }
   }
 
   const extensions = m.findAllSync(card.class.ExportExtension, {})
@@ -264,7 +275,7 @@ async function exportType (
   }
 
   for (const req of required) {
-    res.push(...(await exportType(req, processed, false, preserveIcon)))
+    res.push(...(await exportType(req, processed, moduleTypes, preserveIcon)))
   }
   return res
 }

@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,23 @@
 //
 
 import { Attribute } from '@tiptap/core'
+
+export interface EnumValidator {
+  (value: unknown): void
+  values: readonly string[]
+  nullable: boolean
+}
+
+/** A native ProseMirror validator with inspectable constraints from a single value list. */
+export function enumValidator (values: readonly string[], nullable = false): EnumValidator {
+  const validate = (value: unknown): void => {
+    if (nullable && value === null) return
+    if (typeof value !== 'string' || !values.includes(value)) {
+      throw new RangeError(`Expected one of: ${values.join(', ')}${nullable ? ', null' : ''}.`)
+    }
+  }
+  return Object.assign(validate, { values, nullable })
+}
 
 /**
  * @public

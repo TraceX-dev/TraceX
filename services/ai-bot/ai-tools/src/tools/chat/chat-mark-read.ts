@@ -40,10 +40,16 @@ export const ChatMarkReadOutputSchema = Type.Object({
 
 export const chatMarkReadTool = createTool({
   name: chatMarkReadToolId,
+  title: 'Mark chat as read',
   description:
     'Explicitly mark the entire target={class,id} stream as read for the authenticated user. Updates its personal reading timestamp and marks its unviewed notifications as viewed. A chat and each thread are independent. This marks the whole stream, not only a fetched page. Without a personal context, does nothing. Never creates or joins chats or follows threads.',
   inputSchema: ChatMarkReadInputSchema,
   outputSchema: ChatMarkReadOutputSchema,
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false
+  },
   execute: async (args, ctx: PlatformContext) => {
     const stream = await requireStream(ctx, args.target)
     const objectId = stream.target.id as Ref<Doc>
@@ -66,7 +72,7 @@ export const chatMarkReadTool = createTool({
     )
 
     const readAt = Math.max(context.lastViewedTimestamp ?? 0, Date.now())
-    const ops = ctx.client.apply(undefined, 'chat.mark_read', true)
+    const ops = ctx.client.apply(undefined, chatMarkReadToolId, true)
     for (const item of notifications) {
       await ops.updateDoc(item._class, item.space, item._id, { isViewed: true })
     }

@@ -1,6 +1,5 @@
 //
 // Copyright © 2026 TraceX.
-// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,3 +22,4 @@ export * from './collaborative-content'
 export * from './document-reference'
 export * from './document-title'
 export * from './space.summary'
+export * from './collaborative-document'

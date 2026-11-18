@@ -22,7 +22,9 @@
   import love from '../plugin'
 
   export let objectId: Ref<Doc>
+  // svelte-ignore unused-export-let
   export let space: Ref<Space>
+  // svelte-ignore unused-export-let
   export let _class: Ref<Class<Doc>>
   export let readonly: boolean = false
   export let meetings: number

@@ -30,6 +30,7 @@
   export let widget: Widget | undefined
   export let tab: WidgetTab | undefined
   export let height: string
+  // svelte-ignore unused-export-let
   export let width: string
 
   const query = createQuery()

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -29,12 +30,19 @@
   export let index: number
   export let onChange: (e: Filter) => void
   export let nestedFrom: KeyFilter | undefined = undefined
+  export let excludedKeys: string[] = []
+  export let allowAllFields = false
+  export let allowNested = true
+  export let additionalFilters: KeyFilterPreset[] = []
   export let viewOptions: ViewOptions | undefined = undefined
 
+  interface FilterConfiguration extends Pick<ClassFilters, 'filters' | 'ignoreKeys' | 'strict' | 'getVisibleFilters'> {
+    _id: Ref<Class<Doc>>
+  }
   const client = getClient()
   const hierarchy = client.getHierarchy()
 
-  function getFilters (_class: Ref<Class<Doc>>, mixin: ClassFilters): KeyFilter[] {
+  function getFilters (_class: Ref<Class<Doc>>, mixin: FilterConfiguration): KeyFilter[] {
     if (mixin.filters === undefined) return []
     const filters = mixin.filters.map((p) => {
       return typeof p === 'string' ? buildFilterFromKey(mixin._id, p) : buildFilterFromPreset(p)
@@ -92,7 +100,7 @@
     _class: Ref<Class<Doc>>,
     allAttributes: Map<string, AnyAttribute>,
     result: KeyFilter[],
-    mixin: ClassFilters
+    mixin: FilterConfiguration
   ): void {
     const ignoreKeys = new Set(mixin.ignoreKeys ?? [])
     for (const [key, attribute] of allAttributes) {
@@ -118,7 +126,7 @@
       if (b.group === 'bottom') return -1
       return 0
     })
-    return res
+    return res.filter((filter) => !excludedKeys.includes(filter._class + '.' + filter.key))
   }
 
   async function getNestedTypes (type: KeyFilter): Promise<KeyFilter[]> {
@@ -127,15 +135,20 @@
   }
 
   async function getOwnTypes (_class: Ref<Class<Doc>>): Promise<KeyFilter[]> {
-    const mixin = hierarchy.classHierarchyMixin(_class, view.mixin.ClassFilters)
-    if (mixin === undefined) return []
+    const configured = hierarchy.classHierarchyMixin(_class, view.mixin.ClassFilters)
+    if (configured === undefined && !allowAllFields) return []
+    const mixin: FilterConfiguration = configured ?? { ...hierarchy.getClass(_class), filters: [] }
     _class = hierarchy.getBaseClass(_class)
     const result = getFilters(_class, mixin)
+    for (const preset of additionalFilters) {
+      const key = buildFilterFromPreset(preset)
+      if (key !== undefined) result.push(key)
+    }
     const getVisibleFilters = mixin.getVisibleFilters
       ? await getResource(mixin.getVisibleFilters)
       : async (filters: KeyFilter[]) => filters
 
-    if (mixin.strict) {
+    if (mixin.strict && !allowAllFields) {
       // Attributes not specified in "mixin.filters" are ignored in "strict" mode
       return await getVisibleFilters(result, space)
     }
@@ -240,6 +253,7 @@
   }
 
   function hasNested (type: KeyFilter): boolean {
+    if (!allowNested) return false
     if (type.showNested === false) {
       return false
     }

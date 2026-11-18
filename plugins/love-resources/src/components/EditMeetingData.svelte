@@ -22,6 +22,7 @@
   import MeetingMinutesStatusPresenter from './MeetingMinutesStatusPresenter.svelte'
 
   export let value: Event
+  // svelte-ignore unused-export-let
   export let readOnly: boolean = false
 
   const valueQuery = createQuery()

@@ -29,7 +29,7 @@ import workbench, { workbenchId } from '@hcengineering/workbench'
 import desktopPreferences, { defaultNotificationPreference } from '@hcengineering/desktop-preferences'
 import { activePreferences } from '@hcengineering/desktop-preferences-resources'
 import { getDisplayInboxData, InboxNotificationsClientImpl } from '@hcengineering/notification-resources'
-import { hasCrossWorkspaceUnread } from '@hcengineering/workbench-resources'
+import { crossWorkspaceUnreadCount } from '@hcengineering/workbench-resources'
 import { ipcMainExposed } from './typesUtils'
 
 let client: TxOperations
@@ -136,14 +136,14 @@ export function configureNotifications (): void {
   let initTimestamp = 0
   const notificationHistory = new Map<string, number>()
 
-  // Cross-workspace unread contributes one extra to the badge so the app icon
+  // Each other workspace with unread contributes +1 to the badge, so the app icon
   // lights up when another workspace has unread even if the current one is fully
-  // read. Mirrors how in-workspace and communication unread are summed below.
-  let hasOtherWorkspaceUnread = false
-  const computeBadge = (): number => prevUnViewdNotificationsCount + (hasOtherWorkspaceUnread ? 1 : 0)
-  hasCrossWorkspaceUnread.subscribe((value) => {
-    if (value === hasOtherWorkspaceUnread) return
-    hasOtherWorkspaceUnread = value
+  // read, and the count reflects how many workspaces need attention.
+  let otherWorkspacesUnreadCount = 0
+  const computeBadge = (): number => prevUnViewdNotificationsCount + otherWorkspacesUnreadCount
+  crossWorkspaceUnreadCount.subscribe((value) => {
+    if (value === otherWorkspacesUnreadCount) return
+    otherWorkspacesUnreadCount = value
     if (preferences.showUnreadCounter) {
       ipcMainExposed().setBadge(computeBadge())
     }

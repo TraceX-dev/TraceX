@@ -47,9 +47,11 @@
   export let space: Teamspace
   export let model: SpacesNavModel
   export let currentSpace: Ref<Space> | undefined
+  // svelte-ignore unused-export-let
   export let currentSpecial: string | undefined
   export let currentFragment: string | undefined
   export let getActions: (space: Space) => Promise<Action[]> = async () => []
+  // svelte-ignore unused-export-let
   export let deselect: boolean = false
   export let forciblyCollapsed: boolean = false
 

@@ -1,5 +1,5 @@
 //
-// Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,27 +13,8 @@
 // limitations under the License.
 //
 
-const generateMessage = (code: number): string => {
-  if (code === 401) {
-    return 'Unauthorized'
-  }
-
-  if (code === 404) {
-    return 'Not Found'
-  }
-
-  if (code === 400) {
-    return 'Bad Request'
-  }
-
-  return 'Error'
-}
-
-export class ApiError extends Error {
-  readonly code: number
-
-  constructor (code: number, message?: string) {
-    super(message ?? generateMessage(code))
-    this.code = code
-  }
-}
+export const collabApplyToolId = 'collab_apply'
+export const collabFindToolId = 'collab_find'
+export const collabSchemaToolId = 'collab_schema'
+export const collabOutlineToolId = 'collab_outline'
+export const collabReadToolId = 'collab_read'

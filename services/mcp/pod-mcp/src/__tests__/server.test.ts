@@ -14,13 +14,99 @@
 //
 
 import type { MeasureContext } from '@hcengineering/core'
+import { tools } from '@hcengineering/ai-tools'
+import { McpServer } from '@modelcontextprotocol/server'
 import { get, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { McpConfig } from '../config'
-import { createServer } from '../server'
+import type { TraceXAuthInfo } from '../auth'
+import { createMcpServer, createServer, toToolResult } from '../server'
 import type { WorkspaceManager } from '../workspace'
 
 jest.mock('@hcengineering/ai-tools', () => ({ tools: [] }))
+
+describe('MCP tool naming', () => {
+  it('registers human-readable titles separately from tool identifiers', async () => {
+    const tool: (typeof tools)[number] = {
+      name: 'card_get',
+      title: 'Get card',
+      description: 'Read a card',
+      inputSchema: { type: 'object', properties: {} },
+      execute: async () => ({ ok: true, output: {} })
+    }
+    const auth: Partial<TraceXAuthInfo> = { resource: new URL('https://mcp.test/mcp') }
+    const manager: Partial<WorkspaceManager> = {}
+    const context: Partial<MeasureContext> = {}
+    const register = jest.spyOn(McpServer.prototype, 'registerTool')
+    let server: McpServer | undefined
+    tools.push(tool)
+
+    try {
+      server = createMcpServer(auth as TraceXAuthInfo, manager as WorkspaceManager, context as MeasureContext)
+
+      expect(register).toHaveBeenCalledWith(
+        'card_get',
+        expect.objectContaining({ title: 'Get card' }),
+        expect.any(Function)
+      )
+      expect(register).toHaveBeenCalledWith(
+        'my_workspaces',
+        expect.objectContaining({ title: 'List accessible workspaces' }),
+        expect.any(Function)
+      )
+      const packageTools = register.mock.calls.filter(([name]) => name.startsWith('package_'))
+      expect(packageTools.map(([name]) => name).sort()).toEqual([
+        'package_authoring_guide',
+        'package_contracts',
+        'package_create_version_draft',
+        'package_get_draft',
+        'package_inspect',
+        'package_inspect_installed',
+        'package_installed',
+        'package_releases',
+        'package_save_draft',
+        'package_search',
+        'package_validate'
+      ])
+      for (const [name, definition] of packageTools) {
+        expect(name).toMatch(/^[a-z][a-z0-9_]+$/)
+        expect(definition.title).toEqual(expect.any(String))
+        expect(definition.title?.length).toBeGreaterThan(0)
+        const writes = name === 'package_save_draft' || name === 'package_create_version_draft'
+        expect(definition.annotations).toEqual({
+          readOnlyHint: !writes,
+          destructiveHint: name === 'package_save_draft',
+          idempotentHint: !writes
+        })
+        expect(JSON.stringify(definition)).not.toMatch(/(?:package|my|card)\.[a-z_]+/)
+      }
+    } finally {
+      tools.pop()
+      register.mockRestore()
+      await server?.close()
+    }
+  })
+
+  it.each([
+    ['input_format_error', 'not_applied'],
+    ['STALE_REFERENCE', 'unknown']
+  ])('preserves collaborative error metadata for %s', (code, outcome) => {
+    const tool: Partial<Parameters<typeof toToolResult>[0]> = { name: 'collab_apply' }
+    const result: Parameters<typeof toToolResult>[1] = {
+      ok: false,
+      error: { code, message: 'Cannot apply changes' }
+    }
+    const output = toToolResult(tool as Parameters<typeof toToolResult>[0], result)
+
+    expect(output.isError).toBe(true)
+    expect(output.content).toEqual([
+      {
+        type: 'text',
+        text: JSON.stringify({ error: { outcome, code, message: 'Cannot apply changes', retryable: false } }, null, 2)
+      }
+    ])
+  })
+})
 
 describe.each(['/mcp', '/services/mcp'])('MCP HTTP routing at %s', (path) => {
   const config: McpConfig = {

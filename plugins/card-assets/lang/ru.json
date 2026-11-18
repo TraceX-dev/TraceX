@@ -46,6 +46,7 @@
     "MasterDetailViews": "Представления мастер-деталь",
     "SelectType": "Выбрать тип",
     "SelectTypeAndSpace": "Выберите тип карточки и пространство, чтобы продолжить.",
+    "SelectParentFirst": "Сначала выберите элемент слева",
     "CreateSpace": "Создать пространство",
     "NumberTypes": "{count, plural, one {# тип} few {# типа} other {# типов}}",
     "Labels": "Метки",

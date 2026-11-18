@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -35,6 +36,7 @@ import core, {
   Tx,
   TxOperations,
   WorkspaceIds,
+  type AuditEventName,
   type WorkspaceUuid
 } from '@hcengineering/core'
 import drive, { createFile, Drive } from '@hcengineering/drive'
@@ -53,7 +55,14 @@ import { setMetadata } from '@hcengineering/platform'
 import { createClient, getAccountClient, getTransactorEndpoint } from '@hcengineering/server-client'
 import {
   createDummyStorageAdapter,
+  ApiError,
+  accountLookupError,
+  auditActorFromToken,
+  createErrorHandler,
   createPipeline,
+  notifyAfterCompletion,
+  withAuditedResponse,
+  type AuditScope,
   type MiddlewareCreator,
   type Pipeline,
   type PipelineContext,
@@ -62,7 +71,7 @@ import {
 } from '@hcengineering/server-core'
 import { getConfig } from '@hcengineering/server-pipeline'
 import { buildStorageFromConfig } from '@hcengineering/server-storage'
-import { Token, decodeToken, generateToken } from '@hcengineering/server-token'
+import { decodeToken, generateToken } from '@hcengineering/server-token'
 import archiver from 'archiver'
 import { sendExportCompletionNotification } from './notifications'
 import cors from 'cors'
@@ -75,7 +84,6 @@ import { basename, join } from 'path'
 import { v4 as uuid } from 'uuid'
 import WebSocket from 'ws'
 import envConfig from './config'
-import { ApiError } from './error'
 import { ExportFormat, WorkspaceExporter, sanitizeSpaceFileName } from './exporter'
 import { loadCollabJson } from '@hcengineering/collaboration'
 import {
@@ -265,6 +273,38 @@ const wrapRequest = (fn: AsyncRequestHandler) => (req: Request, res: Response, n
   handleRequest(fn, req, res, next)
 }
 
+type AuditedRequestHandler = (
+  req: Request,
+  res: Response,
+  wsIds: WorkspaceIds,
+  token: string,
+  socialId: PersonId,
+  audit: AuditScope
+) => Promise<void>
+
+/** Register a route whose outcome is audited in one place (see `withAuditedResponse`). */
+export const auditedRequest = (
+  ctx: MeasureContext,
+  event: AuditEventName,
+  fallbackMessage: string,
+  fn: AuditedRequestHandler
+): ((req: Request, res: Response, next: NextFunction) => void) =>
+  wrapRequest(async (req, res, wsIds, token, socialId) => {
+    const auditEvent = { event, ...auditActorFromToken(token), workspaceUuid: wsIds.uuid }
+    await withAuditedResponse(ctx, auditEvent, res, async (audit) => {
+      try {
+        await fn(req, res, wsIds, token, socialId, audit)
+      } catch (err: unknown) {
+        if (err instanceof ApiError) throw err
+        throw new ApiError(500, fallbackMessage, { cause: err })
+      }
+    })
+  })
+
+export function hasQueryFilter (query: DocumentQuery<Doc> | undefined | null): boolean {
+  return query != null && typeof query === 'object' && Object.keys(query).length > 0
+}
+
 // Only formats actually supported by WorkspaceExporter
 const supportedExportFormats: readonly ExportFormat[] = [ExportFormat.JSON, ExportFormat.CSV]
 
@@ -299,9 +339,16 @@ export function createServer (
   app.use(cors({ exposedHeaders: 'Content-Disposition' }))
   app.use(express.json())
 
+  const audited = (
+    event: AuditEventName,
+    fallbackMessage: string,
+    fn: AuditedRequestHandler
+  ): ((req: Request, res: Response, next: NextFunction) => void) =>
+    auditedRequest(measureCtx, event, fallbackMessage, fn)
+
   app.post(
     '/exportAsync',
-    wrapRequest(async (req, res, wsIds, token, socialId) => {
+    audited('workspace.data.export', 'Failed to start export', async (req, res, wsIds, token, socialId, audit) => {
       const format = parseExportFormat(req.query.format)
 
       const {
@@ -317,32 +364,37 @@ export function createServer (
       if (_class == null) {
         throw new ApiError(400, 'Missing required parameters')
       }
+      audit.set({
+        mode: 'async',
+        operationId: uuid(),
+        format,
+        objectClass: _class,
+        attributesOnly: Boolean(attributesOnly),
+        hasQuery: hasQueryFilter(query)
+      })
 
       const decodedToken = decodeToken(token)
       if (decodedToken.extra?.readonly !== undefined) {
-        throw new ApiError(403, 'Forbidden')
+        throw new ApiError(403, 'Forbidden', { reason: 'readonly_token' })
       }
       const isAdmin: boolean = decodedToken.extra?.admin === 'true'
 
       const accountClient = getClient(envConfig.AccountsUrl, token)
 
+      let info: Awaited<ReturnType<typeof accountClient.getLoginWithWorkspaceInfo>>
       try {
-        const info = await accountClient.getLoginWithWorkspaceInfo()
-        const winfo = info.workspaces[decodedToken.workspace]
-        if (!isAdmin) {
-          if (winfo === undefined) {
-            res.status(401).end('Invalid workspace')
-            return
-          } else {
-            if (winfo.role !== AccountRole.Owner) {
-              res.status(401).end('Not an owner of workspace')
-              return
-            }
-          }
-        }
+        info = await accountClient.getLoginWithWorkspaceInfo()
       } catch (err: any) {
-        res.status(401).end('Invalid workspace')
-        return
+        throw accountLookupError(err)
+      }
+      const winfo = info.workspaces[decodedToken.workspace]
+      if (!isAdmin) {
+        if (winfo === undefined) {
+          throw new ApiError(401, 'Invalid workspace', { reason: 'not_workspace_member' })
+        }
+        if (winfo.role !== AccountRole.Owner) {
+          throw new ApiError(403, 'Not an owner of workspace', { reason: 'not_workspace_owner' })
+        }
       }
 
       const sysToken = generateToken(systemAccountUuid, decodedToken.workspace, {
@@ -356,7 +408,7 @@ export function createServer (
 
       res.status(200).send({ message: 'Export started' })
 
-      void (async () => {
+      const job = (async () => {
         const exportDir = await fs.mkdtemp(join(tmpdir(), 'export-'))
         try {
           const exporter = new WorkspaceExporter(measureCtx, txOperations, storageAdapter, wsIds)
@@ -369,11 +421,15 @@ export function createServer (
           const archiveDir = await fs.mkdtemp(join(tmpdir(), 'export-archive-'))
           const archiveName = `export-${wsIds.uuid}-${className}-${format}-${Date.now()}.zip`
           const archivePath = join(archiveDir, archiveName)
+          audit.set({ fileName: archiveName })
 
           await saveToArchive(exportDir, archivePath)
           const exportDrive = await saveToDrive(measureCtx, txOperations, storageAdapter, wsIds, archivePath, account)
 
-          await sendSuccessNotification(txOperations, account, exportDrive, archiveName)
+          // The archive is already in Drive: a notification failure does not fail the export.
+          await notifyAfterCompletion(measureCtx, 'Failed to send export success notification', async () => {
+            await sendSuccessNotification(txOperations, account, exportDrive, archiveName)
+          })
         } catch (err: any) {
           measureCtx.error('Export failed:', err)
           try {
@@ -391,16 +447,19 @@ export function createServer (
           } catch (notifyErr: any) {
             measureCtx.error('Failed to send export failure notification:', notifyErr)
           }
+          throw err
         } finally {
           await fs.rm(exportDir, { recursive: true, force: true })
         }
       })()
+      // The export outcome is known only when the background job settles.
+      audit.defer(job)
     })
   )
 
   app.post(
     '/exportSync',
-    wrapRequest(async (req, res, wsIds, token, socialId) => {
+    audited('workspace.data.export', 'Export failed', async (req, res, wsIds, token, socialId, audit) => {
       const format = parseExportFormat(req.query.format)
       const {
         _class,
@@ -417,6 +476,13 @@ export function createServer (
       if (_class == null) {
         throw new ApiError(400, 'Missing required parameters')
       }
+      audit.set({
+        mode: 'sync',
+        format,
+        objectClass: _class,
+        attributesOnly: attributesOnly === true,
+        hasQuery: hasQueryFilter(query)
+      })
 
       const platformClient = await createPlatformClient(token)
       const txOperations = new TxOperations(platformClient, socialId)
@@ -429,7 +495,7 @@ export function createServer (
 
         const files = await fs.readdir(exportDir)
         if (files.length === 0) {
-          throw new ApiError(400, 'No data to export')
+          throw new ApiError(400, 'No data to export', { reason: 'no_data' })
         }
 
         let exportedFile: string
@@ -445,6 +511,7 @@ export function createServer (
           await saveToArchive(exportDir, exportedFile)
         }
 
+        audit.set({ fileName: basename(exportedFile) })
         await new Promise<void>((resolve, reject) => {
           res.download(exportedFile, basename(exportedFile), (err) => {
             if (err != null && !res.headersSent) {
@@ -494,7 +561,7 @@ export function createServer (
     }
   }
 
-  const exportDocumentHandler: AsyncRequestHandler = async (req, res, wsIds, token, socialId) => {
+  const exportDocumentHandler: AuditedRequestHandler = async (req, res, wsIds, token, socialId, audit) => {
     const params: Record<string, unknown> = { ...req.query, ...(req.body ?? {}) }
     const _class = params._class as Ref<Class<Doc>> | undefined
     const _id = params._id as Ref<Doc> | undefined
@@ -506,6 +573,7 @@ export function createServer (
     if (!supportedDocumentFormats.includes(format)) {
       throw new ApiError(400, `Unsupported export format: ${format}. Supported: ${supportedDocumentFormats.join(', ')}`)
     }
+    audit.set({ targetType: 'document', targetId: String(_id), objectClass: _class, format })
 
     const platformClient = await createPlatformClient(token)
     const txOperations = new TxOperations(platformClient, socialId)
@@ -556,7 +624,7 @@ export function createServer (
   }
 
   // Auth via Authorization header; body carries { _class, _id, format? }.
-  app.post('/document-export', wrapRequest(exportDocumentHandler))
+  app.post('/document-export', audited('document.export', 'Failed to export document', exportDocumentHandler))
 
   const supportedImportFormats = ['docx', 'md']
 
@@ -630,10 +698,10 @@ export function createServer (
 
   app.post(
     '/export-to-workspace',
-    wrapRequest(async (req, res, wsIds, token, socialId) => {
-      let decodedToken: Token | undefined
-
-      try {
+    audited(
+      'workspace.data.transfer',
+      'Export to workspace request failed',
+      async (req, res, wsIds, token, socialId, audit) => {
         const {
           targetWorkspace,
           _class,
@@ -678,20 +746,41 @@ export function createServer (
           throw new ApiError(400, 'Invalid includeAttachments. Must be boolean')
         }
 
-        decodedToken = decodeToken(token)
+        audit.set({
+          operationId: uuid(),
+          direction: 'outgoing',
+          sourceWorkspaceUuid: wsIds.uuid,
+          targetWorkspaceUuid: targetWorkspace,
+          targetType: 'workspace',
+          targetId: targetWorkspace,
+          objectClass: _class,
+          hasQuery: hasQueryFilter(query),
+          conflictStrategy: conflictStrategy ?? 'duplicate',
+          includeAttachments: includeAttachments ?? true,
+          includeChildren: includeChildren ?? false
+        })
+
+        const decodedToken = decodeToken(token)
         if (decodedToken.extra?.readonly !== undefined) {
-          throw new ApiError(403, 'Forbidden: read-only token')
+          throw new ApiError(403, 'Forbidden: read-only token', { reason: 'readonly_token' })
         }
 
         // Get target workspace info
         const accountClient = getClient(envConfig.AccountsUrl, token)
-        const targetWsLoginInfo = await accountClient.getLoginWithWorkspaceInfo()
+        const targetWsLoginInfo = await accountClient.getLoginWithWorkspaceInfo().catch((err) => {
+          throw accountLookupError(err)
+        })
 
         const targetWsInfo = targetWsLoginInfo.workspaces[targetWorkspace]
         if (targetWsInfo === undefined) {
           measureCtx.warn(`Target workspace not found or not accessible: ${targetWorkspace}`)
-          throw new ApiError(404, 'Target workspace not found or not accessible')
+          throw new ApiError(404, 'Target workspace not found or not accessible', {
+            reason: 'target_not_accessible',
+            denied: true
+          })
         }
+        // Membership is verified: the target journal can record this transfer too.
+        audit.mirror(targetWorkspace, { direction: 'incoming', targetId: wsIds.uuid })
 
         // Verify user has write access to target workspace
         const isAdmin: boolean = decodedToken.extra?.admin === 'true'
@@ -699,7 +788,9 @@ export function createServer (
           measureCtx.warn(
             `User does not have write access to target workspace: ${targetWorkspace}, role: ${targetWsInfo.role}`
           )
-          throw new ApiError(403, 'You do not have write access to the target workspace. Owner role required.')
+          throw new ApiError(403, 'You do not have write access to the target workspace. Owner role required.', {
+            reason: 'not_target_owner'
+          })
         }
 
         const targetWsIds: WorkspaceIds = {
@@ -779,48 +870,48 @@ export function createServer (
           }
 
           const exportResult: ExportResult = await exporter.export(options)
+          audit.set({
+            exportedCount: exportResult.exportedCount,
+            skippedCount: exportResult.skippedCount,
+            errorCount: exportResult.errors.length
+          })
 
           if (exportResult.exportedCount === 0) {
-            res.status(400).send({ message: 'No documents found to export' })
+            throw new ApiError(400, 'No documents found to export', { reason: 'no_documents' })
+          }
+          if (!exportResult.success) {
+            audit.set({ outcome: 'failed', errorCode: 'partial_failure' })
           }
 
           if (exportResult.success) {
-            await sendExportCompletionNotification(
-              measureCtx,
-              targetTxOps,
-              targetWorkspace,
-              targetWsIds,
-              exportResult.exportedDocuments,
-              wsIds,
-              _class
-            )
+            // The documents are already in the target workspace: a notification failure does not fail the transfer.
+            await notifyAfterCompletion(measureCtx, 'Failed to send export completion notification', async () => {
+              await sendExportCompletionNotification(
+                measureCtx,
+                targetTxOps,
+                targetWorkspace,
+                targetWsIds,
+                exportResult.exportedDocuments,
+                wsIds,
+                _class
+              )
+            })
           }
 
           res.status(200).send({ message: 'Export completed' })
         } catch (err: any) {
+          if (err instanceof ApiError) throw err
           measureCtx.error('Export failed:', err)
-          res.status(500).send({ message: 'Export failed', error: err.message ?? 'Unknown error' })
+          throw new ApiError(500, 'Export failed', { cause: err })
         } finally {
           await sourceClient.close()
           await targetClient.close()
         }
-      } catch (err: any) {
-        measureCtx.error('Export to workspace request failed:', err)
-        const errorMessage = err instanceof ApiError ? err.message : 'Export to workspace request failed'
-        res.status(err instanceof ApiError ? err.code : 500).send({ message: errorMessage })
       }
-    })
+    )
   )
 
-  app.use((err: any, _req: any, res: any, _next: any) => {
-    measureCtx.warn(err)
-    if (err instanceof ApiError) {
-      res.status(err.code).send({ code: err.code, message: err.message })
-      return
-    }
-
-    res.status(500).send(err.message?.length > 0 ? { message: err.message } : err)
-  })
+  app.use(createErrorHandler(measureCtx))
 
   return {
     app,

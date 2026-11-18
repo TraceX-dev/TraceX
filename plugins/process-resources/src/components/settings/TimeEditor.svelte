@@ -26,6 +26,7 @@
   import { getContext, getMockAttribute } from '../../utils'
   import ProcessAttribute from '../ProcessAttribute.svelte'
 
+  // svelte-ignore unused-export-let
   export let readonly: boolean
   export let process: Process
   export let params: Record<string, any>

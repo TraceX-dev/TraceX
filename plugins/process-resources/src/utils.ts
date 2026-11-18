@@ -938,8 +938,17 @@ export async function requestResult (
   const h = client.getHierarchy()
   const isMixin = h.isMixin(_process.masterTag)
   const targetDoc = isMixin ? h.as(doc, _process.masterTag) : doc
+  const rankedResults = results.map((result) => {
+    const attr = result.key !== undefined ? h.findAttribute(_process.masterTag, result.key) : undefined
+    return { result, rank: attr !== undefined ? (attr.rank ?? toRank(attr._id) ?? '') : undefined }
+  })
+  rankedResults.sort((a, b) => {
+    if (a.rank === undefined) return b.rank === undefined ? 0 : 1
+    if (b.rank === undefined) return -1
+    return a.rank.localeCompare(b.rank)
+  })
   const resolvedResults = await Promise.all(
-    results.map(async (result) => {
+    rankedResults.map(async ({ result }) => {
       const selectionSpace = await resolveSelectionSpace(client, _process, targetDoc, context, result.selectionSpace)
       return {
         ...result,

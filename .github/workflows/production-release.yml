@@ -55,11 +55,40 @@ jobs:
       - name: Merge staging-new into main
         run: |
           set -euo pipefail
-          if ! git merge --no-edit origin/staging-new; then
-            echo "::error::Merge conflict while merging origin/staging-new into main. Resolve it manually and re-run."
+
+          # Files whose conflicts are safe to resolve to main's version: they are
+          # rewritten anyway by the "Update release versions" step below.
+          AUTO_RESOLVE=(common/scripts/version.txt)
+
+          if git merge --no-edit origin/staging-new; then
+            exit 0
+          fi
+
+          mapfile -t CONFLICTS < <(git diff --name-only --diff-filter=U)
+          echo "Conflicting files:"
+          printf '  %s\n' "${CONFLICTS[@]}"
+
+          UNRESOLVABLE=()
+          for f in "${CONFLICTS[@]}"; do
+            skip=false
+            for a in "${AUTO_RESOLVE[@]}"; do
+              [[ "$f" == "$a" ]] && skip=true && break
+            done
+            $skip || UNRESOLVABLE+=("$f")
+          done
+
+          if (( ${#CONFLICTS[@]} == 0 || ${#UNRESOLVABLE[@]} > 0 )); then
+            echo "::error::Merge conflict while merging origin/staging-new into main: ${UNRESOLVABLE[*]:-unknown}. Resolve it manually and re-run."
             git merge --abort
             exit 1
           fi
+
+          for f in "${CONFLICTS[@]}"; do
+            echo "::notice::Auto-resolving conflict in $f to the version from main (it is overwritten later in this workflow)."
+            git checkout --ours -- "$f"
+            git add -- "$f"
+          done
+          git commit --no-edit
 
       - name: Validate production tag
         id: version

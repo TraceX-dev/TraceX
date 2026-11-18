@@ -39,6 +39,7 @@
   export let supportSubmit = true
   export let editorAttributes: Record<string, string> = {}
   export let spellcheck: boolean = true
+  // svelte-ignore unused-export-let
   export let boundary: HTMLElement | undefined = undefined
   export let autofocus: FocusPosition = false
   export let onPaste: ((view: EditorView, event: ClipboardEvent) => boolean) | undefined = undefined

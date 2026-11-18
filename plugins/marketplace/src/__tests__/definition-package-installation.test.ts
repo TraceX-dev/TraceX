@@ -331,9 +331,9 @@ describe('reviewed workspace package updates', () => {
     expect(plan.installation.package.version).toBe('1.0.1')
   })
 
-  it('requires explicit conflict resolution and preserves or replaces the whole selected process graph', async () => {
+  it('requires a choice only for divergent edits to the same process property', async () => {
     const { model, hierarchy, docs, installation } = await installed()
-    Object.assign(docs.find((doc) => doc._id === installation.identities.child) ?? {}, { description: 'Local child' })
+    Object.assign(docs.find((doc) => doc._id === installation.identities.child) ?? {}, { name: 'Local child' })
     const incoming = await release(bundle.replace('label: Child', 'label: Published child'), '1.0.1')
     const unresolved = await prepareDefinitionPackageUpdate(installation, incoming, destinations, {}, model, hierarchy)
     const key = installation.identities.child
@@ -341,6 +341,11 @@ describe('reviewed workspace package updates', () => {
     expect(unresolved.changes.find((change) => change.key === key)?.resolution).toBe('conflict')
     expect(unresolved.reviews[key].local).toContain('Local child')
     expect(unresolved.reviews[key].incoming).toContain('Published child')
+    expect(unresolved.reviewComponents[key].baseline?.documents[key].document).toMatchObject({ name: 'Child' })
+    expect(unresolved.reviewComponents[key].local?.documents[key].document).toMatchObject({ name: 'Local child' })
+    expect(unresolved.reviewComponents[key].incoming?.documents[key].document).toMatchObject({
+      name: 'Published child'
+    })
     const local = await prepareDefinitionPackageUpdate(
       installation,
       incoming,
@@ -350,7 +355,7 @@ describe('reviewed workspace package updates', () => {
       hierarchy
     )
     expect(local.blocked).toBe(false)
-    expect(local.documents.find((doc) => doc._id === key)).toMatchObject({ description: 'Local child', name: 'Child' })
+    expect(local.documents.find((doc) => doc._id === key)).toMatchObject({ name: 'Local child' })
     const upstream = await prepareDefinitionPackageUpdate(
       installation,
       incoming,
@@ -361,7 +366,7 @@ describe('reviewed workspace package updates', () => {
     )
     expect(upstream.blocked).toBe(false)
     expect(upstream.documents.find((doc) => doc._id === key)).toMatchObject({ name: 'Published child' })
-    expect(upstream.documents.find((doc) => doc._id === key)).not.toHaveProperty('description', 'Local child')
+    expect(upstream.documents.find((doc) => doc._id === key)).not.toHaveProperty('name', 'Local child')
   })
 
   it('keeps schema identities for display updates and blocks destructive field changes', async () => {
@@ -390,7 +395,109 @@ describe('reviewed workspace package updates', () => {
     expect(destructive.changes.some((change) => change.impact === 'destructive')).toBe(true)
   })
 
-  it('blocks a destructive transition from the local schema even when the published change is cosmetic', async () => {
+  it('adds ordinary, required and hidden service fields without conflict choices or migration blocks', async () => {
+    const { model, hierarchy, installation } = await installed(moduleSource)
+    const incoming = await release(
+      moduleSource +
+        '      comment: {name: comment, label: Comment, type: string}\n' +
+        '      code: {name: code, label: Code, type: string, required: true}\n' +
+        '      total: {name: total, label: Total, type: number, hidden: true, readonly: true, automationOnly: true}\n',
+      '1.0.1'
+    )
+    const plan = await prepareDefinitionPackageUpdate(installation, incoming, {}, {}, model, hierarchy)
+    expect(plan.blocked).toBe(false)
+    expect(plan.blockedChanges).toEqual([])
+    expect(plan.changes.filter((change) => change.operation === 'added')).toHaveLength(3)
+    expect(plan.changes.some((change) => change.resolution === 'conflict')).toBe(false)
+    for (const field of ['comment', 'code', 'total']) {
+      const key = plan.installation.identities[field]
+      expect(plan.reviewComponents[key].local).toBeUndefined()
+      expect(plan.reviewComponents[key].target?.documents[key].document).toBeDefined()
+    }
+  })
+
+  it('does not treat explicit default-false field flags as competing local edits', async () => {
+    const { model, hierarchy, docs, installation } = await installed(moduleSource)
+    const key = installation.identities.amount_field
+    Object.assign(docs.find((doc) => doc._id === key) ?? {}, {
+      required: false,
+      readonly: false,
+      hidden: false,
+      automationOnly: false
+    })
+    const incoming = await release(moduleSource.replace('isCustom: true', 'isCustom: true, readonly: true'), '1.0.1')
+    const plan = await prepareDefinitionPackageUpdate(installation, incoming, {}, {}, model, hierarchy)
+    expect(plan.blocked).toBe(false)
+    expect(plan.changes.find((change) => change.key === key)?.resolution).toBe('upstream')
+    expect(plan.documents.find((doc) => doc._id === key)).toMatchObject({
+      readonly: true,
+      hidden: false,
+      required: false,
+      automationOnly: false
+    })
+    expect(plan.reviewComponents[key].local?.documents[key].document).not.toHaveProperty('hidden')
+  })
+
+  it('unblocks a resolved schema conflict when keeping local, while blocking an applied type change', async () => {
+    const { model, hierarchy, docs, installation } = await installed(moduleSource)
+    const key = installation.identities.amount_field
+    Object.assign(docs.find((doc) => doc._id === key) ?? {}, { label: 'embedded:embedded:Local amount' })
+    const incoming = await release(moduleSource.replace('type: number', 'type: string'), '1.0.1')
+    const unresolved = await prepareDefinitionPackageUpdate(installation, incoming, {}, {}, model, hierarchy)
+    expect(unresolved.blocked).toBe(true)
+    expect(unresolved.changes.find((change) => change.key === key)?.resolution).toBe('merged')
+    const local = await prepareDefinitionPackageUpdate(installation, incoming, {}, { [key]: 'local' }, model, hierarchy)
+    expect(local.blocked).toBe(false)
+    expect(local.blockedChanges).toEqual([])
+    expect(local.reviewComponents[key].target).toEqual(local.reviewComponents[key].local)
+    const upstream = await prepareDefinitionPackageUpdate(
+      installation,
+      incoming,
+      {},
+      { [key]: 'upstream' },
+      model,
+      hierarchy
+    )
+    expect(upstream.blocked).toBe(true)
+    expect(upstream.blockedChanges).toContain(key)
+  })
+
+  it('does not block an already converged field change that requires no workspace mutation', async () => {
+    const { model, hierarchy, docs, installation } = await installed(moduleSource)
+    const key = installation.identities.amount_field
+    Object.assign(docs.find((doc) => doc._id === key) ?? {}, { required: true })
+    const incoming = await release(moduleSource.replace('isCustom: true', 'isCustom: true, required: true'), '1.0.1')
+    const plan = await prepareDefinitionPackageUpdate(installation, incoming, {}, {}, model, hierarchy)
+    expect(plan.changes.find((change) => change.key === key)?.resolution).toBe('converged')
+    expect(plan.blocked).toBe(false)
+    expect(plan.reviewComponents[key].target).toEqual(plan.reviewComponents[key].local)
+  })
+
+  it('preserves unrelated local fields automatically while adding package fields', async () => {
+    const { model, hierarchy, docs, installation } = await installed(moduleSource)
+    const extra: Record<string, unknown> = {
+      _id: 'local-only-field',
+      _class: core.class.Attribute,
+      space: core.space.Model,
+      attributeOf: installation.identities.purchase,
+      name: 'local_note',
+      label: 'embedded:embedded:Local note',
+      type: { _class: core.class.TypeString }
+    }
+    docs.push(extra as unknown as Doc)
+    const incoming = await release(
+      moduleSource + '      comment: {name: comment, label: Comment, type: string}\n',
+      '1.0.1'
+    )
+    const plan = await prepareDefinitionPackageUpdate(installation, incoming, {}, {}, model, hierarchy)
+    expect(plan.blocked).toBe(false)
+    expect(plan.changes.find((change) => change.key === extra._id)?.resolution).toBe('local')
+    expect(plan.reviewComponents[String(extra._id)].target).toEqual(plan.reviewComponents[String(extra._id)].local)
+    expect(plan.documents.find((doc) => doc._id === extra._id)).toEqual(extra)
+    expect(plan.removed).toEqual([])
+  })
+
+  it('merges a cosmetic package change without reverting a locally edited field type', async () => {
     const { model, hierarchy, docs, installation } = await installed(moduleSource)
     Object.assign(docs.find((doc) => doc._class === core.class.Attribute) ?? {}, {
       type: { _class: core.class.TypeString }
@@ -405,8 +512,12 @@ describe('reviewed workspace package updates', () => {
       model,
       hierarchy
     )
-    expect(upstream.blocked).toBe(true)
-    expect(upstream.changes.find((change) => change.key === key)?.impact).toBe('destructive')
+    expect(upstream.blocked).toBe(false)
+    expect(upstream.changes.find((change) => change.key === key)?.resolution).toBe('merged')
+    expect(upstream.documents.find((doc) => doc._id === key)).toMatchObject({
+      type: { _class: core.class.TypeString },
+      label: 'embedded:embedded:Total amount'
+    })
     const local = await prepareDefinitionPackageUpdate(installation, incoming, {}, { [key]: 'local' }, model, hierarchy)
     expect(local.blocked).toBe(false)
     expect(local.documents.find((doc) => doc._class === core.class.Attribute)).toMatchObject({

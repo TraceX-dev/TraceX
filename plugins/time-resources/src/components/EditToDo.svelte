@@ -33,6 +33,7 @@
   // export let object: ToDo
   export let _id: Ref<ToDo>
   export let _class: Ref<Class<ToDo>>
+  // svelte-ignore unused-export-let
   export let embedded: boolean = false
 
   let object: ToDo

@@ -16,6 +16,7 @@ import type { AnyComponent } from '@hcengineering/ui'
 
 export default mergeIds(marketplaceId, marketplace, {
   component: {
+    PackageDrafts: '' as AnyComponent,
     Marketplace: '' as AnyComponent,
     DefinitionPackageExportPopup: '' as AnyComponent,
     DefinitionPackageInstallPopup: '' as AnyComponent,

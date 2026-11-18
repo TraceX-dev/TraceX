@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -16,6 +17,7 @@
   import { Employee } from '@hcengineering/contact'
   import core, { AccountUuid, AnyAttribute, DocumentQuery, notEmpty, Ref, RefTo, Space } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
+  import { createReferenceQuery } from '@hcengineering/view-resources'
   import { getClient } from '@hcengineering/presentation'
   import { ButtonKind, ButtonSize } from '@hcengineering/ui'
   import { employeeRefByAccountUuidStore, getGuestScopedPersonQuery } from '..'
@@ -42,6 +44,9 @@
   }
 
   const client = getClient()
+
+  const candidates = createReferenceQuery<Employee>()
+  $: candidates.update(type, query)
 
   $: buildQuery(attribute, space)
 
@@ -87,7 +92,7 @@
 
 <EmployeeBox
   {_class}
-  docQuery={query}
+  docQuery={$candidates}
   {label}
   {kind}
   {size}

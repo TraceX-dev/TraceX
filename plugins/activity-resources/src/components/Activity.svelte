@@ -37,7 +37,6 @@
 
   export let object: WithReferences<Doc>
   export let showCommenInput: boolean = true
-  export let transparent: boolean = false
   export let focusIndex: number = -1
   export let boundary: HTMLElement | undefined = undefined
 

@@ -12,6 +12,7 @@
     "Forms": "Forms",
     "Enabled": "启用表单",
     "TargetSpace": "Create cards in",
+    "SelectSpaceToEnableForm": "请选择用于创建卡片的空间以启用表单。",
     "FormLink": "Form link",
     "Submit": "Submit",
     "Submitted": "Your response has been submitted",

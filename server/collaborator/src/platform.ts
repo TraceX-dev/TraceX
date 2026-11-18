@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -64,6 +65,19 @@ export interface ClientFactoryParams {
  * @public
  */
 export type ClientFactory = (params?: ClientFactoryParams) => Promise<TxOperations>
+
+/** Build a visibility-checking client using the actual caller token. */
+export function userClientFactory (rawToken: string, token: Token): ClientFactory {
+  return async (params?: ClientFactoryParams) => {
+    const client = await connect(rawToken)
+    try {
+      return await getTxOperations(client, token, params?.derived ?? false)
+    } catch (error: unknown) {
+      await client.close()
+      throw error
+    }
+  }
+}
 
 /**
  * @public

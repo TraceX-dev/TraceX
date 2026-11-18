@@ -33,6 +33,7 @@
     resizeObserver
   } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
+  import type { Command } from '@tiptap/core'
 
   import StyledTextEditor from './StyledTextEditor.svelte'
 
@@ -40,6 +41,7 @@
   import { addTableHandler } from '../utils'
   import view from '@hcengineering/view'
   import { getDefaultImageDisplay } from './extension/imageDisplay'
+  import { insertEditableBlock, saveInsertionSelection } from './extension/insertion-selection'
   import { type FileAttachFunction } from './extension/types'
   import { inlineCommandsConfig } from './extensions'
 
@@ -182,9 +184,14 @@
   }
 
   async function handleCommandSelected (id: string, pos: number, targetItem?: MouseEvent | HTMLElement): Promise<void> {
+    const tiptap = editor.getEditor()
+    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
+    const restoreSelection = saveInsertionSelection(tiptap, pos)
+    const insertion = (): ReturnType<typeof tiptap.chain> => tiptap.chain().focus().command(restoreSelection)
+
     switch (id) {
       case 'image':
-        handleAttachImage()
+        selectImage(restoreSelection)
         break
       case 'table': {
         let position: PopupAlignment | undefined = undefined
@@ -193,65 +200,92 @@
             targetItem instanceof MouseEvent ? getEventPositionElement(targetItem) : getPopupPositionElement(targetItem)
         }
 
-        void addTableHandler(editor.editorHandler.insertTable, position)
+        await addTableHandler((options) => {
+          if (!tiptap.isDestroyed && tiptap.isEditable) insertion().insertTable(options).run()
+        }, position)
         break
       }
       case 'code-block':
-        editor.editorHandler.insertCodeBlock(pos)
+        insertion()
+          .command(insertEditableBlock({ type: 'codeBlock' }))
+          .run()
         break
       case 'separator-line':
-        editor.editorHandler.insertSeparatorLine()
+        insertion().setHorizontalRule().run()
         break
       case 'mermaid':
-        editor.getEditor()?.commands.insertContentAt(pos, { type: 'mermaid' })
+        insertion()
+          .command(insertEditableBlock({ type: 'mermaid' }))
+          .run()
         break
     }
   }
 
   let inputImage: HTMLInputElement
+  let imageInsertionSelection: Command | undefined
 
-  export function handleAttachImage (): void {
+  function selectImage (restoreSelection: Command): void {
+    imageInsertionSelection = restoreSelection
     inputImage.click()
   }
 
-  async function createInlineImage (file: File): Promise<void> {
+  export function handleAttachImage (): void {
+    const tiptap = editor.getEditor()
+    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
+    selectImage(saveInsertionSelection(tiptap))
+  }
+
+  async function createInlineImage (file: File, restoreSelection: Command): Promise<Command> {
     if (!file.type.startsWith('image/') || attachFile === undefined) {
-      return
+      return restoreSelection
     }
 
+    const tiptap = editor.getEditor()
+    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
     const attached = await attachFile(file)
     if (attached === undefined) {
-      return
+      return restoreSelection
     }
 
     const size = await getImageSize(file)
-    const tiptap = editor.getEditor()
+    if (tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
 
-    editor.editorHandler.insertContent(
-      {
-        type: 'image',
-        attrs: {
-          'file-id': attached.file,
-          width: imageSizeToRatio(size.width, size.pixelRatio),
-          display: tiptap !== undefined ? getDefaultImageDisplay(tiptap.state.doc, tiptap.state.selection.from) : null
-        }
-      },
-      {
-        updateSelection: false
-      }
-    )
+    tiptap
+      .chain()
+      .focus()
+      .command(restoreSelection)
+      .command(({ tr, chain }) => {
+        return chain()
+          .insertContent({
+            type: 'image',
+            attrs: {
+              'file-id': attached.file,
+              width: imageSizeToRatio(size.width, size.pixelRatio),
+              display: getDefaultImageDisplay(tr.doc, tr.selection.from)
+            }
+          })
+          .run()
+      })
+      .run()
+    return saveInsertionSelection(tiptap)
   }
 
   async function fileSelected (): Promise<void> {
-    const list = inputImage.files
-    if (list === null || list.length === 0) return
-    for (let index = 0; index < list.length; index++) {
-      const file = list.item(index)
-      if (file !== null) {
-        await createInlineImage(file)
-      }
-    }
+    const tiptap = editor.getEditor()
+    const restoreSelection = imageInsertionSelection
+    imageInsertionSelection = undefined
+    const files = Array.from(inputImage.files ?? [])
     inputImage.value = ''
+    if (readonly || tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
+
+    try {
+      let nextSelection = restoreSelection ?? saveInsertionSelection(tiptap)
+      for (const file of files) {
+        nextSelection = await createInlineImage(file, nextSelection)
+      }
+    } catch (error) {
+      console.error('Failed to insert image:', error)
+    }
   }
 </script>
 

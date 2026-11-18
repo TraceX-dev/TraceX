@@ -33,6 +33,7 @@
   import ShareScreenButton from '../controls/ShareScreenButton.svelte'
 
   export let widgetState: WidgetState | undefined
+  // svelte-ignore unused-export-let
   export let height: string
   export let width: string
 
