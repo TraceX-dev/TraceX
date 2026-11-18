@@ -229,8 +229,9 @@
   }
 
   function handleCreateApiKey (): void {
-    showPopup(CreateApiKey, {}, 'top', async (title?: string) => {
-      if (title === undefined) return
+    showPopup(CreateApiKey, {}, 'top', async (title?: string | null) => {
+      // Svelte turns an undefined event detail into null, so a cancelled dialog arrives as null
+      if (title == null || title.trim() === '') return
       const { key } = await accountClient.createApiKey(title)
       showPopup(ApiKeyPopup, { apiKey: key })
       await loadApiKeys()
