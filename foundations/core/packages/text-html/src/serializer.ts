@@ -132,6 +132,14 @@ function addMark (builder: NodeBuilder, mark?: MarkupMark, next?: () => void): v
       builder.openTag('u')
       next?.()
       builder.closeTag('u')
+    } else if (mark.type === MarkupMarkType.subscript) {
+      builder.openTag('sub')
+      next?.()
+      builder.closeTag('sub')
+    } else if (mark.type === MarkupMarkType.superscript) {
+      builder.openTag('sup')
+      next?.()
+      builder.closeTag('sup')
     } else if (mark.type === MarkupMarkType.textColor) {
       const color = attrs.color
       builder.openTag('span', {

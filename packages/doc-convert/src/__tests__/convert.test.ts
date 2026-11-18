@@ -26,7 +26,9 @@ import {
   resolveDocxFill
 } from '..'
 import { extractDocxCellFills } from '../word-utils'
+import { htmlToMarkup } from '@hcengineering/text-html'
 import JSZip from 'jszip'
+import { CheckBox, Document, ImageRun, Packer, Paragraph, Table, TableCell, TableRow, TextRun } from 'docx'
 
 const sample: MarkupNode = {
   type: MarkupNodeType.doc,
@@ -149,6 +151,106 @@ describe('docxToMarkup', () => {
     const importedCells = tableCells(markup)
 
     expect(importedCells.map((item) => item.attrs?.backgroundColor)).toEqual(['#FF0000', undefined, '#00FF00'])
+  })
+})
+
+describe('docxToMarkup: Word constructs that broke the editor', () => {
+  // 1x1 transparent PNG
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  )
+
+  // mammoth renders this as:
+  // <p>H<sub>2</sub>O E=mc<sup>2</sup> after</p>
+  // <p><input type="checkbox" checked="checked" /> yes <input type="checkbox" /> no</p>
+  // <table><tr><td><ul><li>Point A</li></ul><p><img src="data:..." /></p></td></tr></table>
+  // <p>END-SENTINEL</p>
+  async function buildDocx (): Promise<Buffer> {
+    const doc = new Document({
+      numbering: { config: [{ reference: 'bullets', levels: [{ level: 0, format: 'bullet', text: '•' }] }] },
+      sections: [
+        {
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun('H'),
+                new TextRun({ text: '2', subScript: true }),
+                new TextRun('O E=mc'),
+                new TextRun({ text: '2', superScript: true }),
+                new TextRun(' after')
+              ]
+            }),
+            new Paragraph({
+              children: [
+                new CheckBox({ checked: true }),
+                new TextRun(' yes '),
+                new CheckBox({ checked: false }),
+                new TextRun(' no')
+              ]
+            }),
+            new Table({
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({
+                      children: [
+                        new Paragraph({ text: 'Point A', numbering: { reference: 'bullets', level: 0 } }),
+                        new Paragraph({
+                          children: [
+                            new ImageRun({ type: 'png', data: png, transformation: { width: 10, height: 10 } })
+                          ]
+                        })
+                      ]
+                    })
+                  ]
+                })
+              ]
+            }),
+            new Paragraph('END-SENTINEL')
+          ]
+        }
+      ]
+    })
+    return await Packer.toBuffer(doc)
+  }
+
+  let markup: MarkupNode
+
+  beforeAll(async () => {
+    markup = (await docxToMarkup(await buildDocx())).markup
+  })
+
+  it('keeps the whole document (an unknown tag no longer swallows the rest)', () => {
+    expect(markup.content?.map((node) => node.type)).toEqual([
+      MarkupNodeType.paragraph,
+      MarkupNodeType.paragraph,
+      MarkupNodeType.table,
+      MarkupNodeType.paragraph
+    ])
+    expect(JSON.stringify(markup)).toContain('END-SENTINEL')
+  })
+
+  it('imports subscript and superscript as marks', () => {
+    const content = markup.content?.[0].content ?? []
+    expect(content.map((node) => node.text)).toEqual(['H', '2', 'O E=mc', '2', ' after'])
+    expect(content[1].marks).toEqual([{ type: MarkupMarkType.subscript }])
+    expect(content[3].marks).toEqual([{ type: MarkupMarkType.superscript }])
+  })
+
+  it('replaces checkboxes with ballot box characters', () => {
+    const text = (markup.content?.[1].content ?? []).map((node) => node.text).join('')
+    expect(text).toEqual('☒ yes ☐ no')
+  })
+
+  it('lifts a list out of the table cell paragraph and keeps the image inline', () => {
+    const cellContent = tableCells(markup)[0].content ?? []
+    expect(cellContent.map((node) => node.type)).toEqual([MarkupNodeType.bullet_list, MarkupNodeType.paragraph])
+    expect(cellContent[1].content?.map((node) => node.type)).toEqual([MarkupNodeType.image])
+  })
+
+  it('produces markup that follows the schema structure rules', () => {
+    expect(schemaViolations(markup)).toEqual([])
   })
 })
 
@@ -343,6 +445,74 @@ describe('conformToSchema (schema validity)', () => {
     const marks = fixed.content?.[0].content?.[0].marks
     expect(marks).toHaveLength(1)
     expect(marks?.[0].type).toBe(MarkupMarkType.code)
+  })
+
+  it('replaces a subLink node (from <sub>) with subscript-marked text', () => {
+    const doc: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.paragraph,
+          content: [
+            { type: MarkupNodeType.text, text: 'H' },
+            { type: MarkupNodeType.subLink, content: [{ type: MarkupNodeType.text, text: '2' }] },
+            { type: MarkupNodeType.text, text: 'O' }
+          ]
+        },
+        { type: MarkupNodeType.subLink, content: [{ type: MarkupNodeType.text, text: 'top-level' }] }
+      ]
+    }
+    const fixed = conformToSchema(doc)
+    expect(JSON.stringify(fixed)).not.toContain(MarkupNodeType.subLink)
+    const paragraph = fixed.content?.[0]
+    expect(paragraph?.content?.map((node) => node.text)).toEqual(['H', '2', 'O'])
+    expect(paragraph?.content?.[1].marks).toEqual([{ type: 'subscript' }])
+    // Inline content left directly under the doc is wrapped into a paragraph.
+    expect(fixed.content?.[1].type).toBe(MarkupNodeType.paragraph)
+    expect(fixed.content?.[1].content?.[0].marks).toEqual([{ type: 'subscript' }])
+  })
+
+  it('does not leave subLink nodes for <sub> in mammoth HTML output', async () => {
+    const html = '<p>H<sub>2</sub>O</p>'
+    const fixed = conformToSchema(htmlToMarkup(html))
+    expect(JSON.stringify(fixed)).not.toContain(MarkupNodeType.subLink)
+  })
+
+  it('lifts block nodes out of a paragraph (list + image in a table cell)', () => {
+    const html = '<table><tbody><tr><td><ul><li>A</li></ul><p><img src="x.png" alt="i" /></p></td></tr></tbody></table>'
+    const fixed = conformToSchema(htmlToMarkup(html))
+    const cellContent = fixed.content?.[0].content?.[0].content?.[0].content
+    expect(cellContent?.map((node) => node.type)).toEqual([MarkupNodeType.bullet_list, MarkupNodeType.paragraph])
+    expect(cellContent?.[1].content?.[0].type).toBe(MarkupNodeType.image)
+  })
+
+  it('starts a list item with a paragraph', () => {
+    const doc: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.bullet_list,
+          content: [
+            {
+              type: MarkupNodeType.list_item,
+              content: [
+                {
+                  type: MarkupNodeType.bullet_list,
+                  content: [
+                    {
+                      type: MarkupNodeType.list_item,
+                      content: [{ type: MarkupNodeType.paragraph, content: [{ type: MarkupNodeType.text, text: 'x' }] }]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+    const item = conformToSchema(doc).content?.[0].content?.[0]
+    expect(item?.content?.map((node) => node.type)).toEqual([MarkupNodeType.paragraph, MarkupNodeType.bullet_list])
   })
 
   it('drops malformed nodes without a type', () => {
@@ -549,3 +719,51 @@ describe('markdown table round trip', () => {
     expect(serialized).toContain('#00ff00')
   })
 })
+
+const INLINE_NODES = new Set<string>([
+  MarkupNodeType.text,
+  MarkupNodeType.hard_break,
+  MarkupNodeType.reference,
+  MarkupNodeType.emoji,
+  MarkupNodeType.image,
+  MarkupNodeType.file,
+  MarkupNodeType.comment
+])
+const TEXT_BLOCK_NODES = new Set<string>([MarkupNodeType.paragraph, MarkupNodeType.heading])
+const LIST_ITEM_NODES = new Set<string>([MarkupNodeType.list_item, MarkupNodeType.todoItem])
+/** Nodes whose content is `text*`. */
+const TEXT_CONTENT_NODES = new Set<string>([
+  MarkupNodeType.code_block,
+  MarkupNodeType.mermaid,
+  MarkupNodeType.markdown,
+  MarkupNodeType.comment
+])
+
+/**
+ * Structural rules of the editor schema that imports used to break (the schema itself lives
+ * in `@hcengineering/text`; pod-export tests validate against it).
+ */
+function schemaViolations (node: MarkupNode, path = 'doc'): string[] {
+  const out: string[] = []
+  const content = node.content ?? []
+  if (node.type === MarkupNodeType.subLink) {
+    out.push(`${path}: subLink is unknown to the editor schema`)
+  }
+  if (node.type === MarkupNodeType.text && /<\/?[a-z]/i.test(node.text ?? '')) {
+    out.push(`${path}: raw HTML in text "${node.text ?? ''}"`)
+  }
+  if (TEXT_BLOCK_NODES.has(node.type)) {
+    content
+      .filter((child) => !INLINE_NODES.has(child.type))
+      .forEach((child) => out.push(`${path}: block ${child.type} inside ${node.type}`))
+  } else if (!TEXT_CONTENT_NODES.has(node.type)) {
+    content
+      .filter((child) => INLINE_NODES.has(child.type))
+      .forEach((child) => out.push(`${path}: inline ${child.type} inside ${node.type}`))
+  }
+  if (LIST_ITEM_NODES.has(node.type) && content[0]?.type !== MarkupNodeType.paragraph) {
+    out.push(`${path}: ${node.type} does not start with a paragraph`)
+  }
+  content.forEach((child, index) => out.push(...schemaViolations(child, `${path}/${index}:${child.type}`)))
+  return out
+}

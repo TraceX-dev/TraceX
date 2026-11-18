@@ -238,6 +238,9 @@ const markRules: Record<string, HtmlMarkRule> = {
   },
   u: {
     mark: MarkupMarkType.underline
+  },
+  sup: {
+    mark: MarkupMarkType.superscript
   }
 }
 
@@ -545,8 +548,10 @@ export class HtmlParser {
           if (handler !== undefined) {
             handler.handleOpenTag(state, tag, attributes)
           } else {
+            // Unknown tag: keep its source as raw text. The depth counts the tag itself,
+            // so the matching close tag brings it back to 0.
             rawPos = parser.startIndex
-            rawDepth = 0
+            rawDepth = 1
           }
         },
 
@@ -578,7 +583,8 @@ export class HtmlParser {
 
             if (rawDepth === 0) {
               const start = rawPos ?? 0
-              const end = parser.endIndex
+              // `endIndex` points at the last character of the close tag (inclusive).
+              const end = parser.endIndex + 1
               const text = html.substring(start, end)
               state.addText(text)
               rawPos = undefined

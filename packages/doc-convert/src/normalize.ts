@@ -71,8 +71,17 @@ const INLINE_TYPES = new Set<string>([
   MarkupNodeType.text,
   MarkupNodeType.hard_break,
   MarkupNodeType.reference,
-  MarkupNodeType.emoji
+  MarkupNodeType.emoji,
+  MarkupNodeType.image,
+  MarkupNodeType.file,
+  MarkupNodeType.comment
 ])
+
+/** Nodes whose content is `inline*` in the schema. */
+const TEXT_BLOCKS = new Set<string>([MarkupNodeType.paragraph, MarkupNodeType.heading])
+
+/** Nodes whose first child must be a paragraph (`paragraph block*`). */
+const LIST_ITEMS = new Set<string>([MarkupNodeType.list_item, MarkupNodeType.todoItem])
 
 /**
  * Make imported markup conform to the Huly ProseMirror schema. Converters such as
@@ -108,10 +117,15 @@ function conformNode (node: MarkupNode): MarkupNode | undefined {
     return node
   }
 
-  let content = (node.content ?? []).map(conformNode).filter((child): child is MarkupNode => child !== undefined)
+  let content = conformChildren(node.content ?? [])
+
+  if (isContainer || node.type === MarkupNodeType.doc) {
+    // Unwrapping unsupported nodes (see `subLink` below) may leave inline nodes directly
+    // under the doc, which the schema rejects as well.
+    content = wrapInlineChildren(content)
+  }
 
   if (isContainer) {
-    content = wrapInlineChildren(content)
     // A block container (list item, table cell, blockquote, …) must hold at least one
     // block node; an empty one (e.g. `<td></td>`) is rejected by the schema.
     if (content.length === 0) {
@@ -119,7 +133,76 @@ function conformNode (node: MarkupNode): MarkupNode | undefined {
     }
   }
 
+  if (LIST_ITEMS.has(node.type) && content[0]?.type !== MarkupNodeType.paragraph) {
+    content = [{ type: MarkupNodeType.paragraph, content: [] }, ...content]
+  }
+
   return { ...node, content }
+}
+
+function conformChildren (children: MarkupNode[]): MarkupNode[] {
+  const out: MarkupNode[] = []
+  for (const child of children) {
+    if (child?.type === MarkupNodeType.subLink) {
+      // `<sub>` is parsed by text-html into a `subLink` node, which exists only in the
+      // read-only markup model and is unknown to the editor schema. Loading it into the
+      // editor throws "Unknown node type: subLink" and breaks the editor, so replace it
+      // with its children carrying the subscript mark.
+      out.push(...conformChildren((child.content ?? []).map(addSubscriptMark)))
+      continue
+    }
+    const conformed = conformNode(child)
+    if (conformed !== undefined) {
+      out.push(...splitTextBlock(conformed))
+    }
+  }
+  return out
+}
+
+/**
+ * A paragraph or heading may hold inline content only. The HTML parser nests block nodes
+ * into them in some cases (e.g. `<td><ul>…</ul><p>…</p></td>`: the cell's implicit
+ * paragraph receives the list), so lift such blocks out and keep the inline runs around
+ * them as separate text blocks with the same attributes.
+ */
+function splitTextBlock (node: MarkupNode): MarkupNode[] {
+  if (!TEXT_BLOCKS.has(node.type) || node.content === undefined) {
+    return [node]
+  }
+  if (node.content.every((child) => INLINE_TYPES.has(child.type))) {
+    return [node]
+  }
+
+  const out: MarkupNode[] = []
+  let buffer: MarkupNode[] = []
+  const flush = (): void => {
+    if (buffer.length > 0) {
+      out.push({ ...node, content: buffer })
+      buffer = []
+    }
+  }
+  for (const child of node.content) {
+    if (INLINE_TYPES.has(child.type)) {
+      buffer.push(child)
+    } else {
+      flush()
+      out.push(...splitTextBlock(child))
+    }
+  }
+  flush()
+  return out
+}
+
+function addSubscriptMark (node: MarkupNode): MarkupNode {
+  if (node?.type !== MarkupNodeType.text) {
+    return node?.content !== undefined ? { ...node, content: node.content.map(addSubscriptMark) } : node
+  }
+  const marks = node.marks ?? []
+  // `code` excludes all other marks; keep such text as is.
+  if (marks.some((mark) => mark.type === MarkupMarkType.code || mark.type === MarkupMarkType.subscript)) {
+    return node
+  }
+  return { ...node, marks: [...marks, { type: MarkupMarkType.subscript }] }
 }
 
 function wrapInlineChildren (children: MarkupNode[]): MarkupNode[] {
