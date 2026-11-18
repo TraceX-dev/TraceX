@@ -119,7 +119,7 @@ describe('invite page with a stale auth cookie (signed with another secret)', ()
       expect(res.result).toEqual({ workspaceName: workspace.name })
     })
 
-    test('BUG: must not fail with Unauthorized because of a stale cookie', async () => {
+    test('must not fail with Unauthorized because of a stale cookie', async () => {
       const res = await call('getInviteInfo', { inviteId }, staleCookieToken())
       expect(errorCode(res)).not.toBe(platform.status.Unauthorized)
       expect(res.result).toEqual({ workspaceName: workspace.name })
@@ -143,7 +143,7 @@ describe('invite page with a stale auth cookie (signed with another secret)', ()
       expect(errorCode(res)).toBe(platform.status.Forbidden)
     })
 
-    test('BUG: must reach the method with a stale cookie instead of Unauthorized', async () => {
+    test('must reach the method with a stale cookie instead of Unauthorized', async () => {
       const res = await call('signUpJoin', params, staleCookieToken())
       expect(errorCode(res)).not.toBe(platform.status.Unauthorized)
       expect(errorCode(res)).toBe(platform.status.Forbidden)
@@ -159,7 +159,7 @@ describe('invite page with a stale auth cookie (signed with another secret)', ()
       expect(errorCode(res)).toBe(platform.status.AccountNotFound)
     })
 
-    test('BUG: must reach the method with a stale cookie instead of Unauthorized', async () => {
+    test('must reach the method with a stale cookie instead of Unauthorized', async () => {
       const res = await call('join', params, staleCookieToken())
       expect(errorCode(res)).not.toBe(platform.status.Unauthorized)
       expect(errorCode(res)).toBe(platform.status.AccountNotFound)
@@ -187,7 +187,7 @@ describe('invite page with a stale auth cookie (signed with another secret)', ()
       expect(res.result).toMatchObject({ workspace: workspaceUuid, email: 'k@example.com' })
     })
 
-    test('BUG: a stale cookie must be treated as "no token" (ask to log in), not Unauthorized', async () => {
+    test('a stale cookie must be treated as "no token" (ask to log in), not Unauthorized', async () => {
       const res = await callAutoJoin(staleCookieToken())
       expect(errorCode(res)).not.toBe(platform.status.Unauthorized)
       expect(res.result).toMatchObject({ workspace: workspaceUuid, email: 'k@example.com' })
