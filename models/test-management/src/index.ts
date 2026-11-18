@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import exportPlugin from '@hcengineering/export'
 import activity from '@hcengineering/activity'
 import chunter from '@hcengineering/chunter'
 import core from '@hcengineering/model-core'
@@ -22,7 +23,6 @@ import { AccountRole, SortingOrder, type FindOptions } from '@hcengineering/core
 import { type Builder } from '@hcengineering/model'
 import view, { createAction } from '@hcengineering/model-view'
 import workbench from '@hcengineering/model-workbench'
-import print from '@hcengineering/model-print'
 import tracker from '@hcengineering/model-tracker'
 import { type ViewOptionsModel } from '@hcengineering/view'
 import contact from '@hcengineering/contact'
@@ -325,7 +325,7 @@ function defineTestSuite (builder: Builder): void {
   // Actions
 
   builder.mixin(testManagement.class.TestSuite, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [print.action.Print, tracker.action.EditRelatedTargets, tracker.action.NewRelatedIssue]
+    actions: [exportPlugin.action.ExportDocuments, tracker.action.EditRelatedTargets, tracker.action.NewRelatedIssue]
   })
 
   createAction(
@@ -502,7 +502,7 @@ function defineTestRun (builder: Builder): void {
   })
 
   builder.mixin(testManagement.class.TestRun, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [print.action.Print, tracker.action.EditRelatedTargets, tracker.action.NewRelatedIssue]
+    actions: [exportPlugin.action.ExportDocuments, tracker.action.EditRelatedTargets, tracker.action.NewRelatedIssue]
   })
 }
 
@@ -697,14 +697,14 @@ function defineTestPlan (builder: Builder): void {
   })
 
   builder.mixin(testManagement.class.TestPlan, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [print.action.Print, tracker.action.EditRelatedTargets, tracker.action.NewRelatedIssue]
+    actions: [exportPlugin.action.ExportDocuments, tracker.action.EditRelatedTargets, tracker.action.NewRelatedIssue]
   })
 
   builder.mixin(testManagement.class.TestPlanItem, core.class.Class, view.mixin.IgnoreActions, {
     actions: [
       view.action.Open,
       view.action.OpenInNewTab,
-      print.action.Print,
+      exportPlugin.action.ExportDocuments,
       tracker.action.EditRelatedTargets,
       tracker.action.NewRelatedIssue
     ]

@@ -34,7 +34,6 @@ import chunter from '@hcengineering/model-chunter'
 import core from '@hcengineering/model-core'
 import { generateClassNotificationTypes } from '@hcengineering/model-notification'
 import presentation from '@hcengineering/model-presentation'
-import print from '@hcengineering/model-print'
 import request from '@hcengineering/model-request'
 import tracker from '@hcengineering/model-tracker'
 import view, { classPresenter, createAction } from '@hcengineering/model-view'
@@ -528,26 +527,6 @@ export function createModel (builder: Builder): void {
       context: { mode: ['context'], group: 'edit' }
     },
     documentsPlugin.action.ChangeDocumentOwner
-  )
-
-  createAction(
-    builder,
-    {
-      action: view.actionImpl.ShowPopup,
-      actionPopup: exportPlugin.component.DocumentExportFormatPopup,
-      actionProps: {
-        component: exportPlugin.component.DocumentExportFormatPopup,
-        element: 'top',
-        fillProps: { _object: 'value' }
-      },
-      label: documentsPlugin.string.Export,
-      icon: documents.icon.Document,
-      category: view.category.General,
-      input: 'focus',
-      target: documents.class.ControlledDocument,
-      context: { mode: ['context'], group: 'tools' }
-    },
-    documentsPlugin.action.Export
   )
 
   createAction(
@@ -1220,29 +1199,29 @@ export function createModel (builder: Builder): void {
     documents.action.OpenDocumentInNewTab
   )
 
-  function createPrintAction<T extends Doc = Doc> (target: Ref<Class<T>>, id?: Ref<Action<T, any>>): void {
+  function createExportAction<T extends Doc = Doc> (target: Ref<Class<T>>, id?: Ref<Action<T, any>>): void {
     createAction(
       builder,
       {
-        action: print.actionImpl.Print,
+        action: exportPlugin.actionImpl.ExportDocuments,
         actionProps: {
           signed: true
         },
-        label: print.string.PrintToPDF,
-        icon: print.icon.Print,
+        label: exportPlugin.string.ExportDots,
+        icon: exportPlugin.icon.Export,
         category: view.category.General,
         input: 'any',
         target,
         context: { mode: ['context', 'browser'], group: 'tools' },
         visibilityTester: documents.function.CanPrintDocument,
-        override: [print.action.Print]
+        override: [exportPlugin.action.ExportDocuments]
       },
       id
     )
   }
 
-  createPrintAction(documents.class.ProjectDocument, documents.action.PrintProjectDocument)
-  createPrintAction(documents.class.Document, documents.action.Print)
+  createExportAction(documents.class.ProjectDocument, documents.action.PrintProjectDocument)
+  createExportAction(documents.class.Document, documents.action.Print)
 
   defineSpaceType(builder)
   builder.createDoc(

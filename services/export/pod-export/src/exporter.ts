@@ -45,7 +45,7 @@ export interface ExportOptions {
   query?: DocumentQuery<Doc>
 }
 
-export function sanitizeSpaceFileName (name: string): string {
+export function sanitizeSpaceFileName (name: string, fallback = 'unnamed'): string {
   const sanitized = name
     // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f]/g, '')
@@ -53,7 +53,7 @@ export function sanitizeSpaceFileName (name: string): string {
     .replace(/\.{2,}/g, '_')
     .trim()
     .replace(/^\.+/, '')
-  return sanitized.length > 0 ? sanitized : 'unnamed'
+  return sanitized.length > 0 ? sanitized : fallback
 }
 
 export class WorkspaceExporter {

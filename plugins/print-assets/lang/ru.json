@@ -4,7 +4,6 @@
     "PrintingDocumentOf": "Печать документа {current} из {total}",
     "DownloadAll": "Скачать все",
     "PrintFailed": "Ошибка печати",
-    "PrintSettings": "Настройки печати",
-    "LandscapeMode": "Ландшафтный режим"
+    "PrintSettings": "Настройки печати"
   }
 }

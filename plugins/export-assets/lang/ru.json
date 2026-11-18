@@ -1,7 +1,9 @@
 {
   "string": {
     "WorkspaceNamePattern": "Имя должно быть длиной 40 символов или меньше, не должно быть пустым и не может содержать специальные символы (<, >, /)",
+    "ExportList": "Экспорт списка",
     "Export": "Экспорт",
+    "ExportDots": "Экспорт…",
     "DataToExport": "Данные для экспорта",
     "ExportDocuments": "Документы",
     "ExportMilestones": "Этапы",
@@ -73,6 +75,9 @@
     "DocumentContentConverted": "Документ сконвертирован",
     "DocumentContentImportFailed": "Ошибка импорта",
     "ReviewDocumentContentChanges": "Просмотрите импортированные изменения",
-    "ApplyDocumentContentChanges": "Применить"
+    "ApplyDocumentContentChanges": "Применить",
+    "Orientation": "Ориентация",
+    "PortraitMode": "Портретная ориентация",
+    "LandscapeMode": "Альбомная ориентация"
   }
 }

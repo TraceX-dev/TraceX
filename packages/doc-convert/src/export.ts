@@ -1,9 +1,9 @@
 //
 // Copyright © 2026 TraceX SAS.
 //
-// Licensed under the PolyForm Shield License 1.0.0 (the "License");
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
-// obtain a copy of the License at https://polyformproject.org/licenses/shield/1.0.0
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +30,7 @@ import {
   ImageRun,
   LevelFormat,
   Packer,
+  PageOrientation,
   Paragraph,
   type ParagraphChild,
   ShadingType,
@@ -54,6 +55,7 @@ export interface MarkupToDocxOptions {
    * resolve blobs (storage/network) and pass them in — this package stays pure.
    */
   images?: Map<string, Uint8Array>
+  orientation?: 'portrait' | 'landscape'
 }
 
 interface DocxCtx {
@@ -148,7 +150,18 @@ export async function markupToDocx (markup: Markup | MarkupNode, options: Markup
 
   const doc = new Document({
     ...(ctx.configs.length > 0 ? { numbering: { config: ctx.configs } } : {}),
-    sections: [{ children: children.length > 0 ? children : [new Paragraph({})] }]
+    sections: [
+      {
+        properties: {
+          page: {
+            size: {
+              orientation: options.orientation === 'landscape' ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT
+            }
+          }
+        },
+        children: children.length > 0 ? children : [new Paragraph({})]
+      }
+    ]
   })
 
   return await Packer.toBuffer(doc)

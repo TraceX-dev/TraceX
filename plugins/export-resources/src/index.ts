@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -20,23 +21,27 @@ import { themeStore } from '@hcengineering/ui'
 import { get } from 'svelte/store'
 import ExportButton from './components/ExportButton.svelte'
 import ExportSettings from './components/ExportSettings.svelte'
+import ExportNotification from './components/ExportNotification.svelte'
 import ExportToWorkspaceModal from './components/ExportToWorkspaceModal.svelte'
 import ExportResultPanel from './components/ExportResultPanel.svelte'
 import ExportTableDialog from './components/ExportTableDialog.svelte'
 import { exportTableAction } from './actionImpl'
-import DocumentExportFormatPopup from './document/components/DocumentExportFormatPopup.svelte'
 import DocumentImportFormatPopup from './document/components/DocumentImportFormatPopup.svelte'
+import { exportDocumentContent, exportContent, canExportContent } from './document/actions'
+import { exportDocuments } from './document/export'
+import { canExport } from './document/exporters'
+import DocumentExportSettings from './document/components/DocumentExportSettings.svelte'
 
 export { default as ExportButton } from './components/ExportButton.svelte'
 export { default as ExportSettings } from './components/ExportSettings.svelte'
 export { default as ExportToWorkspaceModal } from './components/ExportToWorkspaceModal.svelte'
 export { default as ExportResultPanel } from './components/ExportResultPanel.svelte'
 export { default as ExportTableDialog } from './components/ExportTableDialog.svelte'
+export { exportDocuments } from './document/export'
 export { exportTableAction } from './actionImpl'
 export { downloadBlob, fileNameFromResponse } from './download'
 export { buildTable, exportTable, type TableExportFormat, type TableExportScope } from './tableExport'
 export * from './serializers'
-export { default as DocumentExportFormatPopup } from './document/components/DocumentExportFormatPopup.svelte'
 export { default as DocumentImportFormatPopup } from './document/components/DocumentImportFormatPopup.svelte'
 export { default as DocumentImportDiffPopup } from './document/components/DocumentImportDiffPopup.svelte'
 export { exportDocumentContent, importDocumentContent, type DocumentContentTarget } from './document/actions'
@@ -66,16 +71,22 @@ export default async (): Promise<Resources> => ({
   component: {
     ExportButton,
     ExportSettings,
+    ExportNotification,
     ExportToWorkspaceModal,
     ExportResultPanel,
     ExportTableDialog,
-    DocumentExportFormatPopup,
-    DocumentImportFormatPopup
+    DocumentImportFormatPopup,
+    DocumentExportSettings
   },
   function: {
+    ExportContent: exportContent,
+    CanExportContent: canExportContent,
+    CanExport: canExport,
+    ExportDocumentContent: exportDocumentContent,
     ExportResultTitleProvider: getExportResultTitle
   },
   actionImpl: {
+    ExportDocuments: exportDocuments,
     ExportTable: exportTableAction
   }
 })

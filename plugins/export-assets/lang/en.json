@@ -1,7 +1,9 @@
 {
   "string": {
     "WorkspaceNamePattern": "Name must be 40 characters or less, not empty, and cannot contain special characters (<, >, /)",
+    "ExportList": "Export list",
     "Export": "Export",
+    "ExportDots": "Export…",
     "DataToExport": "Data to export",
     "ExportDocuments": "Documents",
     "ExportMilestones": "Milestone",
@@ -73,6 +75,9 @@
     "DocumentContentConverted": "Document converted",
     "DocumentContentImportFailed": "Import failed",
     "ReviewDocumentContentChanges": "Review imported changes",
-    "ApplyDocumentContentChanges": "Apply"
+    "ApplyDocumentContentChanges": "Apply",
+    "Orientation": "Orientation",
+    "PortraitMode": "Portrait mode",
+    "LandscapeMode": "Landscape mode"
   }
 }

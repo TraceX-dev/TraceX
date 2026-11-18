@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import exportPlugin from '@hcengineering/export'
 import { type Builder } from '@hcengineering/model'
 import view, { actionTemplates as viewTemplates, createAction, template } from '@hcengineering/model-view'
 import notification, { notificationActionTemplates } from '@hcengineering/model-notification'
@@ -21,7 +22,6 @@ import activity from '@hcengineering/activity'
 import workbench from '@hcengineering/model-workbench'
 import core from '@hcengineering/model-core'
 import contact from '@hcengineering/contact'
-import print from '@hcengineering/model-print'
 
 import chunter from './plugin'
 
@@ -65,7 +65,12 @@ export function defineActions (builder: Builder): void {
 
 function defineDiscussionActions (builder: Builder): void {
   builder.mixin(chunter.class.Discussion, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [view.action.Delete, view.action.AddRelation, print.action.Print, chunter.action.SummarizeMessages]
+    actions: [
+      view.action.Delete,
+      view.action.AddRelation,
+      exportPlugin.action.ExportDocuments,
+      chunter.action.SummarizeMessages
+    ]
   })
 
   createAction(
