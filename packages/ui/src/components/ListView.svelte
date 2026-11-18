@@ -108,10 +108,10 @@
               })}
             >
               <svelte:fragment slot="category" let:item={itemIndex}>
-                <slot name="category" item={itemIndex} value={array[itemIndex]} />
+                <slot name="category" item={itemIndex} value={_} />
               </svelte:fragment>
               <svelte:fragment slot="item" let:item={itemIndex}>
-                <slot name="item" item={itemIndex} value={array[itemIndex]} />
+                <slot name="item" item={itemIndex} value={_} />
               </svelte:fragment>
             </ListViewItem>
           </Lazy>
@@ -141,10 +141,10 @@
           })}
         >
           <svelte:fragment slot="category" let:item={itemIndex}>
-            <slot name="category" item={itemIndex} value={array[itemIndex]} />
+            <slot name="category" item={itemIndex} value={_} />
           </svelte:fragment>
           <svelte:fragment slot="item" let:item={itemIndex}>
-            <slot name="item" item={itemIndex} value={array[itemIndex]} />
+            <slot name="item" item={itemIndex} value={_} />
           </svelte:fragment>
         </ListViewItem>
       {/if}
