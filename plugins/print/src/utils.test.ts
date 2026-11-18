@@ -37,23 +37,15 @@ describe('PDF export requests', () => {
     fetchMock.mockRestore()
   })
 
-  it('passes the page orientation and content mode to the authenticated endpoint', async () => {
-    await expect(printToPDF(doc as Doc, 'test-token', { orientation: 'landscape', contentOnly: true })).resolves.toBe(
-      'pdf'
-    )
+  it('passes the page orientation to the authenticated endpoint', async () => {
+    await expect(printToPDF(doc as Doc, 'test-token', { orientation: 'landscape' })).resolves.toBe('pdf')
     const url = new URL(String(fetchMock.mock.calls[0][0]))
     expect(url.searchParams.get('objectId')).toBe('document')
     expect(url.searchParams.get('orientation')).toBe('landscape')
-    expect(url.searchParams.get('contentOnly')).toBe('true')
     expect(fetchMock.mock.calls[0][1]?.headers).toEqual({
       Authorization: 'Bearer test-token',
       Accept: 'application/json'
     })
-  })
-
-  it('keeps full-document export as the default', async () => {
-    await printToPDF(doc as Doc, 'test-token')
-    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.has('contentOnly')).toBe(false)
   })
 
   it('does not issue an unauthenticated request', async () => {

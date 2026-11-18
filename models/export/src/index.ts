@@ -46,7 +46,6 @@ export class TDocumentExporter extends TDoc implements DocumentExporter {
   label!: IntlString
   export!: Resource<DocumentExportFunction>
   supportsOrientation!: boolean
-  contentOnly!: DocumentExporter['contentOnly']
   preview?: Resource<DocumentExportPreviewFunction>
   isAvailable?: Resource<DocumentExportAvailabilityFunction>
   bulkExport?: Resource<DocumentBulkExportFunction>
@@ -86,7 +85,6 @@ export function createModel (builder: Builder): void {
       label: exportPlugin.string.ExportFormatWord,
       export: exportPlugin.function.ExportContent,
       supportsOrientation: true,
-      contentOnly: 'always',
       isAvailable: exportPlugin.function.CanExportContent,
       order: 20
     },
@@ -101,7 +99,6 @@ export function createModel (builder: Builder): void {
       label: exportPlugin.string.ExportFormatMarkdown,
       export: exportPlugin.function.ExportContent,
       supportsOrientation: false,
-      contentOnly: 'always',
       isAvailable: exportPlugin.function.CanExportContent,
       order: 30
     },

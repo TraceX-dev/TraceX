@@ -36,14 +36,12 @@ const exporter: Partial<DocumentExporter> = {
   format: 'custom',
   export: 'generate' as DocumentExporter['export'],
   supportsOrientation: true,
-  contentOnly: 'optional',
   preview: 'preview' as DocumentExporter['preview'],
   bulkExport: 'bulk' as DocumentExporter['bulkExport']
 }
 const selection: DocumentExportSettingsValues = {
   exporter: exporter._id as Ref<DocumentExporter>,
   orientation: 'landscape',
-  contentOnly: true,
   preview: true
 }
 const result: DocumentExportResult = {
@@ -114,7 +112,7 @@ it('uses a registered custom format and waits for generation before closing sett
   await exportDocuments(doc as Doc, event, params)
   const submission = settingsProps().onSubmit(selection)
   await Promise.resolve()
-  expect(generate).toHaveBeenCalledWith(doc, { format: 'custom', orientation: 'landscape', contentOnly: true }, params)
+  expect(generate).toHaveBeenCalledWith(doc, { format: 'custom', orientation: 'landscape' }, params)
   expect(preview).not.toHaveBeenCalled()
   finish(result)
   await expect(submission).resolves.toBe(true)
@@ -154,14 +152,12 @@ it('downloads formats without a preview resource and normalizes capabilities', a
   const contentExporter: Partial<DocumentExporter> = {
     ...exporter,
     supportsOrientation: false,
-    contentOnly: 'always',
     preview: undefined
   }
   getObject.mockReturnValue(contentExporter)
   await exportDocuments(doc as Doc, event)
-  const settings: DocumentExportSettingsValues = { ...selection, contentOnly: false }
-  await confirm(settings)
-  expect(generate).toHaveBeenCalledWith(doc, { format: 'custom', orientation: undefined, contentOnly: true }, {})
+  await confirm()
+  expect(generate).toHaveBeenCalledWith(doc, { format: 'custom', orientation: undefined }, {})
   expect(downloadDocumentResult).toHaveBeenCalledWith(result)
 })
 
@@ -184,7 +180,7 @@ it('starts bulk only from the settings close callback', async () => {
   expect(bulk).not.toHaveBeenCalled()
   expect(generate).not.toHaveBeenCalled()
   await close(selection)
-  expect(bulk).toHaveBeenCalledWith(objects, { format: 'custom', orientation: 'landscape', contentOnly: false }, params)
+  expect(bulk).toHaveBeenCalledWith(objects, { format: 'custom', orientation: 'landscape' }, params)
   expect(preview).not.toHaveBeenCalled()
 })
 

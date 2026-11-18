@@ -77,7 +77,6 @@
     "ApplyDocumentContentChanges": "Übernehmen",
     "Orientation": "Ausrichtung",
     "PortraitMode": "Hochformat",
-    "LandscapeMode": "Landscape mode",
-    "OnlyContent": "Nur Inhalt"
+    "LandscapeMode": "Querformat"
   }
 }

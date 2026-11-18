@@ -33,10 +33,9 @@ export async function exportPDF (
     getClient(),
     doc,
     getMetadata(presentation.metadata.Token) ?? '',
-    params.signed ?? false,
+    params.signed === true,
     {
-      orientation: options.orientation,
-      contentOnly: options.contentOnly
+      orientation: options.orientation
     }
   )
   return { file: result.blobId as Ref<Blob>, name: result.title, contentType: 'application/pdf' }
@@ -60,7 +59,7 @@ export async function exportBulkPDF (
 ): Promise<void> {
   const props: ComponentProps<PrintBulkToPDF> = {
     objects,
-    signed: params.signed ?? false,
+    signed: params.signed === true,
     orientation: options.orientation ?? 'portrait'
   }
   showPopup(PrintBulkToPDF, props, 'float')

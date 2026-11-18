@@ -186,12 +186,11 @@ export async function connect (title: string): Promise<Location> {
   if (doc === undefined) throw new Error('Document is not accessible')
   const component =
     connected.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectPanel)?.component ?? view.component.EditDoc
-  if (loc.query?.contentOnly !== 'true') await getResource(component)
+  await getResource(component)
   if (request !== generation) throw new Error('Print session was closed')
   const target: Location = {
     path: ['print', workspace],
-    fragment: getPanelURI(component, _id, _class, 'content'),
-    query: loc.query?.contentOnly === 'true' ? { contentOnly: 'true' } : undefined
+    fragment: getPanelURI(component, _id, _class, 'content')
   }
   return target
 }

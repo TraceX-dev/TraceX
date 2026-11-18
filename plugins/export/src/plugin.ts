@@ -47,7 +47,6 @@ export const exportPlugin = plugin(exportId, {
     Orientation: '' as IntlString,
     PortraitMode: '' as IntlString,
     LandscapeMode: '' as IntlString,
-    OnlyContent: '' as IntlString,
     ExportFormat: '' as IntlString,
     ExportCompleted: '' as IntlString,
     ExportFailed: '' as IntlString,

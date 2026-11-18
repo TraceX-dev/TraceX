@@ -77,7 +77,6 @@
     "ApplyDocumentContentChanges": "Použít",
     "Orientation": "Orientace",
     "PortraitMode": "Na výšku",
-    "LandscapeMode": "Landscape mode",
-    "OnlyContent": "Pouze obsah"
+    "LandscapeMode": "Na šířku"
   }
 }

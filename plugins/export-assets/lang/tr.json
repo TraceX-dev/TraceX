@@ -77,7 +77,6 @@
     "ApplyDocumentContentChanges": "Uygula",
     "Orientation": "Yönlendirme",
     "PortraitMode": "Dikey mod",
-    "LandscapeMode": "Landscape mode",
-    "OnlyContent": "Yalnızca içerik"
+    "LandscapeMode": "Yatay mod"
   }
 }

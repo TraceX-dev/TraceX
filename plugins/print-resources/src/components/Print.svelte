@@ -16,7 +16,6 @@
 <script lang="ts">
   import type { Class, Doc, Ref } from '@hcengineering/core'
   import presentation, { ActionContext, getClient, getPrintContext } from '@hcengineering/presentation'
-  import { hasDocumentContent } from '@hcengineering/export'
   import {
     Label,
     PanelInstance,
@@ -30,8 +29,7 @@
     type Location,
     type PopupAlignment
   } from '@hcengineering/ui'
-  import { ListSelectionProvider, getDocTitle, restrictionStore, updateFocus } from '@hcengineering/view-resources'
-  import PrintContent from './PrintContent.svelte'
+  import { ListSelectionProvider, restrictionStore, updateFocus } from '@hcengineering/view-resources'
   import { tick } from 'svelte'
   import { readable } from 'svelte/store'
 
@@ -43,9 +41,6 @@
   const printError = printContext?.error ?? readable<Error | undefined>(undefined)
   let loadState: 'loading' | 'ready' | 'error' = 'loading'
   let contentPanel: HTMLElement
-  let contentDoc: Doc | undefined
-  let contentTitle = ''
-  const contentOnly = target.query?.contentOnly === 'true'
 
   $deviceInfo.navigator.visible = false
   defineSeparators('workbenchGuest', [null, { minSize: 20, size: 30, maxSize: 50, float: 'aside' }])
@@ -61,13 +56,6 @@
       const _class = props[2] as Ref<Class<Doc>>
       const doc = await client.findOne(_class, { _id })
       if (doc === undefined) throw new Error('Document is not accessible')
-      if (contentOnly) {
-        if (!hasDocumentContent(client.getHierarchy(), doc)) throw new Error('Document has no editor content')
-        contentDoc = doc
-        contentTitle = (await getDocTitle(client, doc._id, doc._class, doc)) ?? ''
-        loadState = 'ready'
-        return
-      }
       const provider = ListSelectionProvider.Find(doc._id)
       updateFocus({ provider, focus: doc })
       showPanel(props[0] as AnyComponent, _id, _class, props[3] as PopupAlignment, props[4] as AnyComponent, false)
@@ -90,27 +78,23 @@
       : loadState}
 >
   {#await load() then}
-    {#if contentOnly && contentDoc !== undefined}
-      <PrintContent object={contentDoc} title={contentTitle} />
-    {:else}
-      <div class="workbench-container">
-        <div class="workbench-container inner">
-          <div class="antiPanel-component antiComponent" bind:this={contentPanel} />
-        </div>
+    <div class="workbench-container">
+      <div class="workbench-container inner">
+        <div class="antiPanel-component antiComponent" bind:this={contentPanel} />
       </div>
-      <div class="cover" />
-      <TooltipInstance />
-      <PanelInstance {contentPanel} readonly embedded>
-        <svelte:fragment slot="panel-header">
-          <ActionContext context={{ mode: 'panel' }} />
-        </svelte:fragment>
-      </PanelInstance>
-      <Popup {contentPanel}>
-        <svelte:fragment slot="popup-header">
-          <ActionContext context={{ mode: 'popup' }} />
-        </svelte:fragment>
-      </Popup>
-    {/if}
+    </div>
+    <div class="cover" />
+    <TooltipInstance />
+    <PanelInstance {contentPanel} readonly embedded>
+      <svelte:fragment slot="panel-header">
+        <ActionContext context={{ mode: 'panel' }} />
+      </svelte:fragment>
+    </PanelInstance>
+    <Popup {contentPanel}>
+      <svelte:fragment slot="popup-header">
+        <ActionContext context={{ mode: 'popup' }} />
+      </svelte:fragment>
+    </Popup>
   {:catch}
     <Label label={presentation.string.AccessDenied} />
   {/await}

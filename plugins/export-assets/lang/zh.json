@@ -77,7 +77,6 @@
     "ApplyDocumentContentChanges": "应用",
     "Orientation": "页面方向",
     "PortraitMode": "纵向模式",
-    "LandscapeMode": "Landscape mode",
-    "OnlyContent": "仅内容"
+    "LandscapeMode": "横向模式"
   }
 }

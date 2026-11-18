@@ -77,7 +77,6 @@
     "ApplyDocumentContentChanges": "適用",
     "Orientation": "ページの向き",
     "PortraitMode": "縦向き",
-    "LandscapeMode": "Landscape mode",
-    "OnlyContent": "コンテンツのみ"
+    "LandscapeMode": "横向き"
   }
 }

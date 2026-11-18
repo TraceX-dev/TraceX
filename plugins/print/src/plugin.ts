@@ -35,11 +35,7 @@ export const print = plugin(printId, {
     PrintingDocumentOf: '' as IntlString,
     DownloadAll: '' as IntlString,
     PrintFailed: '' as IntlString,
-    PrintSettings: '' as IntlString,
-    LandscapeMode: '' as IntlString,
-    Orientation: '' as IntlString,
-    PortraitMode: '' as IntlString,
-    OnlyContent: '' as IntlString
+    PrintSettings: '' as IntlString
   },
   component: {
     PrintApp: '' as AnyComponent,

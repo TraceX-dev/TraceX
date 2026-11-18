@@ -77,8 +77,7 @@
     "ReviewDocumentContentChanges": "Просмотрите импортированные изменения",
     "ApplyDocumentContentChanges": "Применить",
     "Orientation": "Ориентация",
-    "PortraitMode": "Книжный режим",
-    "LandscapeMode": "Ландшафтный режим",
-    "OnlyContent": "Только контент"
+    "PortraitMode": "Портретная ориентация",
+    "LandscapeMode": "Альбомная ориентация"
   }
 }

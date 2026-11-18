@@ -35,7 +35,6 @@ export function createModel (builder: Builder): void {
       label: getEmbeddedLabel('PDF'),
       export: print.function.ExportPDF,
       supportsOrientation: true,
-      contentOnly: 'optional',
       preview: print.function.PreviewPDF,
       isAvailable: print.function.CanExportPDF,
       bulkExport: print.function.ExportBulkPDF,

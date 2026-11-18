@@ -45,7 +45,7 @@ import exportPlugin, {
   type RelationDefinition,
   type DocumentExportOptions
 } from '@hcengineering/export'
-import { documentExportDisposition, parseDocumentExportOptions, withDocumentTitle } from './document-content'
+import { documentExportDisposition, parseDocumentExportOptions } from './document-content'
 import {
   ContextNameMiddleware,
   DBAdapterInitMiddleware,
@@ -590,6 +590,10 @@ export function createServer (
       throw new ApiError(404, 'Document not found')
     }
 
+    const title = options.title || (doc as Doc & { title?: string }).title?.trim()
+    const fileTitle = title ? sanitizeSpaceFileName(title, '') : ''
+    if (fileTitle === '') throw new ApiError(400, 'Document title is required for export')
+
     // Content is stored as a JSON collab blob (Markup string); read it via the
     // collaboration helper rather than a raw storage read so the format is handled.
     const emptyMarkup = '{"type":"doc","content":[]}'
@@ -617,14 +621,8 @@ export function createServer (
       }
     }
 
-    const title = (doc as Doc & { title?: string }).title || 'document'
-    const rendered = await renderDocumentExport(
-      format,
-      options.includeTitle === true ? withDocumentTitle(markup, title) : markup,
-      images,
-      options
-    )
-    const fileName = `${sanitizeSpaceFileName(title)}.${rendered.ext}`
+    const rendered = await renderDocumentExport(format, markup, images, options)
+    const fileName = `${fileTitle}.${rendered.ext}`
 
     // Explicit Content-Length: without it the response is chunked and some local setups
     // never see the terminating chunk, so downloads hang until a manual retry.

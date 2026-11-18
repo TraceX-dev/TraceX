@@ -4,10 +4,6 @@
     "PrintingDocumentOf": "Belge yazdırılıyor {current} / {total}",
     "DownloadAll": "Tümünü indir",
     "PrintFailed": "Yazdırma başarısız",
-    "PrintSettings": "Print settings",
-    "Orientation": "Yönlendirme",
-    "PortraitMode": "Dikey mod",
-    "OnlyContent": "Yalnızca içerik",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

@@ -33,7 +33,7 @@ const custom: Partial<DocumentExporter> = {
   label: 'Custom' as IntlString,
   export: 'generate' as DocumentExporter['export'],
   supportsOrientation: false,
-  contentOnly: 'never',
+
   order: 10
 }
 const conditional: Partial<DocumentExporter> = {

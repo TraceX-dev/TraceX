@@ -36,7 +36,7 @@ jest.mock('./printUtils', () => ({ preparePdf: jest.fn() }))
 
 const doc: Partial<Doc> = { _id: 'document' as Ref<Doc>, _class: 'test:class:Document' as Ref<Class<Doc>> }
 const client: Partial<ReturnType<typeof getClient>> = {}
-const options: DocumentExporterOptions = { format: 'pdf', orientation: 'landscape', contentOnly: true }
+const options: DocumentExporterOptions = { format: 'pdf', orientation: 'landscape' }
 const file: DocumentExportResult = { file: 'pdf' as Ref<Blob>, name: 'Document.pdf', contentType: 'application/pdf' }
 
 beforeEach(() => {
@@ -48,7 +48,7 @@ beforeEach(() => {
 
 it('prepares a signed PDF without downloading or opening a popup', async () => {
   await expect(exportPDF(doc as Doc, options, { signed: true })).resolves.toEqual(file)
-  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', true, { orientation: 'landscape', contentOnly: true })
+  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', true, { orientation: 'landscape' })
   expect(showPopup).not.toHaveBeenCalled()
 })
 
@@ -82,7 +82,7 @@ it('checks only the print service configuration', async () => {
 
 it('does not sign a PDF when no action parameters were supplied', async () => {
   await exportPDF(doc as Doc, options)
-  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', false, { orientation: 'landscape', contentOnly: true })
+  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', false, { orientation: 'landscape' })
 })
 
 it('keeps unsigned bulk export as the default', async () => {

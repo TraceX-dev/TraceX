@@ -4,10 +4,6 @@
     "PrintingDocumentOf": "正在打印文档 {current} / {total}",
     "DownloadAll": "全部下载",
     "PrintFailed": "打印失败",
-    "PrintSettings": "Print settings",
-    "Orientation": "页面方向",
-    "PortraitMode": "纵向模式",
-    "OnlyContent": "仅内容",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

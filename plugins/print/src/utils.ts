@@ -50,7 +50,6 @@ export async function printToPDF (
   if (options?.orientation !== undefined) {
     url.searchParams.append('orientation', options.orientation)
   }
-  if (options?.contentOnly === true) url.searchParams.set('contentOnly', 'true')
 
   const response = await fetch(url, {
     method: 'GET',

@@ -49,9 +49,7 @@ export async function exportDocuments (
       if (bulk && exporter.bulkExport === undefined) return false
       const exportOptions: DocumentExporterOptions = {
         format: exporter.format,
-        orientation: exporter.supportsOrientation ? settings.orientation : undefined,
-        contentOnly:
-          !bulk && (exporter.contentOnly === 'always' || (exporter.contentOnly === 'optional' && settings.contentOnly))
+        orientation: exporter.supportsOrientation ? settings.orientation : undefined
       }
       if (!bulk) {
         const generate = await getResource(exporter.export)

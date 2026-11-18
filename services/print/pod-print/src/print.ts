@@ -21,7 +21,6 @@ import config from './config'
 export interface PrintOptions {
   kind?: ExportKind
   orientation?: PageOrientation
-  contentOnly?: boolean
   viewport?: Viewport
 }
 

@@ -4,10 +4,6 @@
     "PrintingDocumentOf": "Imprimindo documento {current} de {total}",
     "DownloadAll": "Baixar tudo",
     "PrintFailed": "Falha na impressão",
-    "PrintSettings": "Print settings",
-    "Orientation": "Orientação",
-    "PortraitMode": "Orientação vertical",
-    "OnlyContent": "Somente conteúdo",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

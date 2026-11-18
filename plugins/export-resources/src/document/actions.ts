@@ -33,6 +33,7 @@ import presentation, { getClient } from '@hcengineering/presentation'
 import { jsonToMarkup, type MarkupNode } from '@hcengineering/text'
 import { addNotification, NotificationSeverity, showPopup, withProgress } from '@hcengineering/ui'
 import { getCurrentLanguage } from '@hcengineering/theme'
+import { getDocTitle } from '@hcengineering/view-resources'
 
 import { downloadBlob, fileNameFromResponse } from '../download'
 import DocumentImportDiffPopup from './components/DocumentImportDiffPopup.svelte'
@@ -79,7 +80,9 @@ async function prepareDocumentContent (
   }
 
   const blob = await response.blob()
-  const filename = fileNameFromResponse(response, `${doc.title ?? 'document'}.${format}`)
+  const title = options?.title?.trim() || doc.title?.trim()
+  const filename = fileNameFromResponse(response, title ? `${title}.${format}` : '')
+  if (filename === '') throw new Error('Document title is required for export')
   return { file: blob, name: filename, contentType: blob.type }
 }
 
@@ -88,7 +91,8 @@ export async function exportContent (doc: Doc, options: DocumentExporterOptions)
   if (options.format !== 'docx' && options.format !== 'md') {
     throw new Error(`Unsupported content format: ${options.format}`)
   }
-  return await prepareDocumentContent(doc, options.format, { orientation: options.orientation, includeTitle: true })
+  const title = await getDocTitle(getClient(), doc._id, doc._class, doc)
+  return await prepareDocumentContent(doc, options.format, { orientation: options.orientation, title })
 }
 
 export async function canExportContent (doc: Doc): Promise<boolean> {

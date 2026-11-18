@@ -16,6 +16,7 @@
 import type { Class, Doc, Ref } from '@hcengineering/core'
 import type { DocumentContentTarget } from '@hcengineering/export'
 import { getMetadata } from '@hcengineering/platform'
+import { getDocTitle } from '@hcengineering/view-resources'
 import { addNotification, NotificationSeverity, withProgress } from '@hcengineering/ui'
 import ExportNotification from '../components/ExportNotification.svelte'
 import { downloadBlob } from '../download'
@@ -42,7 +43,12 @@ jest.mock('@hcengineering/platform', () => ({
   unknownError: jest.fn(),
   translate: jest.fn(async () => 'Export')
 }))
-jest.mock('@hcengineering/presentation', () => ({ __esModule: true, default: { metadata: { Token: 'token' } } }))
+jest.mock('@hcengineering/presentation', () => ({
+  __esModule: true,
+  default: { metadata: { Token: 'token' } },
+  getClient: jest.fn()
+}))
+jest.mock('@hcengineering/view-resources', () => ({ getDocTitle: jest.fn() }))
 jest.mock('@hcengineering/text', () => ({ jsonToMarkup: jest.fn() }))
 jest.mock('@hcengineering/theme', () => ({ getCurrentLanguage: () => 'en' }))
 jest.mock('@hcengineering/ui', () => ({
@@ -60,6 +66,7 @@ const fetchMock = jest.spyOn(globalThis, 'fetch')
 
 beforeEach(() => {
   jest.clearAllMocks()
+  jest.mocked(getDocTitle).mockResolvedValue('Provider title')
   jest.mocked(getMetadata).mockImplementation((key) => (key === 'export-url' ? 'http://export.local' : 'test-token'))
   const response: Partial<Response> = { ok: true, blob: jest.fn(async () => new Blob(['document'])) }
   fetchMock.mockResolvedValue(response as Response)
@@ -69,14 +76,13 @@ afterAll(() => {
 })
 
 it('sends unified Word options and downloads only after a successful response', async () => {
-  await expect(exportDocumentContent(doc, 'docx', { orientation: 'landscape', includeTitle: true })).resolves.toBe(true)
+  await expect(exportDocumentContent(doc, 'docx', { orientation: 'landscape' })).resolves.toBe(true)
   expect(fetchMock.mock.calls[0][0]).toBe('http://export.local/document-export')
   expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
     _id: 'document',
     _class: 'test:class:Document',
     format: 'docx',
-    orientation: 'landscape',
-    includeTitle: true
+    orientation: 'landscape'
   })
   expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), 'document.docx')
   expect(withProgress).not.toHaveBeenCalled()
@@ -112,7 +118,7 @@ it('reports conversion failure without downloading an invalid response', async (
 })
 
 it('returns converted content to the registered exporter without downloading it', async () => {
-  const result = await exportContent(doc as Doc, { format: 'md', contentOnly: true })
+  const result = await exportContent(doc as Doc, { format: 'md' })
   expect(result.file).toBeInstanceOf(Blob)
   expect(downloadBlob).not.toHaveBeenCalled()
   expect(addNotification).not.toHaveBeenCalled()
@@ -120,7 +126,7 @@ it('returns converted content to the registered exporter without downloading it'
     _id: 'document',
     _class: 'test:class:Document',
     format: 'md',
-    includeTitle: true
+    title: 'Provider title'
   })
 })
 
@@ -131,7 +137,7 @@ it('propagates registered exporter failures to the common dialog', async () => {
     json: jest.fn(async () => ({ message: 'Unsupported content' }))
   }
   fetchMock.mockResolvedValue(response as Response)
-  await expect(exportContent(doc as Doc, { format: 'docx', contentOnly: true })).rejects.toThrow('Unsupported content')
+  await expect(exportContent(doc as Doc, { format: 'docx' })).rejects.toThrow('Unsupported content')
   expect(addNotification).not.toHaveBeenCalled()
   expect(downloadBlob).not.toHaveBeenCalled()
 })

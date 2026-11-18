@@ -171,7 +171,6 @@ async function renderDocument (
     const url = new URL(concatLink(config.FrontUrl, 'print/' + encodeURIComponent(workspace.url)))
     url.searchParams.set('objectClass', objectClass)
     url.searchParams.set('objectId', objectId)
-    if (options.contentOnly === true) url.searchParams.set('contentOnly', 'true')
 
     return await print(ctx, url.toString(), options, readonlyToken)
   } finally {
@@ -182,11 +181,6 @@ async function renderDocument (
 function parsePrintOptions (query: Request['query']): PrintOptions {
   const kind = query.kind as PrintOptions['kind']
   const orientation = query.orientation as PrintOptions['orientation']
-  const rawContentOnly = query.contentOnly
-  if (rawContentOnly !== undefined && rawContentOnly !== 'true' && rawContentOnly !== 'false') {
-    throw new ApiError(400, 'Invalid contentOnly value')
-  }
-  const contentOnly = rawContentOnly === 'true'
 
   if (kind !== undefined && !validKinds.includes(kind)) {
     throw new ApiError(400, `Invalid print kind: ${kind}`)
@@ -213,7 +207,7 @@ function parsePrintOptions (query: Request['query']): PrintOptions {
     throw new ApiError(400, 'Both width and height must be provided')
   }
 
-  return { kind, orientation, viewport, contentOnly }
+  return { kind, orientation, viewport }
 }
 
 export function createServer (

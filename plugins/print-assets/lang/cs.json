@@ -4,10 +4,6 @@
     "PrintingDocumentOf": "Tisk dokumentu {current} z {total}",
     "DownloadAll": "Stáhnout vše",
     "PrintFailed": "Tisk se nezdařil",
-    "PrintSettings": "Print settings",
-    "Orientation": "Orientace",
-    "PortraitMode": "Na výšku",
-    "OnlyContent": "Pouze obsah",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

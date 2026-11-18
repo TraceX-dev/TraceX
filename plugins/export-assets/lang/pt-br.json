@@ -78,7 +78,6 @@
     "ApplyDocumentContentChanges": "Aplicar",
     "Orientation": "Orientação",
     "PortraitMode": "Orientação vertical",
-    "LandscapeMode": "Landscape mode",
-    "OnlyContent": "Somente conteúdo"
+    "LandscapeMode": "Orientação horizontal"
   }
 }

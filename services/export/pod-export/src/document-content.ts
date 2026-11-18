@@ -15,36 +15,14 @@
 
 import type { DocumentExportOptions } from '@hcengineering/export'
 import { ApiError } from '@hcengineering/server-core'
-import { markupToJSON, jsonToMarkup, MarkupNodeType } from '@hcengineering/text'
-import type { MarkupNode } from '@hcengineering/text'
 
 /** Validate the optional export settings at the HTTP boundary. */
 export function parseDocumentExportOptions (params: Record<string, unknown>): DocumentExportOptions {
   const orientation = params.orientation ?? 'portrait'
   if (orientation !== 'portrait' && orientation !== 'landscape') throw new ApiError(400, 'Invalid page orientation')
-  const rawIncludeTitle = params.includeTitle
-  if (
-    rawIncludeTitle !== undefined &&
-    rawIncludeTitle !== true &&
-    rawIncludeTitle !== false &&
-    rawIncludeTitle !== 'true' &&
-    rawIncludeTitle !== 'false'
-  ) {
-    throw new ApiError(400, 'Invalid includeTitle value')
-  }
-  return { orientation, includeTitle: rawIncludeTitle === true || rawIncludeTitle === 'true' }
-}
-
-/** Add a document heading without modifying its stored collaborative content. */
-export function withDocumentTitle (markup: string, title: string): string {
-  const root = markupToJSON(markup)
-  const heading: MarkupNode = {
-    type: MarkupNodeType.heading,
-    attrs: { level: 1 },
-    content: [{ type: MarkupNodeType.text, text: title }]
-  }
-  const result: MarkupNode = { ...root, content: [heading, ...(root.content ?? [])] }
-  return jsonToMarkup(result)
+  const title = params.title
+  if (title !== undefined && typeof title !== 'string') throw new ApiError(400, 'Invalid document title')
+  return title === undefined ? { orientation } : { orientation, title: title.trim() }
 }
 
 /** Build the download header for a generated document. */

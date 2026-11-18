@@ -14,17 +14,17 @@
 //
 
 import { validateHeaderValue } from 'node:http'
-import { documentExportDisposition, parseDocumentExportOptions, withDocumentTitle } from '../document-content'
+import { documentExportDisposition, parseDocumentExportOptions } from '../document-content'
 
 describe('document export options', () => {
   it('preserves body-only export for existing callers', () => {
-    expect(parseDocumentExportOptions({})).toEqual({ orientation: 'portrait', includeTitle: false })
+    expect(parseDocumentExportOptions({})).toEqual({ orientation: 'portrait' })
   })
 
   it('accepts the unified export settings', () => {
-    expect(parseDocumentExportOptions({ orientation: 'landscape', includeTitle: true })).toEqual({
+    expect(parseDocumentExportOptions({ orientation: 'landscape', title: 'Specification' })).toEqual({
       orientation: 'landscape',
-      includeTitle: true
+      title: 'Specification'
     })
   })
 
@@ -32,22 +32,9 @@ describe('document export options', () => {
     expect(() => parseDocumentExportOptions({ orientation })).toThrow('Invalid page orientation')
   })
 
-  it('rejects invalid title flags', () => {
-    expect(() => parseDocumentExportOptions({ includeTitle: 'yes' })).toThrow('Invalid includeTitle value')
+  it('rejects non-string titles', () => {
+    expect(() => parseDocumentExportOptions({ title: true })).toThrow('Invalid document title')
   })
-})
-
-it('prepends a literal heading and preserves rich editor content', () => {
-  const original =
-    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Body","marks":[{"type":"bold"}]}]}]}'
-  const result = JSON.parse(withDocumentTitle(original, 'Title <&>'))
-  expect(result.content[0]).toEqual({
-    type: 'heading',
-    attrs: { level: 1 },
-    content: [{ type: 'text', text: 'Title <&>' }]
-  })
-  expect(result.content[1]).toEqual(JSON.parse(original).content[0])
-  expect(JSON.parse(original).content).toHaveLength(1)
 })
 
 it.each(['Техническое задание.md', '仕様書.docx'])('allows downloading a Unicode document named %s', (fileName) => {

@@ -17,7 +17,6 @@ export type PrintPageOrientation = 'portrait' | 'landscape'
 
 export interface PrintToPDFOptions {
   orientation?: PrintPageOrientation
-  contentOnly?: boolean
 }
 
 /** PDF-specific parameters supplied by document export actions. */

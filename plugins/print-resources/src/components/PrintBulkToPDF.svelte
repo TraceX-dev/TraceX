@@ -77,7 +77,7 @@
             currentIndex = current
           },
           getCancelled: () => cancelled,
-          printOptions: { orientation, contentOnly: false }
+          printOptions: { orientation }
         })
       } catch (error) {
         failed = true

@@ -28,7 +28,6 @@ export interface DocumentExportResult {
 export interface DocumentExporterOptions {
   format: string
   orientation?: DocumentExportOrientation
-  contentOnly: boolean
 }
 
 /** Additional action parameters are forwarded unchanged to the implementation. */
@@ -51,7 +50,6 @@ export interface DocumentExporter extends Doc {
   label: IntlString
   export: Resource<DocumentExportFunction>
   supportsOrientation: boolean
-  contentOnly: 'optional' | 'always' | 'never'
   preview?: Resource<DocumentExportPreviewFunction>
   isAvailable?: Resource<DocumentExportAvailabilityFunction>
   bulkExport?: Resource<DocumentBulkExportFunction>
@@ -61,7 +59,6 @@ export interface DocumentExporter extends Doc {
 export interface DocumentExportSettingsValues {
   exporter: Ref<DocumentExporter>
   orientation: DocumentExportOrientation
-  contentOnly: boolean
   preview: boolean
 }
 
@@ -69,7 +66,7 @@ export type DocumentExportFormat = 'docx' | 'md'
 
 export interface DocumentExportOptions {
   orientation?: DocumentExportOrientation
-  includeTitle?: boolean
+  title?: string
 }
 
 export interface DocumentContentTarget {

@@ -16,9 +16,9 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
   import { type Doc } from '@hcengineering/core'
-  import exportPlugin, { hasDocumentContent } from '@hcengineering/export'
+  import exportPlugin from '@hcengineering/export'
   import type { DocumentExportOrientation, DocumentExportSettingsValues } from '@hcengineering/export'
-  import presentation, { Card, getClient } from '@hcengineering/presentation'
+  import presentation, { Card } from '@hcengineering/presentation'
   import { DropdownLabelsIntl, Label, Loading, Toggle } from '@hcengineering/ui'
   import type { DropdownIntlItem } from '@hcengineering/ui'
   import { loadDocumentExporters, reportExportError, type DocumentExporterState } from '../exporters'
@@ -26,10 +26,8 @@
   export let objects: Doc[]
   export let onSubmit: (values: DocumentExportSettingsValues) => Promise<boolean>
 
-  const contentId = 'export-content-toggle'
   const previewId = 'export-preview-toggle'
   const bulk = objects.length > 1
-  const contentAvailable = objects.every((doc) => hasDocumentContent(getClient().getHierarchy(), doc))
   const orientations: Array<DropdownIntlItem<DocumentExportOrientation>> = [
     { id: 'portrait', label: exportPlugin.string.PortraitMode },
     { id: 'landscape', label: exportPlugin.string.LandscapeMode }
@@ -39,7 +37,6 @@
   let exporters: DocumentExporterState[] = []
   let exporter: DocumentExportSettingsValues['exporter'] | undefined
   let orientation: DocumentExportOrientation = 'portrait'
-  let contentOnly = false
   let preview = true
   let result: DocumentExportSettingsValues | undefined
   let loading = true
@@ -52,9 +49,6 @@
     disabled: !available
   }))
   $: selected = exporters.find((state) => state.exporter._id === exporter)
-  $: contentChecked =
-    selected?.exporter.contentOnly === 'always' ||
-    (selected?.exporter.contentOnly === 'optional' && contentAvailable && contentOnly)
   $: previewChecked = selected?.exporter.preview !== undefined && preview
 
   onMount(() => {
@@ -75,7 +69,6 @@
     const settings: DocumentExportSettingsValues = {
       exporter,
       orientation,
-      contentOnly: !bulk && contentChecked,
       preview: !bulk && previewChecked
     }
     submitting = true
@@ -86,10 +79,6 @@
     } finally {
       submitting = false
     }
-  }
-
-  function changeContentOnly (event: CustomEvent<boolean>): void {
-    contentOnly = event.detail
   }
 
   function changePreview (event: CustomEvent<boolean>): void {
@@ -138,15 +127,6 @@
       />
 
       {#if !bulk}
-        <label class="label" for={contentId}><Label label={exportPlugin.string.OnlyContent} /></label>
-        <Toggle
-          inputId={contentId}
-          data-id="export-content-only"
-          on={contentChecked}
-          disabled={submitting || !contentAvailable || selected?.exporter.contentOnly !== 'optional'}
-          on:change={changeContentOnly}
-        />
-
         <label class="label" for={previewId}><Label label={presentation.string.DocumentPreview} /></label>
         <Toggle
           inputId={previewId}
