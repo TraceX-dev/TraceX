@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -45,7 +46,6 @@ export default mergeIds(processId, process, {
   },
   string: {
     NewProcessToDo: '' as IntlString,
-    ConfigLabel: '' as IntlString,
     ConfigDescription: '' as IntlString,
     LogAction: '' as IntlString
   }
