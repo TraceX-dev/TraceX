@@ -25,7 +25,7 @@ import {
   normalizeMarkup,
   resolveDocxFill
 } from '..'
-import { extractDocxCellFills } from '../word-utils'
+import { applyDocxCellFills, extractDocxCellFills } from '../word-utils'
 import { htmlToMarkup } from '@hcengineering/text-html'
 import JSZip from 'jszip'
 import { CheckBox, Document, ImageRun, Packer, Paragraph, Table, TableCell, TableRow, TextRun } from 'docx'
@@ -265,7 +265,7 @@ describe('extractDocxCellFills', () => {
     warn.mockRestore()
   })
 
-  it('reads cell fills in document order, including tables nested in a content control', async () => {
+  it('reads cell fills per table in document order, including tables in a content control', async () => {
     // fast-xml-parser groups same-named siblings, so without `preserveOrder` the table inside
     // `w:sdt` would be collected after the plain table that follows it.
     const fills = await extractDocxCellFills(
@@ -276,7 +276,7 @@ describe('extractDocxCellFills', () => {
       `)
     )
 
-    expect(fills).toEqual(['#FF0000', '#00FF00', '#0000FF'])
+    expect(fills).toEqual([['#FF0000'], ['#00FF00'], ['#0000FF']])
   })
 
   it('reads a nested table right after the cell that holds it', async () => {
@@ -284,7 +284,7 @@ describe('extractDocxCellFills', () => {
       await documentXml(table(shadedCell('FF0000', table(shadedCell('00FF00'))) + shadedCell('0000FF')))
     )
 
-    expect(fills).toEqual(['#FF0000', '#00FF00', '#0000FF'])
+    expect(fills).toEqual([['#FF0000', '#00FF00', '#0000FF']])
   })
 
   it('ignores automatic shading and non-hex fills', async () => {
@@ -292,12 +292,61 @@ describe('extractDocxCellFills', () => {
       await documentXml(table(shadedCell('auto') + shadedCell('') + '<w:tc><w:p/></w:tc>'))
     )
 
-    expect(fills).toEqual([undefined, undefined, undefined])
+    expect(fills).toEqual([[undefined, undefined, undefined]])
+  })
+
+  it('skips rows deleted with tracked changes, as mammoth does', async () => {
+    const deletion = '<w:del w:id="1" w:author="A" w:date="2026-01-01T00:00:00Z"/>'
+    const rows = [
+      `<w:tr>${shadedCell('FF0000')}</w:tr>`,
+      `<w:tr><w:trPr>${deletion}</w:trPr>${shadedCell('00FF00')}</w:tr>`,
+      `<w:tr>${shadedCell('0000FF')}</w:tr>`
+    ]
+    const fills = await extractDocxCellFills(await documentXml(`<w:tbl>${rows.join('')}</w:tbl>`))
+
+    expect(fills).toEqual([['#FF0000', '#0000FF']])
   })
 
   it('returns no fills for a buffer that is not a docx', async () => {
     await expect(extractDocxCellFills(Buffer.from('definitely not a zip'))).resolves.toEqual([])
     expect(warn).toHaveBeenCalled()
+  })
+})
+
+describe('applyDocxCellFills', () => {
+  let warn: jest.SpyInstance
+
+  beforeEach(() => {
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    warn.mockRestore()
+  })
+
+  function markupTable (...texts: string[]): MarkupNode {
+    return {
+      type: MarkupNodeType.table,
+      content: [{ type: MarkupNodeType.table_row, content: texts.map((text) => cell(MarkupNodeType.table_cell, text)) }]
+    }
+  }
+
+  it('keeps the colors of other tables when one table does not match', () => {
+    const markup: MarkupNode = { type: MarkupNodeType.doc, content: [markupTable('a', 'b'), markupTable('c')] }
+
+    const result = applyDocxCellFills(markup, [['#FF0000', '#00FF00', '#0000FF'], ['#FFFF00']])
+
+    expect(tableCells(result).map((item) => item.attrs?.backgroundColor)).toEqual([undefined, undefined, '#FFFF00'])
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores all colors when the number of tables differs', () => {
+    const markup: MarkupNode = { type: MarkupNodeType.doc, content: [markupTable('a')] }
+
+    const result = applyDocxCellFills(markup, [['#FF0000'], ['#00FF00']])
+
+    expect(tableCells(result).map((item) => item.attrs?.backgroundColor)).toEqual([undefined])
+    expect(warn).toHaveBeenCalledTimes(1)
   })
 })
 
