@@ -76,6 +76,7 @@ import { jsonToMarkup, markupToJSON } from '@hcengineering/text'
 import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import config from './config'
 import { convertSerializedMarkupToMarkdown, isSerializedMarkup } from './markup'
+import { WorkspaceClientCache } from './workspace-client-cache'
 import {
   addGithubIssueToProject,
   createGithubDiscussion,
@@ -164,6 +165,23 @@ type GithubNextMarkupOperations = MarkupOperations & {
   convertSerializedMarkupToMarkdown: (content: string) => string
 }
 
+interface WorkspaceClientContext {
+  client: TxOperations
+  markup: GithubNextMarkupOperations
+}
+
+const workspaceClients = new WorkspaceClientCache<WorkspaceClientContext>()
+
+/** Invalidate the model and endpoint used by future operations in this workspace. */
+export function invalidateGithubNextWorkspaceClient (accountsUrl: string, workspaceUuid: WorkspaceUuid): void {
+  workspaceClients.invalidate(accountsUrl, workspaceUuid)
+}
+
+/** Release cached REST contexts and their expiry timers. */
+export function clearGithubNextWorkspaceClients (): void {
+  workspaceClients.clear()
+}
+
 function createGithubNextMarkupOperations (
   url: string,
   workspace: WorkspaceUuid,
@@ -202,13 +220,18 @@ function createGithubNextMarkupOperations (
   }
 }
 
+async function getWorkspaceClient (accountsUrl: string, workspaceUuid: WorkspaceUuid): Promise<WorkspaceClientContext> {
+  return await workspaceClients.get(
+    accountsUrl,
+    workspaceUuid,
+    async () => await createWorkspaceClient(accountsUrl, workspaceUuid)
+  )
+}
+
 async function createWorkspaceClient (
   accountsUrl: string,
   workspaceUuid: WorkspaceUuid
-): Promise<{
-  client: TxOperations
-  markup: GithubNextMarkupOperations
-}> {
+): Promise<WorkspaceClientContext> {
   const serviceToken = generateToken(systemAccountUuid, workspaceUuid, { service: 'github-next' })
   const accountClient = getAccountClient(accountsUrl, serviceToken)
   const loginInfo = await accountClient.getLoginInfoByToken()
@@ -672,11 +695,13 @@ export async function isGithubNextOutboundRelevantTx (
   })
   if (accountIntegrations.length === 0) return false
 
-  const { client } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const workspaceClient = await getWorkspaceClient(accountsUrl, workspaceUuid)
+  const { client } = workspaceClient
   try {
     const workspaceIntegration = await getWorkspaceIntegration(client)
     if (workspaceIntegration === undefined) return false
     if (await hasExistingSyncStateForTx(client, workspaceIntegration, tx)) return true
+    if (!isTxCreateDoc(tx)) return false
 
     const issueProvider = await getProviderContext(client, workspaceIntegration, githubNext.ids.GithubNextIssueProvider)
     const matchesIssueRoute =
@@ -706,8 +731,9 @@ export async function isGithubNextOutboundRelevantTx (
       pullRequestProvider !== undefined &&
       (await matchesOutboundCreateRoute(client, accountIntegrations, pullRequestProvider, tx))
     )
-  } finally {
-    await client.close()
+  } catch (err) {
+    workspaceClients.invalidate(accountsUrl, workspaceUuid, workspaceClient)
+    throw err
   }
 }
 
@@ -1916,7 +1942,8 @@ async function syncInboundIssues (
   }
   if (accountIntegrations.length === 0) return result
 
-  const { client, markup } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const workspaceClient = await getWorkspaceClient(accountsUrl, workspaceUuid)
+  const { client, markup } = workspaceClient
   const githubContext = createGithubRequestContext()
   try {
     const workspaceIntegration = await getWorkspaceIntegration(client)
@@ -1982,8 +2009,9 @@ async function syncInboundIssues (
         }
       }
     }
-  } finally {
-    await client.close()
+  } catch (err) {
+    workspaceClients.invalidate(accountsUrl, workspaceUuid, workspaceClient)
+    throw err
   }
 
   return result
@@ -2013,7 +2041,8 @@ async function syncInboundDiscussions (
   }
   if (accountIntegrations.length === 0) return result
 
-  const { client, markup } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const workspaceClient = await getWorkspaceClient(accountsUrl, workspaceUuid)
+  const { client, markup } = workspaceClient
   const githubContext = createGithubRequestContext()
   try {
     const workspaceIntegration = await getWorkspaceIntegration(client)
@@ -2068,8 +2097,9 @@ async function syncInboundDiscussions (
         }
       }
     }
-  } finally {
-    await client.close()
+  } catch (err) {
+    workspaceClients.invalidate(accountsUrl, workspaceUuid, workspaceClient)
+    throw err
   }
 
   return result
@@ -2099,7 +2129,8 @@ async function syncInboundPullRequests (
   }
   if (accountIntegrations.length === 0) return result
 
-  const { client, markup } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const workspaceClient = await getWorkspaceClient(accountsUrl, workspaceUuid)
+  const { client, markup } = workspaceClient
   const githubContext = createGithubRequestContext()
   try {
     const workspaceIntegration = await getWorkspaceIntegration(client)
@@ -2150,8 +2181,9 @@ async function syncInboundPullRequests (
         }
       }
     }
-  } finally {
-    await client.close()
+  } catch (err) {
+    workspaceClients.invalidate(accountsUrl, workspaceUuid, workspaceClient)
+    throw err
   }
 
   return result
@@ -2709,7 +2741,8 @@ async function syncOutboundForProvider (
   }
   if (accountIntegrations.length === 0) return result
 
-  const { client, markup } = await createWorkspaceClient(accountsUrl, workspaceUuid)
+  const workspaceClient = await getWorkspaceClient(accountsUrl, workspaceUuid)
+  const { client, markup } = workspaceClient
   const githubContext = createGithubRequestContext()
   try {
     const workspaceIntegration = await getWorkspaceIntegration(client)
@@ -3094,8 +3127,9 @@ async function syncOutboundForProvider (
         result.updated++
       }
     }
-  } finally {
-    await client.close()
+  } catch (err) {
+    workspaceClients.invalidate(accountsUrl, workspaceUuid, workspaceClient)
+    throw err
   }
 
   return result
