@@ -27,12 +27,20 @@ const XML_ATTRIBUTE_PREFIX = '@_'
 type XmlNode = Record<string, unknown>
 
 /**
+ * Cell fills of a DOCX, one entry per top-level table. Cells of nested tables are listed
+ * inside their top-level table, right after the cell that holds them (mammoth's order).
+ *
+ * @public
+ */
+export type DocxTableFills = Array<Array<string | undefined>>
+
+/**
  * Extract direct RGB table-cell shading from a DOCX file, in the order mammoth emits the
  * corresponding cells. Mammoth intentionally omits table formatting from its HTML output, so
  * the result can be applied to Mammoth's markup separately.
  * A failed best-effort extraction must not make an otherwise supported DOCX impossible to import.
  */
-export async function extractDocxCellFills (buffer: Buffer): Promise<Array<string | undefined>> {
+export async function extractDocxCellFills (buffer: Buffer): Promise<DocxTableFills> {
   try {
     const zip = await JSZip.loadAsync(buffer)
     const documentFile = zip.file(WORD_DOCUMENT_PATH)
@@ -51,9 +59,9 @@ export async function extractDocxCellFills (buffer: Buffer): Promise<Array<strin
       trimValues: false
     }).parse(documentXml) as unknown
 
-    const fills: Array<string | undefined> = []
-    collectCellFills(document, fills)
-    return fills
+    const tables: DocxTableFills = []
+    collectCellFills(document, tables)
+    return tables
   } catch (e) {
     console.warn('Failed to extract cell colors', e)
     return []
@@ -62,22 +70,38 @@ export async function extractDocxCellFills (buffer: Buffer): Promise<Array<strin
 
 /**
  * Apply DOCX table-cell fills to the corresponding cells in imported markup.
+ *
+ * Fills are matched by position, table by table: a table whose cell count differs from the
+ * DOCX (mammoth dropped or merged cells in a way not accounted for) keeps no colors, while
+ * the other tables keep theirs.
  */
-export function applyDocxCellFills (markup: MarkupNode, fills: Array<string | undefined>): MarkupNode {
-  if (fills.length === 0) {
+export function applyDocxCellFills (markup: MarkupNode, tables: DocxTableFills): MarkupNode {
+  if (tables.length === 0) {
     return markup
   }
 
-  const cells = countTableCells(markup)
-  if (cells !== fills.length) {
-    console.warn(`Ignoring DOCX cell colors: ${fills.length} cells in the document, ${cells} in the imported markup`)
+  const markupTables = collectTables(markup)
+  if (markupTables.length !== tables.length) {
+    console.warn(`Ignoring DOCX cell colors: ${tables.length} tables in the document, ${markupTables.length} imported`)
     return markup
   }
 
-  return applyCellFills(markup, fills)
+  const fillsByTable = new Map<MarkupNode, Array<string | undefined>>()
+  markupTables.forEach((table, index) => {
+    const fills = tables[index]
+    const cells = countTableCells(table)
+    if (cells === fills.length) {
+      fillsByTable.set(table, fills)
+    } else {
+      const counts = `${fills.length} cells in the document, ${cells} in the imported markup`
+      console.warn(`Ignoring DOCX cell colors of table ${index + 1}: ${counts}`)
+    }
+  })
+
+  return applyTableFills(markup, fillsByTable)
 }
 
-function collectCellFills (nodes: unknown, fills: Array<string | undefined>): void {
+function collectCellFills (nodes: unknown, tables: DocxTableFills, fills?: Array<string | undefined>): void {
   if (!Array.isArray(nodes)) {
     return
   }
@@ -90,8 +114,20 @@ function collectCellFills (nodes: unknown, fills: Array<string | undefined>): vo
       if (name === XML_ATTRIBUTES || name === XML_TEXT) {
         continue
       }
-      if (name !== 'tc') {
-        collectCellFills(children, fills)
+      if (name === 'tbl' && fills === undefined) {
+        // A top-level table starts its own group; nested ones extend the current group.
+        const tableFills: Array<string | undefined> = []
+        tables.push(tableFills)
+        collectCellFills(children, tables, tableFills)
+        continue
+      }
+      // mammoth drops rows deleted with tracked changes (`w:trPr/w:del`) together with their
+      // cells, so they must not consume positions either.
+      if (name === 'tr' && isDeletedRow(children)) {
+        continue
+      }
+      if (name !== 'tc' || fills === undefined) {
+        collectCellFills(children, tables, fills)
         continue
       }
       // A vertical-merge continuation is folded into the cell above it and dropped from
@@ -102,7 +138,7 @@ function collectCellFills (nodes: unknown, fills: Array<string | undefined>): vo
       }
       fills.push(cellFill(children))
       // Nested tables belong to the cell and must retain document order.
-      collectCellFills(children, fills)
+      collectCellFills(children, tables, fills)
     }
   }
 }
@@ -111,6 +147,10 @@ function cellFill (cell: unknown): string | undefined {
   const shading = xmlChild(xmlChildren(cell, 'tcPr'), 'shd')
   const fill = xmlAttribute(shading, 'fill')
   return fill !== undefined && WORD_FILL_RE.test(fill) ? `#${fill.toUpperCase()}` : undefined
+}
+
+function isDeletedRow (row: unknown): boolean {
+  return xmlChild(xmlChildren(row, 'trPr'), 'del') !== undefined
 }
 
 function isVMergeContinuation (cell: unknown): boolean {
@@ -158,6 +198,29 @@ function countTableCells (node: MarkupNode): number {
     count += countTableCells(child)
   }
   return count
+}
+
+/** Top-level tables of the markup, in document order (nested tables belong to their holder). */
+function collectTables (node: MarkupNode, tables: MarkupNode[] = []): MarkupNode[] {
+  if (node.type === MarkupNodeType.table) {
+    tables.push(node)
+    return tables
+  }
+  for (const child of node.content ?? []) {
+    collectTables(child, tables)
+  }
+  return tables
+}
+
+function applyTableFills (node: MarkupNode, fillsByTable: Map<MarkupNode, Array<string | undefined>>): MarkupNode {
+  const fills = fillsByTable.get(node)
+  if (fills !== undefined) {
+    return applyCellFills(node, fills)
+  }
+  if (node.type === MarkupNodeType.table || node.content === undefined) {
+    return node
+  }
+  return { ...node, content: node.content.map((child) => applyTableFills(child, fillsByTable)) }
 }
 
 function applyCellFills (

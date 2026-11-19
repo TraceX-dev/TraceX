@@ -101,6 +101,7 @@ import {
   normalizeMarkup
 } from '@hcengineering/doc-convert'
 import { markupToJSON, type MarkupNode } from '@hcengineering/text'
+import { assertFitsEditorSchema } from './document-import'
 import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
 
@@ -690,6 +691,8 @@ export function createServer (
       } catch (err) {
         measureCtx.warn('failed to remove temporary import blob', { blobId: String(blobId) })
       }
+      // Validate after the temporary blob is dropped, so a rejected import leaves nothing behind.
+      assertFitsEditorSchema(measureCtx, candidate)
 
       // Current content of the target document (for the "before" side of the diff).
       const emptyMarkup = '{"type":"doc","content":[]}'
