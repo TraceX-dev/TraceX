@@ -108,7 +108,7 @@ const StaticEditorKit = extensionKit(
       codeSnippets: e(subKits.codeSnippets),
       textColorStyling: e(TextColorStylingKit, context.mode === 'full'),
       hardBreak: e(HardBreakExtension, { shortcuts: context.mode }),
-      reference: e(ReferenceExtension, referenceConfig),
+      reference: e(ReferenceExtension, { ...referenceConfig, printContext: context.printContext }),
       file: e(FileExtension, { inline: true }),
       image: e(ImageExtension),
       emoji: e(EmojiExtension),

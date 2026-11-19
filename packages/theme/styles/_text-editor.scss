@@ -402,11 +402,15 @@
   object-fit: contain;
 }
 
-.ProseMirror-selectednode {
-  img {
+.text-editor-image-container.ProseMirror-selectednode {
+  > img {
     outline: 2px solid var(--primary-button-outline);
     outline-offset: 2px;
     border-radius: 2px;
+
+    @media print {
+      outline: none;
+    }
   }
 }
 
@@ -572,11 +576,21 @@
     cursor: pointer;
   }
 
+  @media print {
+    &::after {
+      display: none;
+    }
+  }
+
   // background-color: rgba(0, 0, 0, 0.2);
 
   &.ProseMirror-selectednode {
     outline: 2px solid var(--primary-button-outline);
     outline-offset: 2px;
+
+    @media print {
+      outline: none;
+    }
 
     &::after {
       display: none;

@@ -157,7 +157,6 @@ export default mergeIds(viewId, view, {
     IsClipboardAvailable: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
     BlobImageMetadata: '' as Resource<(file: FileOrBlob, blob: Ref<Blob>) => Promise<BlobMetadata | undefined>>,
     BlobVideoMetadata: '' as Resource<(file: FileOrBlob, blob: Ref<Blob>) => Promise<BlobMetadata | undefined>>,
-    GetLink: '' as Resource<(doc?: Doc | Doc[]) => Promise<string>>,
     CanCopyLink: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>
   },
   pipeline: {

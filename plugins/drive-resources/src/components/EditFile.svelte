@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,9 +14,11 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { Analytics } from '@hcengineering/analytics'
   import { type Blob, type Ref, type WithLookup } from '@hcengineering/core'
   import drive, { type File, type FileVersion } from '@hcengineering/drive'
-  import { FilePreview, createQuery } from '@hcengineering/presentation'
+  import { FilePreview, createQuery, getPrintContext } from '@hcengineering/presentation'
+  import { getLink } from '@hcengineering/view-resources'
 
   import { createEventDispatcher, onMount } from 'svelte'
   import EditFileVersions from './EditFileVersions.svelte'
@@ -25,10 +28,16 @@
 
   const dispatch = createEventDispatcher()
   const query = createQuery()
+  const printContext = getPrintContext()
 
   let blob: Ref<Blob> | undefined = undefined
   let version: WithLookup<FileVersion> | undefined = undefined
   let contentType: string | undefined
+
+  $: sourceLink = (printContext?.waitFor(getLink(object), 15000) ?? getLink(object)).catch((error: unknown) => {
+    Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+    return undefined
+  })
 
   $: query.query(drive.class.FileVersion, { _id: object.file }, (res) => {
     ;[version] = res
@@ -42,13 +51,16 @@
 </script>
 
 {#if object !== undefined && version !== undefined && blob !== undefined && contentType !== undefined}
-  <FilePreview
-    file={blob}
-    {contentType}
-    name={version.title}
-    metadata={version.metadata}
-    fit={contentType !== 'application/pdf'}
-  />
+  {#await sourceLink then link}
+    <FilePreview
+      file={blob}
+      {contentType}
+      name={version.title}
+      metadata={version.metadata}
+      props={{ sourceLink: link }}
+      fit={contentType !== 'application/pdf'}
+    />
+  {/await}
 
   {#if object.versions > 1}
     <div class="w-full mt-6">

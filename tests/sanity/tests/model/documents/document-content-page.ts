@@ -310,7 +310,7 @@ export class DocumentContentPage extends CommonPage {
   }
 
   async checkReferenceInTheText (label: string): Promise<void> {
-    await expect(this.page.locator('span.antiMention', { hasText: label })).toHaveAttribute('data-type', 'reference')
+    await expect(this.page.locator('[data-id][data-type="reference"]', { hasText: label })).toBeVisible()
   }
 
   async executeMoreAction (action: string): Promise<void> {
