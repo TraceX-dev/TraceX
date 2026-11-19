@@ -211,8 +211,9 @@ export function resolveDefinitionPackageDestinations (
   const resolve = (value: string): string => {
     if (!value.startsWith('$parent.')) return value
     const id = identities[value.slice('$parent.'.length)]
-    if (id === undefined)
-      {throw new DefinitionPackageError('dependencies.destinations', `Unknown parent member ${value}`)}
+    if (id === undefined) {
+      throw new DefinitionPackageError('dependencies.destinations', `Unknown parent member ${value}`)
+    }
     return id
   }
   const result: Record<string, DefinitionPackageDestination> = {}
@@ -238,8 +239,9 @@ export function resolveDefinitionPackageDestinations (
         )
         if (attribute !== undefined) {
           const local = documents.find((doc) => doc._id === identities[attribute._id])
-          if (local !== undefined && typeof Reflect.get(local, 'name') === 'string')
-            {bindings[key] = String(Reflect.get(local, 'name'))}
+          if (local !== undefined && typeof Reflect.get(local, 'name') === 'string') {
+            bindings[key] = String(Reflect.get(local, 'name'))
+          }
           break
         }
         const parentType = parent.definition.docs.find((doc) => doc._id === original)

@@ -730,7 +730,9 @@ processes:
   beforeEach(() => {
     fetchMock = jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Unexpected catalog access'))
   })
-  afterEach(() => { fetchMock.mockRestore(); })
+  afterEach(() => {
+    fetchMock.mockRestore()
+  })
 
   async function setup (): Promise<{
     ws: ReturnType<typeof fixture>
@@ -799,8 +801,9 @@ processes:
     'rejects %s before any workspace write',
     async (scenario) => {
       const { ws, current, dependency } = await setup()
-      if (scenario === 'inaccessible-release')
-        {fetchMock.mockResolvedValue(Response.json({ message: 'private details' }, { status: 404 }))}
+      if (scenario === 'inaccessible-release') {
+        fetchMock.mockResolvedValue(Response.json({ message: 'private details' }, { status: 404 }))
+      }
       const invalid: DefinitionPackageDependency = {
         ...dependency,
         contentHash: scenario === 'changed-hash' ? `sha256:${'0'.repeat(64)}` : dependency.contentHash,
