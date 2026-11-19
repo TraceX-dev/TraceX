@@ -105,6 +105,7 @@ import { getAccountDBUrl } from './__start'
 import { changeConfiguration } from './configuration'
 
 import {
+  assertPostgresDbUrl,
   ensureGlobalPersonsForLocalAccounts,
   filterMergedAccountsInMembers,
   migrateCreatedModifiedBy,
@@ -1410,9 +1411,7 @@ export function devTool (
           .map((value) => value.trim())
           .filter(Boolean)
         const { dbUrl } = prepareTools()
-        if (!dbUrl.startsWith('postgresql')) {
-          throw new Error('Only PostgreSQL is supported')
-        }
+        assertPostgresDbUrl(dbUrl)
         await withAccountDatabaseCommand(
           async (db) => {
             const statuses = await db.workspaceStatus.find({ mode: 'active', isDisabled: false })
