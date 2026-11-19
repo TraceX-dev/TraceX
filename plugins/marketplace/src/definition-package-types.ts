@@ -12,6 +12,7 @@
 
 import type { AccountUuid } from '@hcengineering/core'
 import type { ProcessAuthoringResult } from '@hcengineering/process'
+import type { DefinitionPackageDestination } from './types'
 
 /** Publisher-qualified package identity and immutable release number. */
 export interface DefinitionPackageManifest {
@@ -27,6 +28,16 @@ export interface DefinitionPackageRelease {
   readonly source: string
   readonly contentHash: string
   readonly definition: ProcessAuthoringResult
+  readonly dependencies?: Readonly<Record<string, DefinitionPackageDependency>>
+}
+
+/** Exact catalog release and destinations in the immediate parent package's namespace. */
+export interface DefinitionPackageDependency {
+  readonly id: string
+  readonly author: AccountUuid
+  readonly version: string
+  readonly contentHash: string
+  readonly destinations: Readonly<Record<string, DefinitionPackageDestination>>
 }
 
 export interface DefinitionPackageChange {

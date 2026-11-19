@@ -56,6 +56,7 @@ describe('MCP tool naming', () => {
       )
       const packageTools = register.mock.calls.filter(([name]) => name.startsWith('package_'))
       expect(packageTools.map(([name]) => name).sort()).toEqual([
+        'package_add_dependency',
         'package_authoring_guide',
         'package_contracts',
         'package_create_version_draft',
@@ -72,10 +73,11 @@ describe('MCP tool naming', () => {
         expect(name).toMatch(/^[a-z][a-z0-9_]+$/)
         expect(definition.title).toEqual(expect.any(String))
         expect(definition.title?.length).toBeGreaterThan(0)
-        const writes = name === 'package_save_draft' || name === 'package_create_version_draft'
+        const writes =
+          name === 'package_save_draft' || name === 'package_create_version_draft' || name === 'package_add_dependency'
         expect(definition.annotations).toEqual({
           readOnlyHint: !writes,
-          destructiveHint: name === 'package_save_draft',
+          destructiveHint: name === 'package_save_draft' || name === 'package_add_dependency',
           idempotentHint: !writes
         })
         expect(JSON.stringify(definition)).not.toMatch(/(?:package|my|card)\.[a-z_]+/)

@@ -75,7 +75,9 @@ export async function prepareDefinitionPackageUpdate (
   resolutions: Readonly<Record<string, 'local' | 'upstream'>>,
   model: ModelDb,
   hierarchy: Hierarchy,
-  supplementaryDocuments: readonly Doc[] = []
+  supplementaryDocuments: readonly Doc[] = [],
+  allowSameRelease = false,
+  dependencyTree = false
 ): Promise<PreparedDefinitionPackageUpdate> {
   const baseline = await parseDefinitionPackageRelease(installed.release)
   const verifiedIncoming = await createDefinitionPackageRelease({
@@ -87,7 +89,10 @@ export async function prepareDefinitionPackageUpdate (
     throw new DefinitionPackageError('package', 'The saved installation baseline does not match its metadata')
   }
   await planDefinitionPackageUpgrade(baseline, verifiedIncoming)
-  if (compareDefinitionPackageVersions(verifiedIncoming.package.version, baseline.package.version) === 0) {
+  if (
+    !allowSameRelease &&
+    compareDefinitionPackageVersions(verifiedIncoming.package.version, baseline.package.version) === 0
+  ) {
     throw new DefinitionPackageError('package.version', 'This package release is already installed')
   }
   const base = await prepareDefinitionPackageInstallation(
@@ -96,7 +101,8 @@ export async function prepareDefinitionPackageUpdate (
     installed._id,
     model,
     hierarchy,
-    installed.identities
+    installed.identities,
+    dependencyTree
   )
   const next = await prepareDefinitionPackageInstallation(
     verifiedIncoming,
@@ -104,7 +110,8 @@ export async function prepareDefinitionPackageUpdate (
     installed._id,
     model,
     hierarchy,
-    installed.identities
+    installed.identities,
+    dependencyTree
   )
   const current = new Map<string, Doc>()
   const supplementary = new Map(supplementaryDocuments.map((doc) => [doc._id, doc]))

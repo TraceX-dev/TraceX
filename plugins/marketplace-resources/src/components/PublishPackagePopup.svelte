@@ -76,6 +76,8 @@
 <Dialog
   label={marketplace.string.PublishPackage}
   width="40rem"
+  height="min(44rem, calc(100dvh - 2rem))"
+  scrollable
   padding="var(--spacing-3)"
   on:close={() => {
     if (!busy) dispatch('close', false)

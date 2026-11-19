@@ -34,6 +34,7 @@
   } from '../package-update-review'
   import PackageProcessDestinations from './PackageProcessDestinations.svelte'
   import PackageUpdateChange from './PackageUpdateChange.svelte'
+  import PackageDependencies from './PackageDependencies.svelte'
 
   export let installation: DefinitionPackageInstallation
   export let source: string
@@ -162,6 +163,7 @@
     </div>
     <Scroller padding="var(--spacing-5)" bottomPadding="var(--spacing-5)" noStretch>
       <div class="review-content flex-col flex-no-shrink min-w-0">
+        {#if incoming !== undefined}<PackageDependencies release={incoming} />{/if}
         {#if members.length > 0}
           <AccordionItem
             id={`package-update-destinations-${installation._id}`}
@@ -183,6 +185,9 @@
             <Notice label={getEmbeddedLabel(error)} kind="error" />
           </div>{/if}
         {#if preview !== undefined}
+          {#if preview.changes.some((change) => change.key.startsWith('dependency:') && change.operation === 'removed')}
+            <Notice label={marketplace.string.RemovingDependencyLinksKeepsPackagesInstalled} />
+          {/if}
           {#if preview.missingDependencies}<Notice label={marketplace.string.UnresolvedPackageDependencies} />{/if}
           {#if changes.some((change) => change.class === process.class.Process && packageUpdateStatus(change, resolutions[change.key], preview?.blockedChanges.includes(change.key)) === 'update')}
             <Notice label={marketplace.string.ProcessChangesAffectActiveExecutions} />

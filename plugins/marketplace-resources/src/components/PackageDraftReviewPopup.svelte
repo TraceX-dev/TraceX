@@ -17,7 +17,8 @@
   import marketplace, {
     parseDefinitionPackageRelease,
     type DefinitionPackageDraft,
-    type DefinitionPackageRelease
+    type DefinitionPackageRelease,
+    type ResolvedDefinitionPackage
   } from '@hcengineering/marketplace'
   import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
   import { MessageViewer } from '@hcengineering/presentation'
@@ -45,9 +46,11 @@
   import PublishPackagePopup from './PublishPackagePopup.svelte'
   import PackageDraftProcessPreview from './PackageDraftProcessPreview.svelte'
   import PackageDraftType from './PackageDraftType.svelte'
+  import PackageDependencies from './PackageDependencies.svelte'
+  import { resolvePackageInstallation } from '../installations'
 
   interface ReviewTab {
-    id: 'overview' | 'cards' | 'processes' | 'source'
+    id: 'overview' | 'cards' | 'processes' | 'dependencies' | 'source'
     label: IntlString
   }
 
@@ -55,6 +58,8 @@
 
   const dispatch = createEventDispatcher<{ close: void }>()
   let release: DefinitionPackageRelease | undefined
+  let resolved: ResolvedDefinitionPackage | undefined
+  let dependencyError = ''
   let preview: PackageDraftPreview = { cards: [], processes: [] }
   let selected = 0
   let selectedProcessId: string | undefined
@@ -66,26 +71,35 @@
 
   onMount(() => {
     void parseDefinitionPackageRelease(draft.release)
-      .then((value) => {
+      .then(async (value) => {
         preview = createPackageDraftPreview(value)
         reviewMarkup = jsonToMarkup(markdownToMarkup(draft.review))
         sourceMarkup = draftCodeMarkup(draft.release, 'yaml')
         release = value
+        if (Object.keys(value.dependencies ?? {}).length > 0) {
+          try {
+            resolved = await resolvePackageInstallation(value)
+          } catch (cause) {
+            dependencyError = cause instanceof Error ? cause.message : String(cause)
+          }
+        }
       })
       .catch((cause: unknown) => {
         error = cause instanceof Error ? cause.message : String(cause)
       })
   })
 
-  function reviewTabs (value: PackageDraftPreview): ReviewTab[] {
+  function reviewTabs (value: PackageDraftPreview, artifact: DefinitionPackageRelease | undefined): ReviewTab[] {
     const result: ReviewTab[] = [{ id: 'overview', label: marketplace.string.PackageOverview }]
     if (value.cards.length > 0) result.push({ id: 'cards', label: card.string.MasterTags })
     if (value.processes.length > 0) result.push({ id: 'processes', label: process.string.Processes })
+    if (Object.keys(artifact?.dependencies ?? {}).length > 0)
+      result.push({ id: 'dependencies', label: marketplace.string.PackageDependencies })
     result.push({ id: 'source', label: marketplace.string.PackageSource })
     return result
   }
 
-  $: tabs = reviewTabs(preview)
+  $: tabs = reviewTabs(preview, release)
   $: activeTab = tabs[selected]?.id ?? 'overview'
   $: selectedProcess =
     preview.processes.find((item) => item.definition._id === selectedProcessId) ?? preview.processes[0]
@@ -243,6 +257,9 @@
                   draftId={draft._id}
                 />
               {/key}
+            {:else if activeTab === 'dependencies'}
+              {#if dependencyError}<Notice label={getEmbeddedLabel(dependencyError)} kind="error" />{/if}
+              <PackageDependencies {release} {resolved} />
             {:else if activeTab === 'source'}
               <div class="overflow-x-auto" data-id="package-draft-source"><MessageViewer message={sourceMarkup} /></div>
             {/if}

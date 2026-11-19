@@ -28,8 +28,13 @@ import core, {
 } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
-import marketplace, { stripDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
-import {
+import marketplace, {
+  stripDefinitionPackageInfo,
+  parseDefinitionPackageRelease,
+  withDefinitionPackageDependencies,
+  type DefinitionPackageOwner
+} from '@hcengineering/marketplace'
+import process, {
   exportAuthoringModel,
   compileProcessYaml,
   getAuthoringProcessIdentities,
@@ -118,13 +123,29 @@ export async function exportModulePackageSource (ids: Array<Ref<Class<Doc>>>): P
     _id: [...installations][0]
   })
   if (installation === undefined) throw new Error('The package installation is unavailable')
-  const native = compileProcessYaml(source).docs
+  const exported = compileProcessYaml(source).docs
+  const excluded = new Set(
+    exported
+      .filter((doc) => {
+        if (doc._class !== process.class.Process) return false
+        const membership = model.findObject<DefinitionPackageOwner>(
+          doc._id as Ref<DefinitionPackageOwner>
+        )?.definitionPackageInstallation
+        return membership !== undefined && membership.id !== installation._id
+      })
+      .map((doc) => doc._id)
+  )
+  const native = exported.filter((doc) => !excluded.has(doc._id) && !excluded.has(String(doc.process)))
   const mapping = new Map(
     [...native.map((doc) => doc._id), ...getAuthoringProcessIdentities(native)].map((id) => [id, id])
   )
   for (const [original, local] of Object.entries(installation.identities)) mapping.set(local, original)
   const documents = cloneAuthoringModule(native as unknown as Doc[], model, client.getHierarchy(), mapping)
-  return exportAuthoringModel(documents, 'card', getAuthoringCatalog(model))
+  const baseline = await parseDefinitionPackageRelease(installation.release)
+  return withDefinitionPackageDependencies(
+    exportAuthoringModel(documents, 'card', getAuthoringCatalog(model)),
+    baseline.dependencies ?? {}
+  )
 }
 
 async function exportModules (ids: Array<Ref<Class<Doc>>>, format: 'json' | 'yaml'): Promise<string> {
