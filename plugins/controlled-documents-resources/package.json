@@ -38,6 +38,7 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/export": "workspace:^0.7.0",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/login": "workspace:^0.7.0",
     "@hcengineering/ui": "workspace:^0.7.0",
@@ -77,7 +78,6 @@
     "svelte": "^4.2.20",
     "slugify": "^1.6.6",
     "fast-equals": "^5.2.2",
-    "@hcengineering/rank": "workspace:^0.7.18",
-    "@hcengineering/print": "workspace:^0.7.0"
+    "@hcengineering/rank": "workspace:^0.7.18"
   }
 }

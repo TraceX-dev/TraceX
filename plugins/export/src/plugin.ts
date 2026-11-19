@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -17,8 +18,16 @@ import type { Class, Client, Doc, Ref } from '@hcengineering/core'
 import { type IntlString, type Metadata, type Plugin, plugin, type Resource, type Asset } from '@hcengineering/platform'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 import type { NotificationGroup, NotificationType } from '@hcengineering/notification'
-import type { ViewAction } from '@hcengineering/view'
-import type { ExportResultRecord } from './types'
+import type { Action, ViewAction } from '@hcengineering/view'
+import type {
+  DocumentContentTarget,
+  DocumentExportFormat,
+  DocumentExportOptions,
+  DocumentExporter,
+  DocumentExportFunction,
+  DocumentExportAvailabilityFunction,
+  ExportResultRecord
+} from './types'
 
 export const exportId = 'export' as Plugin
 
@@ -28,10 +37,17 @@ export const exportPlugin = plugin(exportId, {
     ImportedDocumentsNotification: '' as Ref<NotificationType>
   },
   class: {
-    ExportResultRecord: '' as Ref<Class<ExportResultRecord>>
+    ExportResultRecord: '' as Ref<Class<ExportResultRecord>>,
+    DocumentExporter: '' as Ref<Class<DocumentExporter>>
   },
   string: {
     Export: '' as IntlString,
+    ExportDots: '' as IntlString,
+    ExportList: '' as IntlString,
+    Orientation: '' as IntlString,
+    PortraitMode: '' as IntlString,
+    LandscapeMode: '' as IntlString,
+    ExportFormat: '' as IntlString,
     ExportCompleted: '' as IntlString,
     ExportFailed: '' as IntlString,
     ExportToWorkspace: '' as IntlString,
@@ -65,22 +81,38 @@ export const exportPlugin = plugin(exportId, {
   component: {
     ExportButton: '' as AnyComponent,
     ExportSettings: '' as AnyComponent,
+    ExportNotification: '' as AnyComponent,
     ExportToWorkspaceModal: '' as AnyComponent,
     ExportResultPanel: '' as AnyComponent,
     ExportTableDialog: '' as AnyComponent,
-    DocumentExportFormatPopup: '' as AnyComponent,
+    DocumentExportSettings: '' as AnyComponent,
     DocumentImportFormatPopup: '' as AnyComponent
   },
+  exporter: {
+    Word: '' as Ref<DocumentExporter>,
+    Markdown: '' as Ref<DocumentExporter>
+  },
+  action: {
+    ExportDocuments: '' as Ref<Action<Doc, Record<string, unknown>>>
+  },
   actionImpl: {
+    ExportDocuments: '' as ViewAction<Record<string, unknown>>,
     ExportTable: '' as ViewAction<Record<string, any>>
   },
   icon: {
-    Export: '' as Asset
+    Export: '' as Asset,
+    Import: '' as Asset
   },
   metadata: {
     ExportUrl: '' as Metadata<string>
   },
   function: {
+    ExportContent: '' as Resource<DocumentExportFunction>,
+    CanExportContent: '' as Resource<DocumentExportAvailabilityFunction>,
+    CanExport: '' as Resource<(doc?: Doc | Doc[]) => Promise<boolean>>,
+    ExportDocumentContent: '' as Resource<
+      (doc: DocumentContentTarget, format: DocumentExportFormat, options?: DocumentExportOptions) => Promise<boolean>
+    >,
     ExportResultTitleProvider: '' as Resource<(client: Client, ref: Ref<Doc>, doc?: Doc) => Promise<string>>
   }
 })

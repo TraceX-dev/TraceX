@@ -40,11 +40,21 @@ export interface DocxToMarkupResult {
  */
 export async function docxToMarkup (buffer: Buffer): Promise<DocxToMarkupResult> {
   const [result, cellFills] = await Promise.all([mammoth.convertToHtml({ buffer }), extractDocxCellFills(buffer)])
-  const html = result.value
+  const html = replaceCheckboxes(result.value)
   const markup = applyDocxCellFills(conformToSchema(htmlToMarkup(html)), cellFills)
   return {
     markup,
     html,
     messages: result.messages.map((m) => m.message)
   }
+}
+
+const CHECKBOX_RE = /<input\b[^>]*\btype=["']?checkbox["']?[^>]*>/gi
+
+/**
+ * mammoth renders checkbox content controls / form fields as `<input type="checkbox">`, which
+ * has no markup counterpart; replace them with the ballot box characters Word itself uses.
+ */
+function replaceCheckboxes (html: string): string {
+  return html.replace(CHECKBOX_RE, (tag) => (/\bchecked\b/i.test(tag) ? '☒' : '☐'))
 }

@@ -38,6 +38,8 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/export": "workspace:^0.7.0",
+    "@hcengineering/text-editor-resources": "workspace:^0.7.0",
     "svelte": "^4.2.20",
     "@hcengineering/analytics": "workspace:^0.7.19",
     "@hcengineering/account-client": "workspace:^0.7.25",

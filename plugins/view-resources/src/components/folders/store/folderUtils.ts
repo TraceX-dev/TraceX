@@ -72,11 +72,15 @@ export class FoldersManager {
     const folderById: Map<Ref<Doc>, Doc> = new Map<Ref<Doc>, Doc>()
     const descendants: Map<Ref<Doc>, Doc[]> = new Map<Ref<Doc>, Doc[]>()
 
+    const ids = new Set(result.map((doc) => doc._id))
     for (const doc of result) {
       const mappedDoc = this.mapDoc(doc)
-      const current = descendants.get(this.getParent(mappedDoc)) ?? []
+      // A parent outside the result (filtered out, other space) would hide the item: show it at the root.
+      const parent = this.getParent(mappedDoc)
+      const key = ids.has(parent) ? parent : this.noParentId
+      const current = descendants.get(key) ?? []
       current.push(mappedDoc)
-      descendants.set(this.getParent(mappedDoc), current)
+      descendants.set(key, current)
       folderById.set(mappedDoc._id, mappedDoc)
     }
 

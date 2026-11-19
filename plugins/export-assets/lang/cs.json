@@ -1,7 +1,9 @@
 {
   "string": {
     "WorkspaceNamePattern": "Název musí být 40 znaků nebo méně, není prázdný a nesmí obsahovat speciální znaky (<, >, /)",
+    "ExportList": "Exportovat seznam",
     "Export": "Export",
+    "ExportDots": "Export…",
     "DataToExport": "Data k exportu",
     "ExportDocuments": "Dokumenty",
     "ExportMilestones": "Milník",
@@ -72,6 +74,9 @@
     "DocumentContentConverted": "Dokument převeden",
     "DocumentContentImportFailed": "Import selhal",
     "ReviewDocumentContentChanges": "Zkontrolovat importované změny",
-    "ApplyDocumentContentChanges": "Použít"
+    "ApplyDocumentContentChanges": "Použít",
+    "Orientation": "Orientace",
+    "PortraitMode": "Na výšku",
+    "LandscapeMode": "Na šířku"
   }
 }

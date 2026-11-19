@@ -4,7 +4,6 @@
     "PrintingDocumentOf": "ドキュメント {current} / {total} を印刷中",
     "DownloadAll": "すべてダウンロード",
     "PrintFailed": "印刷に失敗しました",
-    "PrintSettings": "Print settings",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

@@ -4,7 +4,6 @@
     "PrintingDocumentOf": "Printing document {current} of {total}",
     "DownloadAll": "Download all",
     "PrintFailed": "Print failed",
-    "PrintSettings": "Print settings",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

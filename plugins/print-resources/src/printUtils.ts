@@ -18,7 +18,8 @@ import { getDocTitle } from '@hcengineering/view-resources'
 import { getMetadata } from '@hcengineering/platform'
 import presentation, { getFileUrl } from '@hcengineering/presentation'
 import { printToPDF } from '@hcengineering/print'
-import { signPDF } from '@hcengineering/sign'
+import type { PrintToPDFOptions } from '@hcengineering/print'
+import sign, { signPDF } from '@hcengineering/sign'
 
 export interface PdfResult {
   blobId: string
@@ -29,6 +30,7 @@ export interface PdfResult {
 export interface PrintAllOptions {
   onProgress: (current: number, total?: number) => void
   getCancelled: () => boolean
+  printOptions?: PrintToPDFOptions
 }
 
 /**
@@ -40,8 +42,32 @@ export async function getDocTitleForPdf (
   docClass: Ref<Class<Doc>>,
   doc?: Doc
 ): Promise<string> {
-  const value = (await getDocTitle(client, docId, docClass, doc)) ?? ''
-  return value !== '' ? value + '.pdf' : 'document.pdf'
+  const provided = (await getDocTitle(client, docId, docClass, doc))?.trim()
+  const stored = doc !== undefined && 'title' in doc && typeof doc.title === 'string' ? doc.title.trim() : undefined
+  const title = provided || stored
+  if (!title) throw new Error('Document title is required for export')
+  return title + '.pdf'
+}
+
+/** Decide whether this export should call the signing service. */
+function shouldSignPDF (signed: boolean): boolean {
+  if (!signed) return false
+  const url = getMetadata(sign.metadata.SignURL)
+  return url !== undefined && url.trim() !== ''
+}
+
+/** Render, optionally sign, and name one PDF before exposing it to the caller. */
+export async function preparePdf (
+  client: Client,
+  doc: Doc,
+  token: string,
+  signed: boolean,
+  options?: PrintToPDFOptions
+): Promise<PdfResult> {
+  const title = await getDocTitleForPdf(client, doc._id, doc._class, doc)
+  let blobId = await printToPDF(doc, token, options)
+  if (shouldSignPDF(signed)) blobId = await signPDF(blobId, token)
+  return { blobId, title }
 }
 
 /**
@@ -60,16 +86,11 @@ export async function printAll (
     options.onProgress(i + 1, docs.length)
     const doc = docs[i]
     try {
-      let blobId: string = await printToPDF(doc, token)
-      if (signed) {
-        blobId = await signPDF(blobId, token)
-      }
-      const title = await getDocTitleForPdf(client, doc._id, doc._class, doc)
-      results.push({ blobId, title, error: undefined })
-    } catch (err: any) {
-      Analytics.handleError(err)
-      const title = await getDocTitleForPdf(client, doc._id, doc._class, doc).catch(() => 'document')
-      const errMessage = err?.message ?? String(err)
+      results.push(await preparePdf(client, doc, token, signed, options.printOptions))
+    } catch (err) {
+      Analytics.handleError(err instanceof Error ? err : new Error(String(err)))
+      const title = await getDocTitleForPdf(client, doc._id, doc._class, doc).catch(() => String(doc._id))
+      const errMessage = err instanceof Error ? err.message : String(err)
       results.push({ blobId: '', title, error: `${errMessage} (doc ${doc._id}, class ${doc._class})` })
     }
   }

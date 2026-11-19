@@ -25,7 +25,7 @@ import { ReferenceNode } from '../nodes/reference'
 import { EmbedNode } from '../nodes/embed'
 
 import { ExtensionFactory, extensionKit } from '../kit'
-import { HardBreak, Highlight } from '../tiptapExtensions'
+import { HardBreak, Highlight, Subscript, Superscript } from '../tiptapExtensions'
 import { CodeSnippetsKit, CommonKitFactory, ListKit, TableKit, TextColorStylingKit } from './common-kit'
 
 export const ServerKitFactory = (e: ExtensionFactory) =>
@@ -46,6 +46,10 @@ export const ServerKitFactory = (e: ExtensionFactory) =>
     highlight: e(Highlight.extend({ addSchemaAwareness: () => ({ description: 'Highlighted text.' }) }), {
       multicolor: false
     }),
+    // Marks supported by the client editor; without them markup produced there (or by
+    // imports) does not fit the server schema.
+    subscript: e(Subscript.extend({ addSchemaAwareness: () => ({ description: 'Subscript text.' }) })),
+    superscript: e(Superscript.extend({ addSchemaAwareness: () => ({ description: 'Superscript text.' }) })),
     reference: e(ReferenceNode),
     file: e(FileNode),
     image: e(ImageNode),
