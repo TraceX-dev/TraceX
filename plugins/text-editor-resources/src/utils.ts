@@ -1,5 +1,6 @@
 //
 // Copyright © 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,7 +32,6 @@ export function getDataAttribute (
     default: null,
     parseHTML: (element) => element.getAttribute(dataName),
     renderHTML: (attributes) => {
-      // eslint-disable-next-line
       if (!attributes[name]) {
         return {}
       }
@@ -44,29 +44,38 @@ export function getDataAttribute (
   }
 }
 
-export async function addTableHandler (
-  insertTable: (options: { rows?: number, cols?: number, withHeaderRow?: boolean }) => void,
-  alignment?: PopupAlignment
-): Promise<void> {
-  showPopup(
+interface TableSizeOptions {
+  rows?: number
+  cols?: number
+  withHeaderRow?: boolean
+}
+
+export function openTableSizePopup (
+  insertTable: (options: TableSizeOptions) => void,
+  alignment?: PopupAlignment,
+  cancel?: () => void
+): ReturnType<typeof showPopup> {
+  return showPopup(
     SelectPopup,
-    {
-      value: mInsertTable.map((it) => ({ id: it.label, text: it.label }))
-    },
+    { value: mInsertTable.map((it) => ({ id: it.label, text: it.label })) },
     alignment ?? 'center',
-    (val) => {
-      if (val !== undefined) {
-        const tab = mInsertTable.find((it) => it.label === val)
-        if (tab !== undefined) {
-          insertTable({
-            cols: tab.cols,
-            rows: tab.rows,
-            withHeaderRow: tab.header
-          })
-        }
+    (id) => {
+      const size = mInsertTable.find((it) => it.label === id)
+      if (size === undefined) {
+        cancel?.()
+        return
       }
+
+      insertTable({ cols: size.cols, rows: size.rows, withHeaderRow: size.header })
     }
   )
+}
+
+export async function addTableHandler (
+  insertTable: (options: TableSizeOptions) => void,
+  alignment?: PopupAlignment
+): Promise<void> {
+  openTableSizePopup(insertTable, alignment)
 }
 
 export async function isEditable (editor: Editor): Promise<boolean> {

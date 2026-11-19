@@ -1,5 +1,6 @@
 //
 // Copyright © 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,12 +14,12 @@
 // limitations under the License.
 //
 
-import textEditor from '@hcengineering/text-editor'
-import { IconScribble } from '@hcengineering/ui'
-import view from '@hcengineering/view'
+import { getPopupPositionElement } from '@hcengineering/ui'
 import { type Editor, type Range } from '@tiptap/core'
 
 import { type InlineCommandsOptions } from './extension/inlineCommands'
+import { type InsertTarget, trackInsertTarget } from './extension/insert-target'
+import type { LeftMenuOptions } from './extension/leftMenu'
 import type { SuggestionKeyDownProps, SuggestionProps } from './extension/suggestion'
 import InlineCommandsList from './InlineCommandsList.svelte'
 import { SvelteRenderer } from './node-view'
@@ -86,38 +87,36 @@ export const mInsertTable = [
   }
 ]
 
-export type InlineCommandId =
-  'image' | 'table' | 'code-block' | 'separator-line' | 'todo-list' | 'drawing-board' | 'mermaid'
-
 /**
  * @public
  */
-export function inlineCommandsConfig (
-  handleSelect: (id: string, pos: number, targetItem?: MouseEvent | HTMLElement) => Promise<void>,
-  excludedCommands: InlineCommandId[] = []
-): Partial<InlineCommandsOptions> {
+export function inlineCommandsConfig (items: LeftMenuOptions['items']): Partial<InlineCommandsOptions> {
+  let pending: InsertTarget | undefined
+
   return {
     suggestion: {
-      items: () => {
-        return [
-          { id: 'image', label: textEditor.string.Image, icon: view.icon.Image },
-          { id: 'table', label: textEditor.string.Table, icon: view.icon.Table2 },
-          { id: 'code-block', label: textEditor.string.CodeBlock, icon: view.icon.CodeBlock },
-          { id: 'separator-line', label: textEditor.string.SeparatorLine, icon: view.icon.SeparatorLine },
-          { id: 'todo-list', label: textEditor.string.TodoItem, icon: view.icon.TodoList },
-          { id: 'drawing-board', label: textEditor.string.DrawingBoard, icon: IconScribble as any },
-          { id: 'mermaid', label: textEditor.string.MermaidDiargram, icon: view.icon.Model }
-        ].filter(({ id }) => !excludedCommands.includes(id as InlineCommandId))
-      },
-      command: ({ editor, range, props }: { editor: Editor, range: Range, props: any }) => {
+      items: () => items().map(({ id, label, icon }) => ({ id, label, icon })),
+      command: ({ editor, range, props }: { editor: Editor, range: Range, props: { id?: string } }) => {
+        const item = items().find(({ id }) => id === props?.id)
+        if (item === undefined || editor.isDestroyed || !editor.isEditable) return
         editor.commands.deleteRange(range)
 
-        if (props?.id != null) {
-          const { node } = editor.view.domAtPos(range.from)
-          const targetElement = node instanceof HTMLElement ? node : undefined
-
-          void handleSelect(props.id, range.from, targetElement)
+        if (pending?.started === false) pending.release()
+        const target = trackInsertTarget(editor, range.from, (released) => {
+          if (pending === released) pending = undefined
+        })
+        pending = target
+        const run = async (): Promise<void> => {
+          try {
+            const { node } = editor.view.domAtPos(range.from)
+            const anchor = node instanceof HTMLElement ? getPopupPositionElement(node) : undefined
+            await item.run({ editor, target, anchor })
+          } catch (error) {
+            target.release()
+            console.error('Failed to insert editor content:', error)
+          }
         }
+        void run()
       },
       render: () => {
         let component: any
