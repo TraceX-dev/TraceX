@@ -201,7 +201,24 @@
       : [])
   ]
 
+  $: if (value !== undefined) {
+    console.log('[ProcessEditor.packageExportContext] Resolved package export actions', {
+      processId: value._id,
+      masterTagId: value.masterTag,
+      loadedMasterTagId: packageType?._id,
+      processPackage: getDefinitionPackageInfo(value),
+      masterTagPackage: packageType === undefined ? undefined : getDefinitionPackageInfo(packageType),
+      packageOwnerId: packageOwner?._id,
+      accountId: getCurrentAccount().uuid,
+      exportActionIds: exportItems.map((item) => item.id)
+    })
+  }
+
   function onExportSelected (event: CustomEvent<string | number>): void {
+    console.log('[ProcessEditor.onExportSelected] Selected export action', {
+      processId: value?._id,
+      actionId: event.detail
+    })
     if (event.detail === EXPORT_WITH_SLOTS) {
       void handleExport('json', true)
     } else if (event.detail === EXPORT_WITHOUT_SLOTS) {
@@ -217,6 +234,13 @@
     if (value === undefined) return
     try {
       const definition = newVersion ? (packageOwner ?? value) : value
+      console.log('[ProcessEditor.handlePackageExport] Resolved package export target', {
+        processId: value._id,
+        newVersion,
+        definitionId: definition._id,
+        definitionKind: 'masterTag' in definition ? 'process' : 'card',
+        definitionPackage: getDefinitionPackageInfo(definition)
+      })
       if ('masterTag' in definition) {
         const info = getDefinitionPackageInfo(definition)
         const candidates = client

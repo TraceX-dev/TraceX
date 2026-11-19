@@ -93,6 +93,24 @@
           "additionalProperties": {
             "$ref": "#/$defs/modelBlock"
           }
+        },
+        "dependencies": {
+          "type": "object",
+          "description": "Locked Marketplace dependencies, handled by the package/draft layer rather than the native process compiler.",
+          "maxProperties": 100,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "not": {
+              "enum": [
+                "constructor",
+                "prototype",
+                "__proto__"
+              ]
+            }
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/packageDependency"
+          }
         }
       },
       "additionalProperties": false,
@@ -140,6 +158,24 @@
               "_class",
               "space"
             ]
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "description": "Locked Marketplace dependencies, handled by the package/draft layer rather than the native process compiler.",
+          "maxProperties": 100,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "not": {
+              "enum": [
+                "constructor",
+                "prototype",
+                "__proto__"
+              ]
+            }
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/packageDependency"
           }
         }
       },
@@ -275,8 +311,15 @@
             "filters": {
               "description": "Static view Filter[] restricting Person/Card attribute candidates (including descendants); other reference editors ignore this setting; arrays are serialized as JSON in the native RefTo type.",
               "oneOf": [
-                { "type": "string" },
-                { "type": "array", "items": { "type": "object" } }
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
               ]
             },
             "label": {
@@ -829,6 +872,59 @@
         }
       },
       "additionalProperties": true
+    },
+    "packageDependency": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*(?:\\.[a-z][a-z0-9-]*)*/[a-z][a-z0-9-]*$"
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "destinations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "masterTag": {
+                "type": "string",
+                "minLength": 1
+              },
+              "bindings": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "masterTag",
+              "bindings"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "author",
+        "version",
+        "contentHash",
+        "destinations"
+      ],
+      "additionalProperties": false
     }
   }
 }

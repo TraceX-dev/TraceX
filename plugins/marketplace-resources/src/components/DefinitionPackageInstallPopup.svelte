@@ -19,14 +19,16 @@
     getDefinitionPackageProcessSlots,
     type DefinitionPackageDestination,
     type DefinitionPackageInstallation,
-    type DefinitionPackageRelease
+    type DefinitionPackageRelease,
+    type ResolvedDefinitionPackage
   } from '@hcengineering/marketplace'
   import process, { type Process } from '@hcengineering/process'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { getClient } from '@hcengineering/presentation'
   import { Button, Dialog, Label, Notice, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher, onMount } from 'svelte'
-  import { installDefinitionPackage } from '../installations'
+  import { installDefinitionPackage, resolvePackageInstallation } from '../installations'
+  import PackageDependencies from './PackageDependencies.svelte'
   import PackageProcessDestinations from './PackageProcessDestinations.svelte'
   import DefinitionPackageUpdatePopup from './DefinitionPackageUpdatePopup.svelte'
   import PackageCard from './PackageCard.svelte'
@@ -37,6 +39,7 @@
 
   const dispatch = createEventDispatcher<{ close: boolean }>()
   let release: DefinitionPackageRelease | undefined
+  let resolved: ResolvedDefinitionPackage | undefined
   let members: Process[] = []
   let existing: DefinitionPackageInstallation[] = []
   let destinations: Record<string, DefinitionPackageDestination> = {}
@@ -58,6 +61,7 @@
           (installation) =>
             installation.package.id === value.package.id && installation.package.author === value.package.author
         )
+        resolved = await resolvePackageInstallation(value)
       })
       .catch((cause: unknown) => {
         error = cause instanceof Error ? cause.message : String(cause)
@@ -80,6 +84,7 @@
 
   $: canInstall =
     release !== undefined &&
+    resolved !== undefined &&
     members.every((member) => {
       const target = destinations[member._id]
       return (
@@ -94,6 +99,8 @@
 <Dialog
   label={marketplace.string.InstallPackage}
   width="44rem"
+  height="min(44rem, calc(100dvh - 2rem))"
+  scrollable
   padding="var(--spacing-3)"
   on:close={() => {
     if (!busy) dispatch('close', false)
@@ -133,6 +140,7 @@
         </div>
       {/if}
       <PackageProcessDestinations {members} bind:destinations {busy} />
+      <PackageDependencies {release} {resolved} />
     {/if}
     {#if error}<div data-id="package-install-error"><Notice label={getEmbeddedLabel(error)} kind="error" /></div>{/if}
   </div>

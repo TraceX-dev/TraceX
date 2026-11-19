@@ -18,6 +18,7 @@ export default mergeIds(marketplaceId, marketplace, {
   component: {
     PackageDrafts: '' as AnyComponent,
     Marketplace: '' as AnyComponent,
+    MarketplacePopup: '' as AnyComponent,
     DefinitionPackageExportPopup: '' as AnyComponent,
     DefinitionPackageInstallPopup: '' as AnyComponent,
     DefinitionPackageUpdatePopup: '' as AnyComponent,

@@ -43,6 +43,7 @@ export interface DefinitionPackageInstallation extends Doc {
   release: string
   identities: Record<string, string>
   destinations: Record<string, DefinitionPackageDestination>
+  dependencies?: Record<string, Ref<DefinitionPackageInstallation>>
 }
 
 /** Private authoring artifact; saving a draft never installs its definitions. */

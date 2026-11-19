@@ -28,6 +28,7 @@ import {
   DefinitionPackageError,
   serializeDefinitionPackageRelease
 } from './definition-package'
+import { parseDefinitionPackageSource } from './definition-package'
 import type { DefinitionPackageRelease } from './definition-package-types'
 import type { DefinitionPackageDestination, DefinitionPackageInstallation, DefinitionPackageOwner } from './types'
 
@@ -56,7 +57,8 @@ export async function prepareDefinitionPackageInstallation (
   installationId: Ref<DefinitionPackageInstallation>,
   model: ModelDb,
   hierarchy: Hierarchy,
-  existingIdentities: Readonly<Record<string, string>> = {}
+  existingIdentities: Readonly<Record<string, string>> = {},
+  dependencyTree = false
 ): Promise<PreparedDefinitionPackageInstallation> {
   const previousIdentities = new Map(Object.entries(existingIdentities))
   const verified = await createDefinitionPackageRelease({
@@ -64,7 +66,13 @@ export async function prepareDefinitionPackageInstallation (
     source: release.source,
     contentHash: release.contentHash
   })
-  const definition = compileProcessYaml(verified.source, model)
+  if (!dependencyTree && Object.keys(verified.dependencies ?? {}).length > 0) {
+    throw new DefinitionPackageError(
+      'dependencies',
+      'Resolve and prepare the complete dependency tree before installing this package'
+    )
+  }
+  const definition = compileProcessYaml(parseDefinitionPackageSource(verified.source).source, model)
   for (const doc of definition.docs) {
     if (doc._class === process.class.Process || doc._class === card.class.MasterTag || doc._class === card.class.Tag) {
       Reflect.deleteProperty(doc, 'definitionPackage')

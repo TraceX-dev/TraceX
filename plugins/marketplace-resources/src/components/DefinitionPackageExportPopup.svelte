@@ -18,6 +18,8 @@
     DefinitionPackageError,
     createDefinitionPackageExport,
     createDefinitionPackageMetadata,
+    parseDefinitionPackageRelease,
+    withDefinitionPackageDependencies,
     type DefinitionPackageOwner
   } from '@hcengineering/marketplace'
   import { getClient } from '@hcengineering/presentation'
@@ -105,11 +107,18 @@
       }
       const metadata = createDefinitionPackageMetadata(author, description, info)
       if (getSource !== undefined) metadata.members = definitions.map((member) => member._id)
-      const content = await createDefinitionPackageExport(
-        getSource === undefined ? source : await getSource(definitions),
-        metadata,
-        info
-      )
+      let packageSource = getSource === undefined ? source : await getSource(definitions)
+      const membership = current.definitionPackageInstallation
+      if (membership !== undefined) {
+        const installation = await client.findOne(marketplace.class.DefinitionPackageInstallation, {
+          _id: membership.id
+        })
+        if (installation === undefined)
+          throw new DefinitionPackageError('package', 'The package installation is unavailable')
+        const baseline = await parseDefinitionPackageRelease(installation.release)
+        packageSource = withDefinitionPackageDependencies(packageSource, baseline.dependencies ?? {})
+      }
+      const content = await createDefinitionPackageExport(packageSource, metadata, info)
       if (getSource === undefined) await client.update(current, { definitionPackage: metadata })
       else {
         const apply = client.apply('Export process package')
@@ -151,6 +160,8 @@
 <Dialog
   label={newVersion ? marketplace.string.CreateNewPackageVersion : marketplace.string.MakePackage}
   width="40rem"
+  height="min(44rem, calc(100dvh - 2rem))"
+  scrollable
   padding="var(--spacing-3)"
   on:close={close}
 >

@@ -17,6 +17,8 @@
   import { MasterTag } from '@hcengineering/card'
   import { DefinitionYamlEditor, newDefinitionYaml } from '@hcengineering/card-resources'
   import core, { Doc, generateId, Ref, SortingOrder } from '@hcengineering/core'
+  import marketplace from '@hcengineering/marketplace'
+  import { MarketplacePopup } from '@hcengineering/marketplace-resources'
   import { setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Process, State } from '@hcengineering/process'
@@ -133,12 +135,20 @@
   <div class="flex-row-center flex-gap-1">
     <ButtonIcon
       kind="primary"
+      icon={marketplace.icon.Marketplace}
+      size="small"
+      dataId="processes-from-marketplace"
+      tooltip={{ label: marketplace.string.FromMarketplace, direction: 'bottom' }}
+      on:click={() => showPopup(MarketplacePopup, { kind: 'process', masterTag: masterTag._id }, 'centered')}
+    />
+    <ButtonIcon
+      kind="primary"
       icon={IconFile}
       size="small"
       tooltip={{ label: process.string.Import, direction: 'bottom' }}
       on:click={handleImport}
     />
-    <ButtonIcon kind="primary" icon={IconAdd} size="small" dataId={'btnAdd'} on:click={add} />
+    <ButtonIcon kind="primary" icon={IconAdd} size="small" dataId="btnAdd" on:click={add} />
     <ButtonIcon
       kind="primary"
       icon={IconEdit}

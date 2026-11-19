@@ -15,9 +15,10 @@
   import marketplace, { type CatalogPackage, type CatalogPackageReader } from '@hcengineering/marketplace'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import presentation from '@hcengineering/presentation'
-  import ui, { Button, CheckBox, Dialog, EditBox, Label, Notice, SettingsCard, Spinner } from '@hcengineering/ui'
+  import ui, { Button, Dialog, EditBox, Label, Notice, Spinner, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { getMarketplaceClient } from '../catalog'
+  import PackageOwnershipPopup from './PackageOwnershipPopup.svelte'
 
   export let entry: CatalogPackage
 
@@ -25,16 +26,20 @@
   const client = getMarketplaceClient()
   let readers: CatalogPackageReader[] = []
   let email = ''
-  let ownerEmail = ''
-  let confirmed = false
   let loading = true
+  let loaded = false
   let busy = false
+  let action: 'share' | 'revoke' | undefined
   let changed = false
+  let saved = false
   let error = ''
 
   async function load (): Promise<void> {
+    loading = true
+    error = ''
     try {
       readers = await client.readers(entry)
+      loaded = true
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause)
     } finally {
@@ -43,46 +48,50 @@
   }
   void load()
 
-  async function updateAccess (change: () => Promise<void>): Promise<void> {
-    if (busy || loading) return
+  async function updateAccess (operation: 'share' | 'revoke', change: () => Promise<void>): Promise<void> {
+    if (busy || loading || !loaded) return
     busy = true
+    action = operation
+    saved = false
     error = ''
     try {
       await change()
       changed = true
       readers = await client.readers(entry)
+      saved = true
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause)
     } finally {
       busy = false
+      action = undefined
     }
   }
 
   async function share (): Promise<void> {
-    await updateAccess(async () => {
+    if (email.trim() === '') return
+    await updateAccess('share', async () => {
       await client.grantRead(entry, email)
       email = ''
     })
   }
 
   async function revoke (reader: CatalogPackageReader): Promise<void> {
-    await updateAccess(async () => {
+    await updateAccess('revoke', async () => {
       await client.revokeRead(entry, reader.account)
     })
   }
 
-  async function transfer (): Promise<void> {
-    if (busy || loading || !confirmed) return
-    busy = true
-    error = ''
-    try {
-      await client.transferOwnership(entry, ownerEmail)
-      dispatch('close', true)
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause)
-    } finally {
-      busy = false
-    }
+  function handleEmailKeydown (event: KeyboardEvent): void {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    void share()
+  }
+
+  function transfer (): void {
+    if (busy || loading || !loaded) return
+    showPopup(PackageOwnershipPopup, { entry }, 'centered', (result) => {
+      if (result === true) dispatch('close', true)
+    })
   }
 
   function close (): void {
@@ -90,53 +99,97 @@
   }
 </script>
 
-<Dialog label={marketplace.string.ManagePackageAccess} width="40rem" padding="var(--spacing-3)" on:close={close}>
+<Dialog
+  label={marketplace.string.ManagePackageAccess}
+  width="44rem"
+  height="min(40rem, calc(100dvh - 2rem))"
+  padding="var(--spacing-4)"
+  scrollable
+  on:close={close}
+>
   <div class="flex-col flex-gap-4">
-    <div class="font-medium">{entry.name}</div>
-    {#if loading}<div class="flex-center p-4"><Spinner /></div>{/if}
-    <SettingsCard label={marketplace.string.PackageReaders}>
-      <div class="flex-col flex-gap-3">
-        <div class="text-sm content-dark-color"><Label label={marketplace.string.PackageReadersDescription} /></div>
-        <div data-id="package-reader-email">
-          <EditBox label={marketplace.string.AccountEmail} bind:value={email} disabled={busy || loading} />
+    <div class="flex-col flex-gap-1">
+      <div class="package-name font-medium">{entry.name}</div>
+      <div class="text-sm content-dark-color">
+        <Label
+          label={entry.visibility === 'private' ? marketplace.string.PrivatePackage : marketplace.string.PublicPackage}
+        />
+      </div>
+    </div>
+    {#if loaded}
+      <div data-id="package-reader-email">
+        <EditBox
+          label={marketplace.string.AccountEmail}
+          placeholder={marketplace.string.AccountEmail}
+          bind:value={email}
+          disabled={busy || loading}
+          autoFocus
+          on:keydown={handleEmailKeydown}
+        />
+      </div>
+    {/if}
+    <div class="text-sm content-dark-color"><Label label={marketplace.string.PackageReadersDescription} /></div>
+    {#if saved}<div data-id="package-access-saved">
+        <Notice label={presentation.string.Saved} kind="positive" />
+      </div>{/if}
+    {#if error}
+      <div class="flex-col flex-gap-2" data-id="package-access-error">
+        <Notice label={getEmbeddedLabel(error)} kind="error" />
+        {#if !loaded}<Button label={ui.string.Retry} disabled={loading} on:click={load} />{/if}
+      </div>
+    {/if}
+    <div class="flex-col flex-gap-2">
+      <div class="flex-between text-sm font-medium">
+        <Label label={marketplace.string.PackageReaders} />
+        {#if loaded}<span class="content-dark-color">{readers.length}</span>{/if}
+      </div>
+      {#if loading}
+        <div class="flex-center p-4"><Spinner /></div>
+      {:else if loaded && readers.length === 0}
+        <div class="reader-empty text-sm content-dark-color" data-id="package-no-readers">
+          <Label label={marketplace.string.NoPackageReaders} />
         </div>
-        <div data-id="package-grant-read">
-          <Button
-            label={marketplace.string.GrantReadAccess}
-            disabled={busy || loading || email.trim() === ''}
-            on:click={share}
-          />
-        </div>
+      {:else}
         {#each readers as reader (reader.account)}
-          <div class="flex-between flex-gap-2" data-id="package-reader">
-            <span class="text-sm">{reader.email}</span>
-            <Button label={ui.string.Remove} kind="ghost" disabled={busy || loading} on:click={() => revoke(reader)} />
+          <div class="reader-row flex-between flex-gap-3" data-id="package-reader">
+            <span class="reader-email text-sm">{reader.email}</span>
+            <Button label={ui.string.Remove} kind="ghost" disabled={busy} on:click={() => revoke(reader)} />
           </div>
         {/each}
-      </div>
-    </SettingsCard>
-    <SettingsCard label={marketplace.string.TransferPackageOwnership}>
-      <div class="flex-col flex-gap-3">
-        <Notice label={marketplace.string.TransferPackageOwnershipDescription} />
-        <div data-id="package-owner-email">
-          <EditBox label={marketplace.string.AccountEmail} bind:value={ownerEmail} disabled={busy || loading} />
-        </div>
-        <div class="flex-row-center flex-gap-2" data-id="package-transfer-confirmation">
-          <CheckBox bind:checked={confirmed} disabled={busy || loading} />
-          <Label label={marketplace.string.ConfirmPackageOwnershipTransfer} />
-        </div>
-        <div data-id="package-transfer-ownership">
-          <Button
-            label={marketplace.string.TransferPackageOwnership}
-            disabled={busy || loading || !confirmed || ownerEmail.trim() === ''}
-            on:click={transfer}
-          />
-        </div>
-      </div>
-    </SettingsCard>
-    {#if error}<div data-id="package-access-error"><Notice label={getEmbeddedLabel(error)} kind="error" /></div>{/if}
+      {/if}
+    </div>
   </div>
-  <svelte:fragment slot="footerRight"
-    ><Button label={presentation.string.Close} disabled={busy} on:click={close} /></svelte:fragment
-  >
+  <svelte:fragment slot="footerLeft">
+    <Button
+      label={marketplace.string.TransferPackageOwnership}
+      kind="ghost"
+      dataId="package-open-ownership-transfer"
+      disabled={busy || loading || !loaded}
+      on:click={transfer}
+    />
+  </svelte:fragment>
+  <svelte:fragment slot="footerRight">
+    <Button label={presentation.string.Close} kind="ghost" disabled={busy} on:click={close} />
+    <Button
+      label={marketplace.string.GrantReadAccess}
+      kind="primary"
+      dataId="package-grant-read"
+      loading={action === 'share'}
+      disabled={busy || loading || !loaded || email.trim() === ''}
+      on:click={share}
+    />
+  </svelte:fragment>
 </Dialog>
+
+<style lang="scss">
+  .package-name,
+  .reader-email {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .reader-row,
+  .reader-empty {
+    padding: var(--spacing-2) 0;
+    border-top: 1px solid var(--theme-divider-color);
+  }
+</style>

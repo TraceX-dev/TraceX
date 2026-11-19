@@ -11,12 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import card from '@hcengineering/card'
+import card, { type MasterTag } from '@hcengineering/card'
 import core, { type Class, type Doc, type Ref } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
 import { compileProcessYaml, type AuthoringNativeDocument } from '@hcengineering/process'
 import { exportModule, exportModulePackageSource } from '../exporter'
+import marketplace, {
+  createDefinitionPackageRelease,
+  parseDefinitionPackageSource,
+  serializeDefinitionPackageRelease,
+  withDefinitionPackageDependencies,
+  type DefinitionPackageDependency,
+  type DefinitionPackageInstallation
+} from '@hcengineering/marketplace'
 
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 jest.mock('@hcengineering/platform', () => ({
@@ -34,11 +42,13 @@ interface ExportHierarchyMock {
   isDerived: (id: string, parent: string) => boolean
   getDescendants: (id: string) => string[]
   getOwnAttributes: (id: string) => Map<string, AuthoringNativeDocument>
+  findAttribute: (id: string, name: string) => AuthoringNativeDocument | undefined
 }
 
 interface ExportClientMock {
   getModel: () => ExportModelMock
   getHierarchy: () => ExportHierarchyMock
+  findOne: (clazz: string, query: Record<string, unknown>) => Promise<DefinitionPackageInstallation | undefined>
 }
 
 interface ExportExtensionResultMock {
@@ -122,6 +132,8 @@ function setup (): AuthoringNativeDocument[] {
           )
   }
   const hierarchy: ExportHierarchyMock = {
+    findAttribute: (id, name) =>
+      docs.find((doc) => doc._class === core.class.Attribute && doc.attributeOf === id && doc.name === name),
     getClass: (id) => {
       const doc = model.findObject(id)
       if (doc === undefined) throw new Error(`Unknown class: ${id}`)
@@ -151,6 +163,7 @@ function setup (): AuthoringNativeDocument[] {
       )
   }
   const client: ExportClientMock = {
+    findOne: async () => undefined,
     getModel: () => model,
     getHierarchy: () => hierarchy
   }
@@ -177,6 +190,53 @@ function typeIds (docs: AuthoringNativeDocument[]): string[] {
 }
 
 describe('card module export dependencies', () => {
+  it('retains locked package dependencies without flattening their separately owned process graphs', async () => {
+    const docs = setup()
+    const rootId = 'parent-installation' as Ref<DefinitionPackageInstallation>
+    const childId = 'child-installation' as Ref<DefinitionPackageInstallation>
+    const root = docs.find((doc) => doc._id === 'root')
+    const childProcess = docs.find((doc) => doc._id === 'root_workflow')
+    if (root === undefined || childProcess === undefined) throw new Error('Missing export fixture')
+    root.definitionPackageInstallation = { id: rootId, member: 'root' }
+    childProcess.definitionPackageInstallation = { id: childId, member: 'review' }
+    const child = await createDefinitionPackageRelease({
+      package: { id: 'vendor/review', author: 'vendor', version: '1.0.0' },
+      source: 'version: 2\nkind: process\nprocesses:\n  review:\n    label: Review\n    states:\n      done: {}\n'
+    })
+    const dependency: DefinitionPackageDependency = {
+      id: child.package.id,
+      author: child.package.author as DefinitionPackageDependency['author'],
+      version: child.package.version,
+      contentHash: child.contentHash,
+      destinations: { review: { masterTag: '$parent.root' as Ref<MasterTag>, bindings: {} } }
+    }
+    const parent = await createDefinitionPackageRelease({
+      package: { id: 'acme/root', author: 'parent', version: '1.0.0' },
+      source: withDefinitionPackageDependencies(source, { review: dependency })
+    })
+    const installation: DefinitionPackageInstallation = {
+      _id: rootId,
+      _class: marketplace.class.DefinitionPackageInstallation,
+      space: core.space.Configuration,
+      modifiedOn: 1,
+      modifiedBy: core.account.System,
+      name: 'Root',
+      package: parent.package,
+      release: serializeDefinitionPackageRelease(parent),
+      identities: Object.fromEntries(docs.map((doc) => [doc._id, doc._id])),
+      destinations: {},
+      dependencies: { review: childId }
+    }
+    const client: ExportClientMock = (getClient as jest.Mock)()
+    client.findOne = async () => installation
+    const result = parseDefinitionPackageSource(await exportModulePackageSource([typeRef('root')]))
+    expect(result.dependencies).toEqual({ review: dependency })
+    const exported = compileProcessYaml(result.source).docs
+    expect(exported.some((doc) => doc._id === 'root_workflow' || doc._id === 'root_done')).toBe(false)
+    expect(exported.some((doc) => doc._id === 'dependency_workflow')).toBe(true)
+    expect(root.definitionPackageInstallation).toEqual({ id: rootId, member: 'root' })
+  })
+
   it.each(['json', 'yaml'] as const)(
     'exports the selected subtree and required definitions without expanding dependency modules in %s',
     async (format) => {

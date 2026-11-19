@@ -29,6 +29,8 @@ export {
   isDefinitionPackageSource,
   serializeDefinitionPackageRelease,
   compareDefinitionPackageVersions,
+  parseDefinitionPackageSource,
+  withDefinitionPackageDependencies,
   DefinitionPackageError
 } from './definition-package'
 export { planDefinitionPackageUpgrade } from './definition-package-plan'
@@ -38,7 +40,21 @@ export {
   getDefinitionPackageProcessSlots
 } from './definition-package-installation'
 export { prepareDefinitionPackageUpdate } from './definition-package-update'
+export {
+  resolveDefinitionPackageDependencies,
+  prepareDefinitionPackageTreeInstallation,
+  withDefinitionPackageModel,
+  resolveDefinitionPackageDestinations
+} from './definition-package-dependencies'
+export type {
+  DefinitionPackageResolver,
+  ResolvedDefinitionPackage,
+  PreparedDefinitionPackageTree,
+  PreparedDefinitionPackageRecord
+} from './definition-package-dependencies'
 export type { PreparedDefinitionPackageUpdate, DefinitionPackageReviewComponents } from './definition-package-update'
+export { prepareDefinitionPackageTreeUpdate } from './definition-package-tree-update'
+export type { PreparedDefinitionPackageTreeUpdate } from './definition-package-tree-update'
 export type * from './catalog-types'
 export { MarketplaceClient, MarketplaceError } from './catalog-client'
 
@@ -57,6 +73,8 @@ export default plugin(marketplaceId, {
     DefinitionPackageInstallation: '' as Ref<Class<DefinitionPackageInstallation>>
   },
   string: {
+    PackageDependencies: '' as IntlString,
+    RemovingDependencyLinksKeepsPackagesInstalled: '' as IntlString,
     PackageDrafts: '' as IntlString,
     NoPackageDrafts: '' as IntlString,
     PackageDraftsDescription: '' as IntlString,
@@ -89,11 +107,13 @@ export default plugin(marketplaceId, {
     NoNewVersion: '' as IntlString,
     PublishPackageDescription: '' as IntlString,
     PrivatePackage: '' as IntlString,
+    PublicPackage: '' as IntlString,
     PrivatePackageDescription: '' as IntlString,
     MakePrivate: '' as IntlString,
     MakePublic: '' as IntlString,
     ManagePackageAccess: '' as IntlString,
     PackageReaders: '' as IntlString,
+    NoPackageReaders: '' as IntlString,
     PackageReadersDescription: '' as IntlString,
     AccountEmail: '' as IntlString,
     GrantReadAccess: '' as IntlString,
@@ -104,6 +124,7 @@ export default plugin(marketplaceId, {
     CreateNewPackageVersion: '' as IntlString,
     Export: '' as IntlString,
     Marketplace: '' as IntlString,
+    FromMarketplace: '' as IntlString,
     InstallPackage: '' as IntlString,
     InstallAnotherInstance: '' as IntlString,
     InstalledPackages: '' as IntlString,

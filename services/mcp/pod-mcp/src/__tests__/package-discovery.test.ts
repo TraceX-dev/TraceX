@@ -198,6 +198,31 @@ describe('Marketplace discovery over MCP', () => {
     expect(ws.apply).not.toHaveBeenCalled()
   })
 
+  it('keeps MCP attachment limits authoritative when catalog data claims installation support', async () => {
+    const ws = fixture()
+    fetchMock.mockResolvedValue(
+      Response.json({
+        items: [entry],
+        capabilities: {
+          installPackages: true,
+          attachProcessesToCardTypes: true,
+          declareExternalPackageDependencies: true
+        }
+      })
+    )
+    const result = await ws.call('package_search', { search: 'review' })
+    expect(result.structuredContent).toMatchObject({
+      items: [entry],
+      capabilities: {
+        installPackages: false,
+        attachProcessesToCardTypes: false,
+        declareExternalPackageDependencies: true
+      },
+      instructions: expect.stringContaining('Do not copy, rewrite or embed the returned graph as a substitute')
+    })
+    expect(ws.apply).not.toHaveBeenCalled()
+  })
+
   it('lists releases using both the original author and package identity', async () => {
     const ws = fixture()
     fetchMock.mockResolvedValue(Response.json({ items: [], nextOffset: 30 }))
@@ -223,6 +248,8 @@ describe('Marketplace discovery over MCP', () => {
         package: { id: entry.id, author, version: selected },
         latestVersion: '1.0.0',
         source: expect.stringContaining('processes:'),
+        capabilities: { attachProcessesToCardTypes: false, declareExternalPackageDependencies: true },
+        instructions: expect.stringContaining('this does not attach the child to another card type'),
         processes: [
           expect.objectContaining({
             member: 'review',
@@ -282,7 +309,9 @@ describe('installed package reuse', () => {
     ws.findAll.mockResolvedValue([first, second])
     expect((await ws.call('package_installed', { id: entry.id, author, limit: 1 })).structuredContent).toMatchObject({
       items: [{ installationId: first._id, package: first.package }],
-      nextCursor: first._id
+      nextCursor: first._id,
+      capabilities: { installPackages: false, attachProcessesToCardTypes: false },
+      instructions: expect.stringContaining('MCP saves drafts without installing')
     })
     expect(ws.findAll).toHaveBeenCalledWith(
       marketplace.class.DefinitionPackageInstallation,

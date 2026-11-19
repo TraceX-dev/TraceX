@@ -11,6 +11,7 @@
 // limitations under the License.
 
 import contact from '@hcengineering/contact'
+import type { MasterTag } from '@hcengineering/card'
 import core, {
   NoMetricsContext,
   type AccountUuid,
@@ -25,9 +26,11 @@ import marketplace, {
   createDefinitionPackageRelease,
   parseDefinitionPackageRelease,
   serializeDefinitionPackageRelease,
+  withDefinitionPackageDependencies,
   type CatalogPackage,
   type DefinitionPackageDraft,
-  type DefinitionPackageRelease
+  type DefinitionPackageRelease,
+  type DefinitionPackageDependency
 } from '@hcengineering/marketplace'
 import type { Token } from '@hcengineering/server-token'
 import type { CallToolResult, McpServer } from '@modelcontextprotocol/server'
@@ -93,7 +96,10 @@ function fixture (
     findObject,
     findAllSync
   }
-  const hierarchy: Partial<Hierarchy> = { isDerived: jest.fn((actual, expected) => actual === expected) }
+  const hierarchy: Partial<Hierarchy> = {
+    isDerived: jest.fn((actual, expected) => actual === expected),
+    findAttribute: jest.fn(() => undefined)
+  }
   const createDoc = jest.fn().mockResolvedValue(undefined)
   const updateDoc = jest.fn().mockResolvedValue(undefined)
   const match = jest.fn()
@@ -166,6 +172,27 @@ function draft (release: string): DefinitionPackageDraft {
 }
 
 describe('MCP package authoring', () => {
+  it.each(['package_authoring_guide', 'package_contracts', 'package_validate'])(
+    'reports the supported draft workflow and unavailable attachment operations in %s',
+    async (name) => {
+      const ws = fixture()
+      const result = await ws.call(name, { source })
+      expect(result.isError).not.toBe(true)
+      expect(result.structuredContent).toMatchObject({
+        capabilities: {
+          savePrivateDrafts: true,
+          prepareInstalledProcessSlotBindings: true,
+          installPackages: false,
+          attachProcessesToCardTypes: false,
+          declareExternalPackageDependencies: true,
+          publishPackages: false,
+          executeProcesses: false
+        }
+      })
+      expect(ws.apply).not.toHaveBeenCalled()
+    }
+  )
+
   it('measures a package call with its public tool ID and executes it once', async () => {
     const workspace = fixture()
     const measure = jest.spyOn(workspace.context, 'with')
@@ -193,7 +220,8 @@ describe('MCP package authoring', () => {
     'package_validate',
     'package_get_draft',
     'package_save_draft',
-    'package_create_version_draft'
+    'package_create_version_draft',
+    'package_add_dependency'
   ])('denies %s before any workspace lookup when the account is not enabled', async (name) => {
     const ws = fixture([])
     const result = await ws.call(name, input())
@@ -673,5 +701,149 @@ describe('MCP package version drafts', () => {
     expect(JSON.stringify(result)).toContain('marketplace_package_not_found')
     expect(JSON.stringify(result)).not.toContain('private catalog details')
     expect(ws.apply).not.toHaveBeenCalled()
+  })
+})
+
+describe('MCP package dependency drafts', () => {
+  let fetchMock: jest.SpyInstance<ReturnType<typeof fetch>, Parameters<typeof fetch>>
+  const cardSource = `version: 2
+kind: card
+cardTypes:
+  purchase:
+    label: Purchase
+    extends: card:class:Card
+    kind: 0
+    fields:
+      amount: {name: stored_amount, label: Amount, type: number}
+`
+  const childSource = `version: 2
+kind: process
+processes:
+  approval:
+    label: Existing approval
+    slots:
+      amount: {type: number}
+    states:
+      done: {}
+`
+
+  beforeEach(() => {
+    fetchMock = jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Unexpected catalog access'))
+  })
+  afterEach(() => { fetchMock.mockRestore(); })
+
+  async function setup (): Promise<{
+    ws: ReturnType<typeof fixture>
+    current: DefinitionPackageDraft
+    child: DefinitionPackageRelease
+    dependency: DefinitionPackageDependency
+  }> {
+    const ws = fixture([author], undefined, 'https://catalog.test/api')
+    const saved = await ws.call('package_save_draft', { ...input(), source: cardSource })
+    if (saved.isError === true) throw new Error('Unable to create card fixture')
+    const current = draft(ws.createDoc.mock.calls[0][2].release)
+    const child = await createDefinitionPackageRelease({
+      package: { id: 'vendor/approval', author: 'vendor-author', version: '2.3.4' },
+      source: childSource
+    })
+    const dependency: DefinitionPackageDependency = {
+      id: child.package.id,
+      author: child.package.author as AccountUuid,
+      version: child.package.version,
+      contentHash: child.contentHash,
+      destinations: {
+        approval: { masterTag: '$parent.purchase' as Ref<MasterTag>, bindings: { amount: 'stored_amount' } }
+      }
+    }
+    ws.findOne.mockImplementation(async (clazz: string) => {
+      if (clazz === marketplace.class.DefinitionPackageDraft) return current
+      if (clazz === contact.class.Person) return { _id: 'person' }
+      return { _id: 'private-space', private: true, members: [author] }
+    })
+    ws.createDoc.mockClear()
+    ws.updateDoc.mockClear()
+    ws.apply.mockClear()
+    fetchMock.mockImplementation(async (url) => {
+      if (new URL(String(url)).pathname.endsWith('/package')) return Response.json({ ...child.package })
+      return new Response(serializeDefinitionPackageRelease(child))
+    })
+    return { ws, current, child, dependency }
+  }
+
+  it('adds a verified foreign package as a lock, keeps the parent identity and writes only a private draft', async () => {
+    const { ws, current, child, dependency } = await setup()
+    const before = await parseDefinitionPackageRelease(current.release)
+    const result = await ws.call('package_add_dependency', {
+      draftId: current._id,
+      expectedRevision: current.revision,
+      alias: 'approval',
+      dependency,
+      review: 'Use the existing approval on Purchase.'
+    })
+    expect(result.isError).not.toBe(true)
+    expect(result.structuredContent).toMatchObject({ revision: 2, package: before.package })
+    expect(ws.createDoc).not.toHaveBeenCalled()
+    expect(ws.updateDoc).toHaveBeenCalledTimes(1)
+    expect(ws.updateDoc.mock.calls[0][0]).toBe(marketplace.class.DefinitionPackageDraft)
+    const saved = await parseDefinitionPackageRelease(ws.updateDoc.mock.calls[0][3].release)
+    expect(saved.dependencies).toEqual({ approval: dependency })
+    expect(saved.definition.docs.some((doc) => doc._class === 'process:class:Process')).toBe(false)
+    expect(saved.package.author).toBe(author)
+    expect(saved.dependencies?.approval.author).toBe(child.package.author)
+    expect(ws.match).toHaveBeenCalledWith(current._class, expect.objectContaining({ revision: 1 }))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get('version')).toBe('2.3.4')
+  })
+
+  it.each(['changed-hash', 'incompatible-field', 'stale-revision', 'inaccessible-release'])(
+    'rejects %s before any workspace write',
+    async (scenario) => {
+      const { ws, current, dependency } = await setup()
+      if (scenario === 'inaccessible-release')
+        {fetchMock.mockResolvedValue(Response.json({ message: 'private details' }, { status: 404 }))}
+      const invalid: DefinitionPackageDependency = {
+        ...dependency,
+        contentHash: scenario === 'changed-hash' ? `sha256:${'0'.repeat(64)}` : dependency.contentHash,
+        destinations:
+          scenario === 'incompatible-field'
+            ? { approval: { ...dependency.destinations.approval, bindings: { amount: 'missing' } } }
+            : dependency.destinations
+      }
+      const result = await ws.call('package_add_dependency', {
+        draftId: current._id,
+        expectedRevision: scenario === 'stale-revision' ? 9 : current.revision,
+        alias: 'approval',
+        dependency: invalid,
+        review: 'Review dependency.'
+      })
+      expect(result.isError).toBe(true)
+      expect(JSON.stringify(result)).not.toContain('private details')
+      expect(ws.apply).not.toHaveBeenCalled()
+      if (scenario === 'stale-revision') expect(fetchMock).not.toHaveBeenCalled()
+    }
+  )
+
+  it('validates initial dependency YAML without writes and preserves locks during draft reads and version creation', async () => {
+    const { ws, current, dependency } = await setup()
+    const source = withDefinitionPackageDependencies(cardSource, { approval: dependency })
+    const validation = await ws.call('package_validate', { source })
+    expect(validation.isError).not.toBe(true)
+    expect(validation.structuredContent).toMatchObject({ dependencies: { approval: dependency } })
+    expect(ws.apply).not.toHaveBeenCalled()
+    const release = await parseDefinitionPackageRelease(current.release)
+    current.release = serializeDefinitionPackageRelease(
+      await createDefinitionPackageRelease({ package: release.package, source })
+    )
+    const read = await ws.call('package_get_draft', { draftId: current._id })
+    expect(read.structuredContent).toMatchObject({ dependencies: { approval: dependency } })
+    const result = await ws.call('package_create_version_draft', {
+      ...input(),
+      source,
+      base: { draftId: current._id, expectedRevision: current.revision }
+    })
+    expect(result.isError).not.toBe(true)
+    const next = await parseDefinitionPackageRelease(ws.createDoc.mock.calls[0][2].release)
+    expect(next.dependencies).toEqual({ approval: dependency })
+    expect(next.package).toMatchObject({ id: release.package.id, author, version: '1.0.1' })
   })
 })
