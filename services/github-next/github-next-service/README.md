@@ -79,6 +79,36 @@ Telemetry uses `SERVICE_ID` as the service name. The local Docker overlay export
 `http://jaeger:4318/v1/traces`. Service logs are written to `logs/` and to the console when
 `ENABLE_CONSOLE=true`.
 
+Sync diagnostics include `GitHub Next sync phase started/finished` records for each inbound and
+outbound provider. Finished records contain elapsed milliseconds, process CPU time, current RSS and
+heap usage in bytes, heap change, success status and sync result counts. CPU and memory readings cover
+the whole process, including any overlapping work; heap changes include garbage collection and do not
+measure retained memory. Outbound transaction acceptance checks also log `validationDurationMs`.
+Correlate these records with `outbound queue sync` reasons and `workspace client created` messages
+when investigating idle load. The dev overlay sets `POLL_INTERVAL_MS=30000`, so inbound scans run every
+30 seconds even when the repository has no changes.
+
+## Workspace client reuse
+
+Inbound sync, outbound sync and outbound transaction checks share a stateless REST client, loaded
+model and markup operations per account service URL and workspace. Concurrent callers share the
+initial load. The cache holds up to 10 workspaces, evicts the least recently used entry, and expires
+each entry after five minutes even if it is continuously used. Expiry timers release idle entries
+without requiring another request. Failed loads are not cached; operation failures invalidate the
+context used by that operation without evicting a newer replacement.
+
+Workspace upgrade, restore, deletion and archival notifications invalidate the cached context.
+Model transactions, bulk updates and manual sync requests also invalidate it. Both queue consumers
+remain active when only inbound sync is enabled so model changes can invalidate the cache. The
+maximum age also refreshes endpoint credentials and provides a fallback for missed notifications.
+Invalidation affects future operations; active operations keep their current REST context.
+These REST contexts do not own persistent connections requiring a close operation. Shutdown clears
+cached references and timers.
+
+Integration settings, slot bindings, routes and sync states are read afresh rather than cached.
+For update/delete transactions without an existing sync state, outbound checks return before loading
+provider configuration, since outbound creation routes apply only to create transactions.
+
 For local docker, `PUBLIC_URL` must match the GitHub OAuth callback host:
 
 ```text
