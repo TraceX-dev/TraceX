@@ -21,7 +21,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { type EditorView } from '@tiptap/pm/view'
 
 import { type FileAttachFunction } from '../types'
-import { getDefaultImageDisplay } from '../imageDisplay'
+import { getDefaultImageDisplay, hasStoredImage } from '../imageDisplay'
 
 /**
  * @public
@@ -180,7 +180,9 @@ export const ImageUploadExtension = Extension.create<ImageUploadExtensionOptions
               return res
             }
           },
-          handleDrop (view, event) {
+          handleDrop (view, event, slice, moved) {
+            // moving an image inside the editor (or between editors) is handled by ProseMirror
+            if (moved || hasStoredImage(slice)) return false
             const dataTransfer = event.dataTransfer
             if (dataTransfer !== null) {
               const res = handleDrop(view, view.posAtCoords({ left: event.x, top: event.y }), dataTransfer)
