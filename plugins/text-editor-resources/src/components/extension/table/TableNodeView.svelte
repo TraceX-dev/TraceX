@@ -153,6 +153,8 @@
 <style lang="scss">
   .table-wrapper {
     --table-offscreen-spacing: 2rem;
+    --table-padding-top: 1rem;
+    --table-padding-bottom: 1.5rem;
 
     width: max-content;
     max-width: calc(100% + var(--table-offscreen-spacing) * 2);
@@ -161,7 +163,7 @@
     margin: 0 calc(var(--table-offscreen-spacing) * -1);
 
     .table-scroller {
-      padding: 1.5rem 0;
+      padding: var(--table-padding-top) 0 var(--table-padding-bottom);
       padding-left: var(--table-offscreen-spacing);
       margin-right: var(--table-offscreen-spacing);
       overflow-x: scroll;
@@ -205,7 +207,7 @@
 
       &__col {
         right: calc(var(--table-offscreen-spacing) - 1.5rem);
-        top: 1.5rem;
+        top: var(--table-padding-top);
         height: var(--table-height);
 
         .table-button {
@@ -214,7 +216,7 @@
       }
 
       &__row {
-        top: calc(1.5rem + var(--table-height) + var(--spacing-0_5));
+        top: calc(var(--table-padding-top) + var(--table-height) + var(--spacing-0_5));
         left: var(--table-offscreen-spacing);
         right: var(--table-offscreen-spacing);
 
@@ -227,6 +229,12 @@
     .table-print {
       display: none;
     }
+  }
+
+  // Таблица сразу после другой таблицы: верхний отступ не нужен,
+  // расстояние задаётся только нижним отступом предыдущей (там живёт кнопка)
+  :global(.table-node-wrapper + .table-node-wrapper) .table-wrapper {
+    --table-padding-top: 0rem;
   }
 
   @media print {
