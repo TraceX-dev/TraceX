@@ -52,7 +52,7 @@ export async function migrateCreatedModifiedBy (
   maxReconnects: number = 30,
   maxRetries: number = 50
 ): Promise<void> {
-  if (!dbUrl.startsWith('postgresql')) {
+  if (!dbUrl.startsWith('postgres')) {
     throw new Error('Only PostgreSQL is supported')
   }
 
@@ -457,7 +457,7 @@ export async function migrateMergedAccounts (
 ): Promise<void> {
   ctx.info('Migrating merged person accounts... ', {})
 
-  if (!dbUrl.startsWith('postgresql')) {
+  if (!dbUrl.startsWith('postgres')) {
     throw new Error('Only PostgreSQL is supported')
   }
 
@@ -570,7 +570,7 @@ export async function filterMergedAccountsInMembers (
 ): Promise<void> {
   ctx.info('Filtering merged accounts in members... ', {})
 
-  if (!dbUrl.startsWith('postgresql')) {
+  if (!dbUrl.startsWith('postgres')) {
     throw new Error('Only PostgreSQL is supported')
   }
 
@@ -633,7 +633,7 @@ export async function ensureGlobalPersonsForLocalAccounts (
 ): Promise<void> {
   ctx.info('Ensuring global persons for local accounts... ', {})
 
-  if (!dbUrl.startsWith('postgresql')) {
+  if (!dbUrl.startsWith('postgres')) {
     throw new Error('Only PostgreSQL is supported')
   }
 

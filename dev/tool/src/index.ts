@@ -1410,7 +1410,7 @@ export function devTool (
           .map((value) => value.trim())
           .filter(Boolean)
         const { dbUrl } = prepareTools()
-        if (!dbUrl.startsWith('postgresql')) {
+        if (!dbUrl.startsWith('postgres')) {
           throw new Error('Only PostgreSQL is supported')
         }
         await withAccountDatabaseCommand(
