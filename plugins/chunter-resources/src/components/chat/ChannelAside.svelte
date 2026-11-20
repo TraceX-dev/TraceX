@@ -66,7 +66,7 @@
   // separate updates, a list built only when the groups change goes stale.
   $: directAccounts = object.directMembers ?? object.members
   $: groupOnlyPersons = getGroupOnlyPersons(object.members, directAccounts, boundGroups, $employeeRefByAccountUuidStore)
-  $: directPersons = new Set(
+  $: directPersons = new Set<Ref<Person>>(
     directAccounts.map((account) => $employeeRefByAccountUuidStore.get(account)).filter(notEmpty)
   )
 

@@ -495,10 +495,13 @@ describe('SpaceMembershipMiddleware', () => {
       await middleware.findAll(guest, core.class.TxCreateDoc, {})
       await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: { $in: [core.class.UserGroup, CHANNEL] } })
       await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: { $ne: CHANNEL } })
-      expect(await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: core.class.UserGroup })).toEqual([])
+      // An empty FindResult carries `total`: compare the length.
+      expect(
+        await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: core.class.UserGroup })
+      ).toHaveLength(0)
       expect(
         await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: { $in: [core.class.UserGroup] } })
-      ).toEqual([])
+      ).toHaveLength(0)
       expect(queries).toEqual([
         { objectClass: { $nin: [core.class.UserGroup] } },
         { objectClass: { $in: [CHANNEL] } },
