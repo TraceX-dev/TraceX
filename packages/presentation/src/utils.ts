@@ -238,14 +238,18 @@ class ClientHookImpl implements Client {
  */
 export async function setClient (_client: Client): Promise<void> {
   pendingCreatedDocs.set({})
-  if (liveQuery !== undefined) {
-    await liveQuery.close()
+  // Close exactly the instances that are current now: the globals may be replaced while we await.
+  const oldLiveQuery = liveQuery
+  const oldRawLiveQuery = rawLiveQuery
+  const oldPipeline = pipeline
+  if (oldLiveQuery !== undefined) {
+    await oldLiveQuery.close()
   }
-  if (rawLiveQuery !== undefined) {
-    await rawLiveQuery.close()
+  if (oldRawLiveQuery !== undefined) {
+    await oldRawLiveQuery.close()
   }
-  if (pipeline !== undefined) {
-    await pipeline.close()
+  if (oldPipeline !== undefined) {
+    await oldPipeline.close()
   }
 
   const hook = getMetadata(plugin.metadata.ClientHook)
@@ -254,7 +258,7 @@ export async function setClient (_client: Client): Promise<void> {
     _client = new ClientHookImpl(_client, hook)
   }
 
-  const needRefresh = liveQuery !== undefined
+  const needRefresh = oldLiveQuery !== undefined
   rawLiveQuery = new LQ(_client)
 
   const factories = await _client.findAll(plugin.class.PresentationMiddlewareFactory, {})
@@ -330,8 +334,12 @@ export async function refreshClient (clean: boolean, lastReconnectGapMs: number 
  * @public
  */
 export async function purgeClient (): Promise<void> {
-  await liveQuery?.close()
-  await pipeline?.close()
+  // Capture before awaiting: a concurrent setClient() (e.g. a connect() started while a disconnect()
+  // is still purging) may install new instances, and those must not be closed here.
+  const currentLiveQuery = liveQuery
+  const currentPipeline = pipeline
+  await currentLiveQuery?.close()
+  await currentPipeline?.close()
 }
 
 /**

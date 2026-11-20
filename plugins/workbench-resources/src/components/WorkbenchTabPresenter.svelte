@@ -34,8 +34,6 @@
 
   export let tab: WorkbenchTab
 
-  const client = getClient()
-
   let name: string | undefined = tab.name
   let icon: Asset | AnySvelteComponent | undefined
   let iconProps: Record<string, any> | undefined
@@ -63,8 +61,11 @@
     iconProps = data.iconProps
 
     if (tab.name !== name && tab.location === locationToUrl(tabLoc)) {
-      const op = client.apply(undefined, undefined, true)
-      await client.diffUpdate(tab, { name })
+      // The awaits above can span a workspace switch: never write a tab into another workspace.
+      if (getTabLocation(tab).path[1] !== getCurrentLocation().path[1]) return
+      // Use the current client, not the one captured on mount (it may be closed after a switch).
+      const op = getClient().apply(undefined, undefined, true)
+      await op.diffUpdate(tab, { name })
       await op.commit()
     }
   }
