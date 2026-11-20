@@ -209,9 +209,13 @@ describe('space-members', () => {
       if (asMember === undefined) return
 
       await member.ops.update(asMember, { $push: { members: member.account } })
+      await probe.expectDirectMembers(space, [owner.account, member.account])
       await expectMembers(space, [owner.account, member.account])
 
       await member.ops.update(asMember, { $pull: { members: member.account } })
+      // Checked first: tells a leave that did not reach directMembers (or was undone by a late re-join) from members
+      // that were not recomputed from directMembers.
+      await probe.expectDirectMembers(space, [owner.account])
       await expectMembers(space, [owner.account])
     },
     TIMEOUT
