@@ -55,6 +55,7 @@ describe('shipped MCP authoring documentation without repository access', () => 
       expect.arrayContaining([
         'Manager-facing authoring',
         'Design preferences',
+        'Reusing a Marketplace process',
         'Value is set',
         'Worked risk management example'
       ])
@@ -69,6 +70,12 @@ describe('shipped MCP authoring documentation without repository access', () => 
     expect(manager).not.toHaveProperty('instructions')
     const lifecycle = await readPackageAuthoringGuide('Package format and UI lifecycle')
     expect(lifecycle.content).toEqual(expect.stringContaining('global author account UUID'))
+    const reuse = await readPackageAuthoringGuide('Reusing a Marketplace process')
+    expect(reuse.content).toEqual(expect.stringContaining('Do not copy, rewrite or embed its graph'))
+    expect(reuse.content).toEqual(expect.stringContaining('Processes → From Marketplace'))
+    expect(reuse.content).toEqual(expect.stringContaining('package_add_dependency'))
+    expect(reuse.content).toEqual(expect.stringContaining('$parent.<member>'))
+    expect(reuse).not.toHaveProperty('sections')
     const preferences = await readPackageAuthoringGuide('Design preferences')
     expect(preferences.content).toEqual(expect.stringContaining('specific business need'))
     const presence = await readPackageAuthoringGuide('Value is set')

@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { test, type Page, expect } from '@playwright/test'
 import {
   generateId,
@@ -151,8 +166,8 @@ test.describe('Content in the Documents tests', () => {
   })
 
   test.describe('Image in the document', () => {
-    test('Check image alignment setting', async ({ page }) => {
-      await documentContentPage.addImageToDocument(page)
+    test('Check image alignment setting', async () => {
+      await documentContentPage.addImageToDocument()
 
       await test.step('Align image to right', async () => {
         await documentContentPage.clickImageAlignButton('right')
@@ -170,8 +185,8 @@ test.describe('Content in the Documents tests', () => {
       })
     })
 
-    test.skip('Check Image size manipulations', async ({ page }) => {
-      await documentContentPage.addImageToDocument(page)
+    test.skip('Check Image size manipulations', async () => {
+      await documentContentPage.addImageToDocument()
 
       await test.step('Set size of image to the 25%', async () => {
         await documentContentPage.clickImageSizeButton('25%')
@@ -195,8 +210,8 @@ test.describe('Content in the Documents tests', () => {
       })
     })
 
-    test('Check Image can be opened in popup', async ({ page, context }) => {
-      await documentContentPage.addImageToDocument(page)
+    test('Check Image can be opened in popup', async () => {
+      await documentContentPage.addImageToDocument()
 
       await test.step('User can open image on current page', async () => {
         await documentContentPage.clickImageFullscreenButton()
@@ -211,8 +226,8 @@ test.describe('Content in the Documents tests', () => {
     })
 
     // TODO this currently fails for datalake because it downloads the image instead of opening it in the new tab
-    test.skip('Check Image can be opened in new tab', async ({ page, context }) => {
-      await documentContentPage.addImageToDocument(page)
+    test.skip('Check Image can be opened in new tab', async ({ context }) => {
+      await documentContentPage.addImageToDocument()
       const imageSrc = await documentContentPage.firstImageInDocument().getAttribute('src')
 
       await test.step('User can open image original in the new tab', async () => {
@@ -228,8 +243,8 @@ test.describe('Content in the Documents tests', () => {
       })
     })
 
-    test('Remove image with Backspace', async ({ page }) => {
-      await documentContentPage.addImageToDocument(page)
+    test('Remove image with Backspace', async () => {
+      await documentContentPage.addImageToDocument()
       await documentContentPage.selectedFirstImageInDocument()
       await documentContentPage.page.keyboard.press('Backspace')
       await expect(documentContentPage.firstImageInDocument()).toBeHidden()
@@ -349,8 +364,7 @@ test.describe('Content in the Documents tests', () => {
     await documentContentPage.applyToolbarCommand('Line 18', 'btnCodeBlock')
     await documentContentPage.changeCodeBlockLanguage('Line 18', 'plaintext', 'css')
     await documentContentPage.applyNote('Line 19', 'warning', testNote)
-    await documentContentPage.addImage('Line 20')
-    // await page.keyboard.type('Cat')
+    await documentContentPage.appendImageToDocument()
 
     newUser2 = generateUser()
     await createAccount(request, newUser2)

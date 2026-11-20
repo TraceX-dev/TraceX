@@ -12,17 +12,24 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import type { MasterTag } from '@hcengineering/card'
+  import type { Ref } from '@hcengineering/core'
   import marketplace, { type CatalogPackage, type CatalogRelease } from '@hcengineering/marketplace'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { Button, Dialog, Notice, showPopup } from '@hcengineering/ui'
-  import { createEventDispatcher } from 'svelte'
+  import { createEventDispatcher, onDestroy } from 'svelte'
   import { downloadCatalogRelease, getMarketplaceClient } from '../catalog'
   import DefinitionPackageInstallPopup from './DefinitionPackageInstallPopup.svelte'
   import PackageCard from './PackageCard.svelte'
 
   export let entry: CatalogPackage
+  export let masterTag: Ref<MasterTag> | undefined = undefined
 
-  const dispatch = createEventDispatcher<{ close: void }>()
+  const dispatch = createEventDispatcher<{ close: boolean }>()
+  let destroyed = false
+  onDestroy(() => {
+    destroyed = true
+  })
   let releases: CatalogRelease[] = []
   let offset: number | undefined = 0
   let busy = false
@@ -51,7 +58,10 @@
     error = ''
     try {
       const source = await downloadCatalogRelease(entry, version)
-      showPopup(DefinitionPackageInstallPopup, { source }, 'centered')
+      if (destroyed) return
+      showPopup(DefinitionPackageInstallPopup, { source, masterTag }, 'centered', (result) => {
+        if (result === true && !destroyed) dispatch('close', true)
+      })
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause)
     } finally {
@@ -63,8 +73,10 @@
 <Dialog
   label={marketplace.string.VersionHistory}
   width="40rem"
+  height="min(40rem, calc(100dvh - 2rem))"
+  scrollable
   padding="var(--spacing-3)"
-  on:close={() => dispatch('close')}
+  on:close={() => dispatch('close', false)}
 >
   <div class="flex-col flex-gap-4">
     <PackageCard

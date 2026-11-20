@@ -10,11 +10,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { compileProcessYaml } from '@hcengineering/process'
+import { authoringDataEqual, compileProcessYaml } from '@hcengineering/process'
 import {
   compareDefinitionPackageVersions,
   createDefinitionPackageRelease,
-  DefinitionPackageError
+  DefinitionPackageError,
+  parseDefinitionPackageSource
 } from './definition-package'
 import { compareDefinitionPackageDefinitions } from './definition-package-model'
 import type { DefinitionPackageRelease, DefinitionPackageUpgradePlan } from './definition-package-types'
@@ -50,12 +51,14 @@ export async function planDefinitionPackageUpgrade (
   if (precedence === 0 && base.contentHash !== next.contentHash) {
     throw new DefinitionPackageError('package.version', 'Cannot replace release content at the same SemVer precedence')
   }
-  const local = localSource === undefined ? base.definition : compileProcessYaml(localSource)
+  const local =
+    localSource === undefined ? base.definition : compileProcessYaml(parseDefinitionPackageSource(localSource).source)
   if (local.kind !== base.definition.kind) {
     throw new DefinitionPackageError('local.kind', 'Local definition kind differs from the installed package')
   }
   const changes = compareDefinitionPackageDefinitions(base.definition, local, next.definition)
   const reasons = new Set<string>()
+  if (!authoringDataEqual(base.dependencies ?? {}, next.dependencies ?? {})) reasons.add('package-dependencies-changed')
   if (base.package.version.split('.')[0] !== next.package.version.split('.')[0]) reasons.add('major-release')
   if ([base.package.version, next.package.version].some((version) => version.split('+')[0].includes('-'))) {
     reasons.add('prerelease')

@@ -16,8 +16,8 @@
 <script lang="ts">
   import { clearSettingsStore } from '@hcengineering/setting-resources'
   import { setPlatformStatus, unknownError } from '@hcengineering/platform'
-  import { isDefinitionPackageSource } from '@hcengineering/marketplace'
-  import { DefinitionPackageInstallPopup } from '@hcengineering/marketplace-resources'
+  import marketplace, { isDefinitionPackageSource } from '@hcengineering/marketplace'
+  import { DefinitionPackageInstallPopup, MarketplacePopup } from '@hcengineering/marketplace-resources'
   import {
     ButtonIcon,
     getCurrentResolvedLocation,
@@ -98,14 +98,22 @@
 </script>
 
 <ButtonIcon
-  id={'new-master-tag'}
+  icon={marketplace.icon.Marketplace}
+  tooltip={{ label: marketplace.string.FromMarketplace }}
+  kind="tertiary"
+  size="extra-small"
+  dataId="card-types-from-marketplace"
+  on:click={() => showPopup(MarketplacePopup, { kind: 'card' }, 'centered')}
+/>
+<ButtonIcon
+  id="new-master-tag"
   icon={IconAttachment}
   tooltip={{ label: card.string.Import }}
-  kind={'tertiary'}
-  size={'extra-small'}
+  kind="tertiary"
+  size="extra-small"
   on:click={handleImprot}
 />
-<ButtonIcon id={'new-master-tag'} icon={IconAdd} kind={'tertiary'} size={'extra-small'} on:click={handleAdd} />
+<ButtonIcon id="new-master-tag" icon={IconAdd} kind="tertiary" size="extra-small" on:click={handleAdd} />
 <ButtonIcon
   icon={IconEdit}
   tooltip={{ label: card.string.YamlEditor }}

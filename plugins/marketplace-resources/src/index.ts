@@ -16,9 +16,10 @@ import DefinitionPackageInstallPopup from './components/DefinitionPackageInstall
 import InstalledPackages from './components/InstalledPackages.svelte'
 import DefinitionPackageUpdatePopup from './components/DefinitionPackageUpdatePopup.svelte'
 import Marketplace from './components/Marketplace.svelte'
+import MarketplacePopup from './components/MarketplacePopup.svelte'
 import PackageDrafts from './components/PackageDrafts.svelte'
 
-export { DefinitionPackageExportPopup, DefinitionPackageInstallPopup, DefinitionPackageUpdatePopup }
+export { DefinitionPackageExportPopup, DefinitionPackageInstallPopup, DefinitionPackageUpdatePopup, MarketplacePopup }
 export { default as ImportSlotsPopup } from './components/ImportSlotsPopup.svelte'
 export { getDefinitionPackageExportItems, getDefinitionPackageOwner } from './export-utils'
 export { getDefinitionPackageExportItemsStore } from './catalog'
@@ -30,6 +31,7 @@ export default async (): Promise<Resources> => ({
     DefinitionPackageInstallPopup,
     DefinitionPackageUpdatePopup,
     InstalledPackages,
-    Marketplace
+    Marketplace,
+    MarketplacePopup
   }
 })

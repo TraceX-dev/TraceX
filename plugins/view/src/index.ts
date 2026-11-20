@@ -402,6 +402,7 @@ const view = plugin(viewId, {
     PositionElementAlignment: '' as Resource<(e?: Event) => PopupAlignment | undefined>
   },
   function: {
+    GetLink: '' as Resource<(doc?: Doc | Doc[]) => Promise<string>>,
     OpenDocument: '' as Resource<OpenDocumentFunction>
   },
   actionImpl: {

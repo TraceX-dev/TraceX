@@ -40,6 +40,7 @@ export { default as ObjectSearchPopup } from './components/ObjectSearchPopup.sve
 export { default as NavLink } from './components/NavLink.svelte'
 export { default as IconDownload } from './components/icons/Download.svelte'
 export { default as FilePreview } from './components/FilePreview.svelte'
+export { default as BaseFilePreview } from './components/BaseFilePreview.svelte'
 export { default as FilePreviewPopup } from './components/FilePreviewPopup.svelte'
 export { default as IconForward } from './components/icons/Forward.svelte'
 export { default as Breadcrumbs } from './components/breadcrumbs/Breadcrumbs.svelte'

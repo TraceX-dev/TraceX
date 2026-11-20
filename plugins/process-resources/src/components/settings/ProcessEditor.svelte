@@ -201,7 +201,24 @@
       : [])
   ]
 
+  $: if (value !== undefined) {
+    console.log('[ProcessEditor.packageExportContext] Resolved package export actions', {
+      processId: value._id,
+      masterTagId: value.masterTag,
+      loadedMasterTagId: packageType?._id,
+      processPackage: getDefinitionPackageInfo(value),
+      masterTagPackage: packageType === undefined ? undefined : getDefinitionPackageInfo(packageType),
+      packageOwnerId: packageOwner?._id,
+      accountId: getCurrentAccount().uuid,
+      exportActionIds: exportItems.map((item) => item.id)
+    })
+  }
+
   function onExportSelected (event: CustomEvent<string | number>): void {
+    console.log('[ProcessEditor.onExportSelected] Selected export action', {
+      processId: value?._id,
+      actionId: event.detail
+    })
     if (event.detail === EXPORT_WITH_SLOTS) {
       void handleExport('json', true)
     } else if (event.detail === EXPORT_WITHOUT_SLOTS) {
@@ -217,6 +234,13 @@
     if (value === undefined) return
     try {
       const definition = newVersion ? (packageOwner ?? value) : value
+      console.log('[ProcessEditor.handlePackageExport] Resolved package export target', {
+        processId: value._id,
+        newVersion,
+        definitionId: definition._id,
+        definitionKind: 'masterTag' in definition ? 'process' : 'card',
+        definitionPackage: getDefinitionPackageInfo(definition)
+      })
       if ('masterTag' in definition) {
         const info = getDefinitionPackageInfo(definition)
         const candidates = client
@@ -299,16 +323,18 @@
   <div class="hulyComponent-content__column content">
     {#if value}
       <Scroller align="center" padding="var(--spacing-3)" bottomPadding="var(--spacing-3)">
-        <div class="hulyComponent-content gap">
-          <div class="header flex-between">
-            <EditBox
-              bind:value={value.name}
-              kind="modern-ghost-large"
-              on:change={saveName}
-              required
-              placeholder={process.string.Untitled}
-            />
-            <div class="flex-row-center flex-gap-2">
+        <div class="process-editor flex-col flex-gap-4 w-full min-w-0">
+          <div class="flex-between flex-wrap flex-gap-2">
+            <div class="process-title min-w-0">
+              <EditBox
+                bind:value={value.name}
+                kind="modern-ghost-large"
+                on:change={saveName}
+                required
+                placeholder={process.string.Untitled}
+              />
+            </div>
+            <div class="flex-row-center flex-wrap flex-gap-2">
               {#if value.requiredSlots && Object.keys(value.requiredSlots).length > 0}
                 <ButtonIcon
                   icon={IconLink}
@@ -318,7 +344,13 @@
                   on:click={handleBindings}
                 />
               {/if}
-              <ButtonIcon icon={IconSettings} size="small" kind="secondary" on:click={handleSettings} />
+              <ButtonIcon
+                icon={IconSettings}
+                tooltip={{ label: process.string.ConfigLabel, direction: 'bottom' }}
+                size="small"
+                kind="secondary"
+                on:click={handleSettings}
+              />
               <ButtonMenu
                 icon={IconDownload}
                 tooltip={{ label: process.string.Export, direction: 'bottom' }}
@@ -358,7 +390,7 @@
               />
             </div>
           </div>
-          <div class="hulyComponent-content flex-col-center flex-gap-4">
+          <div class="flex-col flex-gap-4 w-full min-w-0">
             <StatesInlineEditor {states} {readonly} process={value} />
             <TransitionsInlineEditor {readonly} process={value} />
           </div>
@@ -367,3 +399,13 @@
     {/if}
   </div>
 </div>
+
+<style lang="scss">
+  .process-editor {
+    max-width: 48rem;
+  }
+
+  .process-title {
+    flex: 1 1 18rem;
+  }
+</style>

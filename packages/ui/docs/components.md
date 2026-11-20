@@ -129,7 +129,7 @@ The catalog is a discovery guide, not a duplicate API reference. Refer to the li
 
 | Component | Purpose |
 | --- | --- |
-| [`Dialog`](../src/components/Dialog.svelte) | Standard dialog content and layout, optional width/height, and wrapping footer actions. |
+| [`Dialog`](../src/components/Dialog.svelte) | Standard dialog layout with optional width/height, wrapping footer actions, and opt-in scrollable content that keeps header and footer visible. |
 | [`ModernDialog`](../src/components/ModernDialog.svelte) | Dialog variant for the modern visual language. |
 | [`Modal`](../src/components/Modal.svelte) | Modal overlay container that blocks interaction with underlying content. |
 | [`Popup`](../src/components/Popup.svelte) | General anchored or contextual popup. |
