@@ -1016,14 +1016,16 @@ async function getTxCollabs (
     const newCollaborators = (await getNewCollaborators(ops, mixin, doc._class, control)).filter(
       (p) => !collabs.includes(p) && (currentMembers === undefined || currentMembers.has(p))
     )
-    const removedCollabs = isSpace
+    // Collaborators of a space that lost membership are removed by OnSpaceMembersRemoved, for every space class
+    // and once per batch. Here they are only left out of the accounts to notify.
+    const leftSpace = isSpace
       ? (await getRemovedMembers(ctx, ops, mixin, doc as Space, collabs, control)).filter(
           (p) => !currentMembers?.has(p)
         )
       : []
-    const result = [...collabs, ...newCollaborators].filter((p) => !removedCollabs.includes(p))
+    const result = [...collabs, ...newCollaborators].filter((p) => !leftSpace.includes(p))
 
-    return { added: newCollaborators, removed: removedCollabs, result }
+    return { added: newCollaborators, removed: [], result }
   }
 
   return { added: [], removed: [], result: [] }
@@ -1372,31 +1374,51 @@ export async function getRemovedMembers (
   return Array.from(new Set(removedCollaborators))
 }
 
-/** Revoke collaborators and notification contexts before a space membership update completes. */
+/**
+ * Removes the collaborators and notification contexts of accounts that left a space.
+ *
+ * The single place that does it for spaces (`getTxCollabs` only leaves them out of notifications). Only accounts
+ * the updates removed are candidates: pulled members, or for a whole `members` list the collaborators absent from
+ * it. A candidate keeps its subscription when the final stored space still gives it through `members` or another
+ * collaborator field, e.g. a later update of the batch added it back.
+ */
 export async function OnSpaceMembersRemoved (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const result: Tx[] = []
-  const processed = new Set<Ref<Space>>()
+  const updatesBySpace = new Map<Ref<Space>, Array<TxUpdateDoc<Space>>>()
   for (const tx of txes) {
     if (tx._class !== core.class.TxUpdateDoc) continue
     const update = tx as TxUpdateDoc<Space>
     const ops = update.operations
     if (!Array.isArray(ops.members) && ops.$pull?.members === undefined) continue
-    if (processed.has(update.objectId)) continue
-    const mixin = getClassCollaborators<Doc>(control.modelDb, control.hierarchy, update.objectClass)
+    updatesBySpace.set(update.objectId, [...(updatesBySpace.get(update.objectId) ?? []), update])
+  }
+  for (const updates of updatesBySpace.values()) {
+    const objectClass = updates[0].objectClass
+    const mixin = getClassCollaborators<Doc>(control.modelDb, control.hierarchy, objectClass)
     if (
       mixin === undefined ||
       (!mixin.fields.some((field) => (field as string) === 'members') && mixin.allFields !== true)
     ) {
       continue
     }
-    const space = (await control.findAll(control.ctx, update.objectClass, { _id: update.objectId }, { limit: 1 }))[0]
+    const space = (await control.findAll(control.ctx, objectClass, { _id: updates[0].objectId }, { limit: 1 }))[0]
     if (space === undefined) continue
-    processed.add(space._id)
     const collaborators = await control.findAll(control.ctx, core.class.Collaborator, { attachedTo: space._id })
-    // Use the final stored document: a later operation in the batch may have added an account back,
+    if (collaborators.length === 0) continue
+    const current = collaborators.map((collaborator) => collaborator.collaborator)
+    const candidates = new Set<AccountUuid>()
+    for (const update of updates) {
+      for (const account of await getRemovedMembers(control.ctx, update.operations, mixin, space, current, control)) {
+        candidates.add(account)
+      }
+    }
+    if (candidates.size === 0) continue
+    // The final stored document: a later operation in the batch may have added an account back,
     // or another configured collaborator field may still grant access.
     const kept = new Set(await getDocCollaborators(control.ctx, space, mixin, control))
-    const removed = collaborators.filter((collaborator) => !kept.has(collaborator.collaborator))
+    const removed = collaborators.filter(
+      (collaborator) => candidates.has(collaborator.collaborator) && !kept.has(collaborator.collaborator)
+    )
     if (removed.length === 0) continue
     result.push(
       ...removed.map((collaborator) =>

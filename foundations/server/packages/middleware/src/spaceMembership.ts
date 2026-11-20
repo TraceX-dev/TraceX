@@ -40,7 +40,6 @@ import core, {
   type TxApplyIf,
   type TxCreateDoc,
   type TxCUD,
-  TxFactory,
   TxProcessor,
   type TxUpdateDoc,
   type UserGroup,
@@ -57,28 +56,63 @@ import {
 
 type ArrayOp = AccountUuid | { $each: AccountUuid[], $position?: number } | { $in: AccountUuid[] }
 
-function opValues (value: ArrayOp | undefined): AccountUuid[] {
-  if (value === undefined || value === null) return []
+function badRequest (): never {
+  throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+}
+
+function isStringArray (value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((it) => typeof it === 'string')
+}
+
+/**
+ * Values of a `$push` / `$pull` of a membership array. Only the forms the client and the server write are accepted:
+ * a single value, `$push` with `$each` (and `$position`), `$pull` with `$in`. Anything else is rejected instead of
+ * being dropped silently.
+ */
+function opValues (value: ArrayOp | undefined, op: '$push' | '$pull'): AccountUuid[] {
+  if (value === undefined) return []
   if (typeof value === 'string') return [value]
-  if ('$each' in value) return value.$each
-  if ('$in' in value) return value.$in
-  return []
+  if (typeof value === 'object' && value !== null) {
+    const keys = Object.keys(value)
+    if (op === '$push' && '$each' in value && isStringArray(value.$each)) {
+      if (keys.every((key) => key === '$each' || key === '$position')) return value.$each
+    }
+    if (op === '$pull' && '$in' in value && isStringArray(value.$in) && keys.length === 1) {
+      return value.$in
+    }
+  }
+  badRequest()
+}
+
+/** The state of a space within one batch of transactions. */
+interface BatchSpace {
+  /** The stored space before the batch: what the client saw when it wrote a whole `members` list. */
+  stored: Space
+  /** Direct members after the updates of the batch processed so far; undefined while not migrated. */
+  direct: AccountUuid[] | undefined
 }
 
 /**
  * Space membership with user groups.
  *
- * `Space.members` is a server-computed field: `unique(directMembers ∪ members of groups)`. Clients and services
- * keep writing `members`; this middleware turns those writes into writes of `directMembers`, so a removed direct
- * member keeps access through a group and a group member is not stored as a direct one, and adds the resulting
- * `members` change to the same update. Changes of group members are checked after the write (see
- * `syncGroupSpaces`). The recompute trigger stays for writes that do not pass here (server triggers) and roles.
+ * `Space.members` is a server-computed field: `unique(directMembers ∪ members of groups)`. The recompute trigger
+ * (`OnSpaceMembershipChange`) is the single place that writes it after a change of direct members, of bound groups or
+ * of group members: it reads the stored documents after the whole batch is applied, and its derived `$push` / `$pull`
+ * of `members` reach space security, caches and notifications as any change of members.
  *
- * It must stay above SpaceSecurityMiddleware and the permission middlewares: they see the rewritten update with
- * its `members` change, as for a plain change of members.
+ * This middleware only:
+ * - turns writes of `members` by clients and services into writes of `directMembers`. Membership rules:
+ *   - `$push` / `$pull` of `members` become `$push` / `$pull` of `directMembers`: an account added explicitly is a
+ *     direct member, also when a group already gives it access, so it keeps access when the group is unbound;
+ *   - a whole `members` list is resolved against the stored `members`: accounts removed from it leave
+ *     `directMembers`, accounts added to it become direct. Accounts given by groups are not made direct by it,
+ *     a whole list can not tell them apart from the ones the client added;
+ *   - a write of `directMembers` sets the direct members as written;
+ * - computes `members` of a created space, so the creator has access in the same operation;
+ * - lets only workspace maintainers and owners manage user groups and bind them to spaces;
+ * - hides user groups from guests: queries, lookups, associations, transactions, full-text search and broadcast.
  *
- * Also guards user groups: only workspace maintainers and owners manage them and bind them to spaces, and guests
- * can neither read them (directly, through lookups or associations) nor receive their transactions.
+ * It must stay above SpaceSecurityMiddleware and the permission middlewares: they see the rewritten transactions.
  */
 export class SpaceMembershipMiddleware extends BaseMiddleware implements Middleware {
   private constructor (context: PipelineContext, next?: Middleware) {
@@ -94,21 +128,18 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
   }
 
   override async tx (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<TxMiddlewareResult> {
-    const changedGroups = new Set<Ref<UserGroup>>()
+    // Several updates of one space in a batch are resolved one after another, not each against the stored space.
+    const batch = new Map<Ref<Space>, BatchSpace>()
     for (const tx of txes) {
-      await this.processTx(ctx, tx, changedGroups)
+      await this.processTx(ctx, tx, batch)
     }
-    const result = await this.provideTx(ctx, txes)
-    if (changedGroups.size > 0) {
-      await this.syncGroupSpaces(ctx, changedGroups)
-    }
-    return result
+    return await this.provideTx(ctx, txes)
   }
 
-  private async processTx (ctx: MeasureContext<SessionData>, tx: Tx, changedGroups: Set<Ref<UserGroup>>): Promise<void> {
+  private async processTx (ctx: MeasureContext<SessionData>, tx: Tx, batch: Map<Ref<Space>, BatchSpace>): Promise<void> {
     if (tx._class === core.class.TxApplyIf) {
       for (const inner of (tx as TxApplyIf).txes) {
-        await this.processTx(ctx, inner, changedGroups)
+        await this.processTx(ctx, inner, batch)
       }
       return
     }
@@ -117,57 +148,80 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     const hierarchy = this.context.hierarchy
     if (hierarchy.isDerived(cud.objectClass, core.class.UserGroup)) {
       this.checkUserGroupTx(ctx, cud as TxCUD<UserGroup>)
-      const touchesMembers =
-        cud._class === core.class.TxRemoveDoc ||
-        (cud._class === core.class.TxUpdateDoc &&
-          touchesAttribute((cud as TxUpdateDoc<UserGroup>).operations as Record<string, any>, 'members'))
-      if (touchesMembers) changedGroups.add(cud.objectId as Ref<UserGroup>)
       return
     }
     if (!hierarchy.isDerived(cud.objectClass, core.class.Space)) return
 
     if (cud._class === core.class.TxCreateDoc) {
-      await this.processSpaceCreate(ctx, cud as TxCreateDoc<Space>)
+      await this.processSpaceCreate(ctx, cud as TxCreateDoc<Space>, batch)
     } else if (cud._class === core.class.TxUpdateDoc) {
-      await this.processSpaceUpdate(ctx, cud as TxUpdateDoc<Space>)
+      await this.processSpaceUpdate(ctx, cud as TxUpdateDoc<Space>, batch)
     }
   }
 
-  private async processSpaceCreate (ctx: MeasureContext<SessionData>, tx: TxCreateDoc<Space>): Promise<void> {
+  private async processSpaceCreate (
+    ctx: MeasureContext<SessionData>,
+    tx: TxCreateDoc<Space>,
+    batch: Map<Ref<Space>, BatchSpace>
+  ): Promise<void> {
     const attributes = tx.attributes as Partial<Space>
-    const groups = attributes.groups ?? []
-    if (groups.length > 0) {
+    const requested = attributes.groups ?? []
+    if (!isStringArray(requested)) badRequest()
+    if (requested.length > 0) {
       this.checkGroupsBinding(ctx, tx.objectClass)
     }
-    if (attributes.directMembers === undefined) {
-      attributes.directMembers = [...(attributes.members ?? [])]
+    const members = attributes.members ?? []
+    const direct = attributes.directMembers ?? members
+    if (!isStringArray(members) || !isStringArray(direct)) badRequest()
+
+    const groups = await this.findGroups(ctx, Array.from(new Set(requested)))
+    const found = new Set(groups.map((it) => it._id))
+    const unknown = requested.filter((it) => !found.has(it))
+    if (unknown.length > 0) {
+      ctx.warn('space-membership: unknown groups dropped from a created space', { _class: tx.objectClass, unknown })
     }
-    if (groups.length > 0) {
-      // The space gets the members of its groups in the same write.
-      attributes.members = computeSpaceMembers(attributes.directMembers, await this.findGroups(ctx, groups))
+    attributes.directMembers = Array.from(new Set(direct))
+    // `members` is always derived from the sources: a client can not create a space with members it does not list.
+    attributes.members = computeSpaceMembers(attributes.directMembers, groups)
+    if (attributes.groups !== undefined) {
+      attributes.groups = Array.from(new Set(requested.filter((it) => found.has(it))))
     }
+
+    const stored: Partial<Space> = {
+      ...attributes,
+      _id: tx.objectId,
+      _class: tx.objectClass,
+      space: tx.objectSpace
+    }
+    batch.set(tx.objectId, { stored: stored as Space, direct: attributes.directMembers })
   }
 
   /**
-   * Turns writes of `members` into writes of `directMembers` and adds the resulting change of `members` to the same
-   * update: access follows a change of direct members or groups in the same operation, and space security sees the
-   * `members` change in the original tx. The recompute trigger then finds nothing left to do.
+   * Turns writes of `members` into writes of `directMembers`; the recompute trigger brings `members` to the result.
    */
-  private async processSpaceUpdate (ctx: MeasureContext<SessionData>, tx: TxUpdateDoc<Space>): Promise<void> {
+  private async processSpaceUpdate (
+    ctx: MeasureContext<SessionData>,
+    tx: TxUpdateDoc<Space>,
+    batch: Map<Ref<Space>, BatchSpace>
+  ): Promise<void> {
     const ops = tx.operations as Record<string, any>
     const touchesGroups = touchesAttribute(ops, 'groups')
     if (touchesGroups) {
       this.checkGroupsBinding(ctx, tx.objectClass)
     }
     normalizeMembershipOperations(ops, ['members', 'directMembers', 'groups'])
+    if (touchesGroups) {
+      // Validated here, applied by the storage; the trigger resolves the groups.
+      opValues(ops.$push?.groups as ArrayOp | undefined, '$push')
+      opValues(ops.$pull?.groups as ArrayOp | undefined, '$pull')
+    }
+    if (!touchesAttribute(ops, 'members') && !touchesAttribute(ops, 'directMembers')) return
 
     // A write of `members` and a direct write of `directMembers` both change the direct members.
-    const pushed = [...opValues(ops.$push?.members), ...opValues(ops.$push?.directMembers)]
-    const pulled = [...opValues(ops.$pull?.members), ...opValues(ops.$pull?.directMembers)]
+    const pushed = [...opValues(ops.$push?.members, '$push'), ...opValues(ops.$push?.directMembers, '$push')]
+    const pulled = [...opValues(ops.$pull?.members, '$pull'), ...opValues(ops.$pull?.directMembers, '$pull')]
     const replaced: AccountUuid[] | undefined = Array.isArray(ops.members) ? ops.members : undefined
     const writtenDirect: AccountUuid[] | undefined = Array.isArray(ops.directMembers) ? ops.directMembers : undefined
-    const touchesDirect = touchesAttribute(ops, 'members') || touchesAttribute(ops, 'directMembers')
-    if (!touchesDirect && !touchesGroups) return
 
     removeOp(ops, '$push', 'members')
     removeOp(ops, '$pull', 'members')
@@ -176,120 +230,65 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     delete ops.members
     delete ops.directMembers
 
-    const space = (await this.findInternal(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0]
-    if (space === undefined) {
+    const state = await this.getBatchSpace(ctx, tx, batch)
+    if (state === undefined) {
       // Nothing to resolve against: keep the write of direct members, the update itself will fail.
-      if (writtenDirect !== undefined) ops.directMembers = writtenDirect
+      if (writtenDirect !== undefined) ops.directMembers = Array.from(new Set(writtenDirect))
       if (pushed.length > 0) addOp(ops, '$push', 'directMembers', pushed)
       if (pulled.length > 0) addOp(ops, '$pull', 'directMembers', pulled)
       return
     }
 
-    const members = space.members ?? []
+    const storedMembers = state.stored.members ?? []
     // Not migrated: `members` is still the list of direct members.
-    const migrated = space.directMembers !== undefined
-    let direct: AccountUuid[] = writtenDirect ?? space.directMembers ?? [...members]
+    const migrated = state.direct !== undefined
+    const current: AccountUuid[] = state.direct ?? [...storedMembers]
+    let direct: AccountUuid[] = writtenDirect ?? current
     if (replaced !== undefined) {
-      // A full replacement is resolved against the stored space: what the client removed from `members` leaves
-      // `directMembers`, what it added becomes direct. A member through a group is not made direct by it.
       const next = new Set(replaced)
-      const removed = new Set(members.filter((it) => !next.has(it)))
-      const added = replaced.filter((it) => !members.includes(it))
+      const removed = new Set(storedMembers.filter((it) => !next.has(it)))
+      const added = replaced.filter((it) => !storedMembers.includes(it))
       direct = [...direct.filter((it) => !removed.has(it)), ...added]
     }
     const pulledSet = new Set(pulled)
     direct = Array.from(new Set([...direct.filter((it) => !pulledSet.has(it)), ...pushed]))
-
-    const groups = applyArrayOps(space.groups ?? [], ops, 'groups')
-    const target = computeSpaceMembers(direct, await this.findGroups(ctx, groups))
+    state.direct = direct
 
     // An update is applied either as operators or as plain field writes, never both (`isOperator`): the storage
-    // takes an update with a plain field as plain writes and drops its `$push` / `$pull`. So the membership change
-    // keeps the form of the update.
+    // takes an update with a plain field as plain writes and drops its `$push` / `$pull`. So the change keeps the
+    // form of the update.
     const asOperators =
       writtenDirect === undefined && replaced === undefined && migrated && Object.keys(ops).every(isOperatorKey)
     if (asOperators) {
-      // $push / $pull: concurrent joins and leaves do not overwrite each other.
-      if (pushed.length > 0) addOp(ops, '$push', 'directMembers', pushed)
-      if (pulled.length > 0) addOp(ops, '$pull', 'directMembers', pulled)
-      const added = target.filter((it) => !members.includes(it))
-      const targetSet = new Set(target)
-      const removed = Array.from(new Set(members.filter((it) => !targetSet.has(it))))
-      if (added.length > 0) addOp(ops, '$push', 'members', added)
-      if (removed.length > 0) addOp(ops, '$pull', 'members', removed)
+      // $push / $pull: concurrent joins and leaves do not overwrite each other. Accounts that are already direct
+      // are not pushed again.
+      const toPush = Array.from(new Set(pushed)).filter((it) => !current.includes(it))
+      const toPull = Array.from(new Set(pulled)).filter((it) => !direct.includes(it))
+      if (toPush.length > 0) addOp(ops, '$push', 'directMembers', toPush)
+      if (toPull.length > 0) addOp(ops, '$pull', 'directMembers', toPull)
       return
     }
-    // Whole lists: a full write, a space that is not migrated yet (a $push would start `directMembers` from the
+    // Whole list: a full write, a space that is not migrated yet (a $push would start `directMembers` from the
     // pushed accounts only), or an update with other plain fields.
-    if (touchesDirect || !migrated) ops.directMembers = direct
-    if (!sameItems(members, target)) ops.members = target
-    moveOperatorsToPlain(ops, space)
+    ops.directMembers = direct
+    moveOperatorsToPlain(ops, state.stored)
   }
 
-  /**
-   * A change of group members (or a removed group) changes `members` of every bound space. The recompute trigger
-   * does it in the same operation; this checks the result and applies what is left, so a failed trigger does not
-   * leave access behind silently: a failure here fails the request.
-   */
-  private async syncGroupSpaces (ctx: MeasureContext<SessionData>, changed: Set<Ref<UserGroup>>): Promise<void> {
-    const spaces = new Map<Ref<Space>, Space>()
-    for (const group of changed) {
-      for (const space of await this.findInternal(ctx, core.class.Space, { groups: group as any })) {
-        spaces.set(space._id, space)
-      }
+  private async getBatchSpace (
+    ctx: MeasureContext<SessionData>,
+    tx: TxUpdateDoc<Space>,
+    batch: Map<Ref<Space>, BatchSpace>
+  ): Promise<BatchSpace | undefined> {
+    const known = batch.get(tx.objectId)
+    if (known !== undefined) return known
+    const stored = (await this.findInternal(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0]
+    if (stored === undefined) return undefined
+    const state: BatchSpace = {
+      stored,
+      direct: stored.directMembers !== undefined ? [...stored.directMembers] : undefined
     }
-    if (spaces.size === 0) return
-
-    const groupIds = new Set<Ref<UserGroup>>()
-    for (const space of spaces.values()) {
-      for (const group of space.groups ?? []) groupIds.add(group)
-    }
-    const groups = new Map((await this.findGroups(ctx, Array.from(groupIds))).map((it) => [it._id, it]))
-
-    const factory = new TxFactory(core.account.System, true)
-    const result: Tx[] = []
-    for (const space of spaces.values()) {
-      const members = space.members ?? []
-      const direct = space.directMembers ?? members
-      const bound = (space.groups ?? []).filter((it) => groups.has(it))
-      const target = computeSpaceMembers(
-        direct,
-        bound.map((it) => groups.get(it) as UserGroup)
-      )
-      const ops: Record<string, any> = {}
-      const missing = (space.groups ?? []).filter((it) => !groups.has(it))
-      if (space.directMembers === undefined) {
-        // Plain writes only (see `isOperator`): the whole lists.
-        ops.directMembers = [...members]
-        if (!sameItems(members, target)) ops.members = target
-        if (missing.length > 0) ops.groups = bound
-      } else {
-        const added = target.filter((it) => !members.includes(it))
-        const targetSet = new Set(target)
-        const removed = Array.from(new Set(members.filter((it) => !targetSet.has(it))))
-        if (added.length > 0) addOp(ops, '$push', 'members', added)
-        if (removed.length > 0) addOp(ops, '$pull', 'members', removed)
-        if (missing.length > 0) {
-          ops.$pull = { ...(ops.$pull ?? {}), groups: missing.length === 1 ? missing[0] : { $in: missing } }
-        }
-      }
-      if (Object.keys(ops).length === 0) continue
-      result.push(factory.createTxUpdateDoc(space._class, space.space, space._id, ops))
-    }
-    if (result.length === 0) return
-    ctx.warn('space-membership: repaired members of spaces bound to changed groups', {
-      spaces: result.map((it) => (it as TxUpdateDoc<Space>).objectId)
-    })
-    await this.applyDerived(ctx, result)
-  }
-
-  private async applyDerived (ctx: MeasureContext<SessionData>, txes: Tx[]): Promise<void> {
-    const derived = this.context.derived
-    if (derived === undefined) {
-      await this.provideTx(ctx, txes)
-      return
-    }
-    await derived.tx(ctx, txes)
+    batch.set(tx.objectId, state)
+    return state
   }
 
   private async findGroups (ctx: MeasureContext<SessionData>, groups: Array<Ref<UserGroup>>): Promise<UserGroup[]> {
@@ -334,16 +333,17 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     }
     let members: AccountUuid[] = []
     if (tx._class === core.class.TxCreateDoc) {
-      members = (tx as TxCreateDoc<UserGroup>).attributes.members ?? []
+      const created = (tx as TxCreateDoc<UserGroup>).attributes.members ?? []
+      if (!isStringArray(created)) badRequest()
+      members = created
     } else if (tx._class === core.class.TxUpdateDoc) {
       const ops = (tx as TxUpdateDoc<UserGroup>).operations as Record<string, any>
       normalizeMembershipOperations(ops, ['members'])
-      members = [...(Array.isArray(ops.members) ? ops.members : []), ...opValues(ops.$push?.members)]
+      opValues(ops.$pull?.members, '$pull')
+      members = [...(Array.isArray(ops.members) ? ops.members : []), ...opValues(ops.$push?.members, '$push')]
     }
     // Anonymous access is granted per space; a group would spread it to every bound space.
-    if (members.includes(readOnlyGuestAccountUuid)) {
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
-    }
+    if (members.includes(readOnlyGuestAccountUuid)) badRequest()
   }
 
   private forbid (ctx: MeasureContext<SessionData>, reason: string, params: Record<string, any>): never {
@@ -364,6 +364,12 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     }
     if (this.isUserGroup(_class)) {
       return toFindResult([], 0)
+    }
+    if (this.context.hierarchy.isDerived(_class, core.class.Tx)) {
+      // Transactions carry the documents they create and update: a guest must not read groups through them.
+      const restricted = this.withoutUserGroupTxes(query as DocumentQuery<TxCUD<Doc>>)
+      if (restricted === undefined) return toFindResult([], 0)
+      query = restricted as DocumentQuery<T>
     }
     const result = await this.provideFindAll(ctx, _class, query, options)
     if (options?.lookup === undefined && options?.associations === undefined) {
@@ -396,6 +402,41 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
       docs,
       total: result.total !== undefined ? result.total - (result.docs.length - docs.length) : undefined
     }
+  }
+
+  /**
+   * The query of transactions narrowed to ones that are not about user groups, or undefined when it can only match
+   * those. The condition is added to the query, not applied to the result, so `limit` and `total` stay correct.
+   */
+  private withoutUserGroupTxes (query: DocumentQuery<TxCUD<Doc>>): DocumentQuery<TxCUD<Doc>> | undefined {
+    const excluded = this.userGroupClasses()
+    const objectClass: unknown = query.objectClass
+    if (objectClass === undefined) {
+      return { ...query, objectClass: { $nin: excluded } }
+    }
+    if (typeof objectClass === 'string') {
+      return this.isUserGroup(objectClass as Ref<Class<Doc>>) ? undefined : query
+    }
+    if (typeof objectClass !== 'object' || objectClass === null) return undefined
+    const condition = objectClass as { $in?: Array<Ref<Class<Doc>>>, $nin?: Array<Ref<Class<Doc>>>, $ne?: Ref<Class<Doc>> }
+    const keys = Object.keys(condition)
+    if (keys.length === 1 && Array.isArray(condition.$in)) {
+      const allowed = condition.$in.filter((it) => !this.isUserGroup(it))
+      return allowed.length === 0 ? undefined : { ...query, objectClass: { $in: allowed } }
+    }
+    if (keys.length === 1 && Array.isArray(condition.$nin)) {
+      return { ...query, objectClass: { $nin: Array.from(new Set([...condition.$nin, ...excluded])) } }
+    }
+    if (keys.length === 1 && typeof condition.$ne === 'string') {
+      return { ...query, objectClass: { $nin: Array.from(new Set([condition.$ne, ...excluded])) } }
+    }
+    // A condition that can not be combined safely: nothing for a guest.
+    return undefined
+  }
+
+  private userGroupClasses (): Array<Ref<Class<Doc>>> {
+    // Descendants include the class itself.
+    return Array.from(new Set([core.class.UserGroup, ...this.context.hierarchy.getDescendants(core.class.UserGroup)]))
   }
 
   /** Copies the document without user groups in its lookups and associations, at any depth. */
@@ -506,8 +547,17 @@ function removeOp (ops: Record<string, any>, op: '$push' | '$pull' | '$unset', f
   }
 }
 
+/** Values of a `$push` / `$pull` as written, any element type: for fields this middleware does not validate. */
+function rawOpValues (value: unknown): unknown[] {
+  if (value === undefined || value === null) return []
+  if (typeof value !== 'object') return [value]
+  if (Array.isArray((value as { $each?: unknown[] }).$each)) return (value as { $each: unknown[] }).$each
+  if (Array.isArray((value as { $in?: unknown[] }).$in)) return (value as { $in: unknown[] }).$in
+  return [value]
+}
+
 function addOp (ops: Record<string, any>, op: '$push' | '$pull', field: string, values: AccountUuid[]): void {
-  const existing = opValues(ops[op]?.[field])
+  const existing = rawOpValues(ops[op]?.[field]) as AccountUuid[]
   const all = Array.from(new Set([...existing, ...values]))
   // Keep the single-value form of the original write when possible.
   const value = all.length === 1 ? all[0] : op === '$push' ? { $each: all, $position: 0 } : { $in: all }
@@ -515,12 +565,12 @@ function addOp (ops: Record<string, any>, op: '$push' | '$pull', field: string, 
 }
 
 /** The array after the operations of an update on it: a full write, `$push` and `$pull`. */
-function applyArrayOps<T extends string> (stored: T[], ops: Record<string, any>, field: string): T[] {
-  let result: T[] = Array.isArray(ops[field]) ? [...ops[field]] : [...stored]
-  const pulled = new Set(opValues(ops.$pull?.[field]) as string[])
+function applyArrayOps (stored: unknown[], ops: Record<string, any>, field: string): unknown[] {
+  let result: unknown[] = Array.isArray(ops[field]) ? [...ops[field]] : [...stored]
+  const pulled = new Set(rawOpValues(ops.$pull?.[field]))
   result = result.filter((it) => !pulled.has(it))
-  for (const it of opValues(ops.$push?.[field]) as string[]) {
-    if (!result.includes(it as T)) result.push(it as T)
+  for (const it of rawOpValues(ops.$push?.[field])) {
+    if (!result.includes(it)) result.push(it)
   }
   return result
 }
@@ -549,7 +599,7 @@ function moveOperatorsToPlain (ops: Record<string, any>, stored: Record<string, 
         typeof value === 'string' ||
         (typeof value === 'object' && value !== null && (Array.isArray(value.$each) || Array.isArray(value.$in)))
       if (!simple) continue
-      const current: string[] = Array.isArray(ops[field])
+      const current: unknown[] = Array.isArray(ops[field])
         ? [...ops[field]]
         : Array.isArray(stored[field])
           ? [...stored[field]]

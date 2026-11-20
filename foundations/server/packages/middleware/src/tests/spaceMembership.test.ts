@@ -50,7 +50,8 @@ const ancestors: Record<string, string[]> = {
   [PROJECT]: [PROJECT, core.class.TypedSpace, core.class.Space],
   [PERSON_SPACE]: [PERSON_SPACE, core.class.Space],
   [core.class.UserGroup]: [core.class.UserGroup],
-  [DISCUSSION]: [DISCUSSION]
+  [DISCUSSION]: [DISCUSSION],
+  [core.class.TxCreateDoc]: [core.class.TxCreateDoc, core.class.TxCUD, core.class.Tx]
 }
 
 const factory = new TxFactory(core.account.System)
@@ -96,7 +97,8 @@ async function setup (stored: Doc[] = [], found: Doc[] = []): Promise<Setup> {
   } as unknown as Middleware
   const context = {
     hierarchy: {
-      isDerived: (_class: string, base: string) => (ancestors[_class] ?? [_class]).includes(base)
+      isDerived: (_class: string, base: string) => (ancestors[_class] ?? [_class]).includes(base),
+      getDescendants: (_class: string) => [_class]
     }
   } as unknown as PipelineContext
   const middleware = await SpaceMembershipMiddleware.create(new MeasureMetricsContext('test', {}), context, next)
@@ -157,7 +159,7 @@ describe('SpaceMembershipMiddleware', () => {
       // G is a member through a group only.
       const { middleware, sent } = await setup([storedSpace([A, B, G], [A, B]), storedGroup([G])])
       await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ members: [A, G, C] })])
-      expect(opsOf(sent[0])).toEqual({ directMembers: [A, C], members: [A, C, G] })
+      expect(opsOf(sent[0])).toEqual({ directMembers: [A, C] })
     })
 
     it('full replacement that drops a group member keeps it a member', async () => {
@@ -169,32 +171,44 @@ describe('SpaceMembershipMiddleware', () => {
     it('full replacement of a space not migrated yet starts from members', async () => {
       const { middleware, sent } = await setup([storedSpace([A, B])])
       await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ members: [B, C] })])
-      expect(opsOf(sent[0])).toEqual({ directMembers: [B, C], members: [B, C] })
+      expect(opsOf(sent[0])).toEqual({ directMembers: [B, C] })
     })
 
     it('a $push on a space without directMembers writes the whole list from members', async () => {
       // A blind $push would start directMembers from C only and the recompute would drop A and B.
       const { middleware, sent } = await setup([storedSpace([A, B])])
       await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: C } })])
-      expect(opsOf(sent[0])).toEqual({ directMembers: [A, B, C], members: [A, B, C] })
+      expect(opsOf(sent[0])).toEqual({ directMembers: [A, B, C] })
     })
 
     it('a direct $pull of directMembers on a space without them writes the whole list', async () => {
       const { middleware, sent } = await setup([storedSpace([A, B])])
       await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $pull: { directMembers: B } })])
-      expect(opsOf(sent[0])).toEqual({ directMembers: [A], members: [A] })
+      expect(opsOf(sent[0])).toEqual({ directMembers: [A] })
     })
 
-    it('a $push on a migrated space stays a $push and changes members in the same update', async () => {
+    it('a $push on a migrated space stays a $push of directMembers, members are left to the recompute', async () => {
       const { middleware, sent } = await setup([storedSpace([A, B, G], [A, B]), storedGroup([G])])
       await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: C } })])
-      expect(opsOf(sent[0])).toEqual({ $push: { directMembers: C, members: C } })
+      expect(opsOf(sent[0])).toEqual({ $push: { directMembers: C } })
     })
 
-    it('a $pull revokes access in the same update', async () => {
+    it('a $push of a member through a group makes it a direct member', async () => {
+      const { middleware, sent } = await setup([storedSpace([A, G], [A]), storedGroup([G])])
+      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: G } })])
+      expect(opsOf(sent[0])).toEqual({ $push: { directMembers: G } })
+    })
+
+    it('a $push of an account that is already direct is not pushed again', async () => {
+      const { middleware, sent } = await setup([storedSpace([A, B], [A, B])])
+      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: A } })])
+      expect(opsOf(sent[0])).toEqual({})
+    })
+
+    it('a $pull stays a $pull of directMembers', async () => {
       const { middleware, sent } = await setup([storedSpace([A, B], [A, B])])
       await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $pull: { members: B } })])
-      expect(opsOf(sent[0])).toEqual({ $pull: { directMembers: B, members: B } })
+      expect(opsOf(sent[0])).toEqual({ $pull: { directMembers: B } })
     })
 
     it('a $pull of a direct member that a group also gives keeps it in members', async () => {
@@ -210,7 +224,7 @@ describe('SpaceMembershipMiddleware', () => {
       expect(opsOf(sent[0])).toEqual({ directMembers: [A, G] })
     })
 
-    it('never mixes plain writes and operators in one update', async () => {
+    it('never mixes plain writes and operators in one update, updates of a batch apply one after another', async () => {
       // The storage applies an update with a plain field as plain writes and drops its operators (`isOperator`).
       const { middleware, sent } = await setup([storedSpace([A, B], [A, B]), storedGroup([G])])
       await middleware.tx(sessionCtx(AccountRole.Owner), [
@@ -223,10 +237,29 @@ describe('SpaceMembershipMiddleware', () => {
         const keys = Object.keys(opsOf(tx))
         expect(keys.every((key) => key.startsWith('$')) || keys.every((key) => !key.startsWith('$'))).toBe(true)
       }
-      expect(opsOf(sent[0])).toEqual({ directMembers: [A], members: [A] })
-      expect(opsOf(sent[1])).toEqual({ name: 'renamed', directMembers: [A], members: [A] })
-      expect(opsOf(sent[2])).toEqual({ name: 'renamed', directMembers: [A, B, C], members: [A, B, C], owners: [C] })
-      expect(opsOf(sent[3])).toEqual({ groups: [GROUP_ID], members: [A, B, G] })
+      expect(opsOf(sent[0])).toEqual({ directMembers: [A] })
+      expect(opsOf(sent[1])).toEqual({ name: 'renamed', directMembers: [A] })
+      // B left in the first update of the batch: it does not come back.
+      expect(opsOf(sent[2])).toEqual({ name: 'renamed', directMembers: [A, C], owners: [C] })
+      expect(opsOf(sent[3])).toEqual({ groups: [GROUP_ID] })
+    })
+
+    it('a whole list after a $push in the same batch keeps the pushed account', async () => {
+      // The client wrote the whole list from the members it saw before the batch.
+      const { middleware, sent } = await setup([storedSpace([A, B], [A, B])])
+      await middleware.tx(sessionCtx(AccountRole.User), [
+        spaceUpdate({ $push: { members: C } }),
+        spaceUpdate({ members: [A] })
+      ])
+      expect(opsOf(sent[0])).toEqual({ $push: { directMembers: C } })
+      expect(opsOf(sent[1])).toEqual({ directMembers: [A, C] })
+    })
+
+    it('an update of a space created in the same batch is resolved against the created space', async () => {
+      const { middleware, sent } = await setup()
+      const create = factory.createTxCreateDoc(CHANNEL, core.space.Space, { name: 'c', members: [A] } as any, SPACE_ID)
+      await middleware.tx(sessionCtx(AccountRole.User), [create, spaceUpdate({ members: [A, B] })])
+      expect(opsOf(sent[1])).toEqual({ directMembers: [A, B] })
     })
 
     it('rewrites updates inside apply', async () => {
@@ -267,7 +300,7 @@ describe('SpaceMembershipMiddleware', () => {
       expect((sent[0] as TxCreateDoc<Space>).attributes).toMatchObject({ members: [A, B], directMembers: [A, B] })
     })
 
-    it('keeps explicit directMembers', async () => {
+    it('derives members from explicit directMembers', async () => {
       const { middleware, sent } = await setup()
       const create = factory.createTxCreateDoc(CHANNEL, core.space.Space, {
         name: 'c',
@@ -275,7 +308,22 @@ describe('SpaceMembershipMiddleware', () => {
         directMembers: [A]
       } as any)
       await middleware.tx(sessionCtx(AccountRole.User), [create])
-      expect((sent[0] as TxCreateDoc<Space>).attributes.directMembers).toEqual([A])
+      expect((sent[0] as TxCreateDoc<Space>).attributes).toMatchObject({ members: [A], directMembers: [A] })
+    })
+
+    it('drops unknown groups of a created space', async () => {
+      const { middleware, sent } = await setup([storedGroup([G])])
+      const create = factory.createTxCreateDoc(CHANNEL, core.space.Space, {
+        name: 'c',
+        members: [A],
+        groups: [GROUP_ID, 'missing-group']
+      } as any)
+      await middleware.tx(sessionCtx(AccountRole.Maintainer), [create])
+      expect((sent[0] as TxCreateDoc<Space>).attributes).toMatchObject({
+        members: [A, G],
+        directMembers: [A],
+        groups: [GROUP_ID]
+      })
     })
   })
 
@@ -296,18 +344,14 @@ describe('SpaceMembershipMiddleware', () => {
     })
 
     it('normalizes clearing bindings and membership sources to empty arrays', async () => {
-      // Each update is resolved against the same stored space: A direct, G through the group.
+      // A direct, G through the group; the updates of the batch apply one after another.
       const { middleware, sent } = await setup([storedSpace([A, G], [A]), storedGroup([G])])
       await middleware.tx(sessionCtx(AccountRole.Owner), [
         spaceUpdate({ $unset: { groups: true } }),
         spaceUpdate({ $unset: { directMembers: true } }),
         spaceUpdate({ $unset: { members: true } })
       ])
-      expect(sent.map(opsOf)).toEqual([
-        { groups: [], members: [A] },
-        { directMembers: [], members: [G] },
-        { directMembers: [], members: [G] }
-      ])
+      expect(sent.map(opsOf)).toEqual([{ groups: [] }, { directMembers: [] }, { directMembers: [] }])
     })
 
     it('rejects unsupported operators and nested writes of membership arrays', async () => {
@@ -317,7 +361,10 @@ describe('SpaceMembershipMiddleware', () => {
         { $update: { directMembers: { $query: A, $update: B } } },
         { $push: { 'groups.0': 'g1' } },
         { $unset: { 'groups.0': true } },
-        { members: [], $unset: { members: true } }
+        { members: [], $unset: { members: true } },
+        { $pull: { members: { $nin: [A] } } },
+        { $push: { members: { $each: [A], $slice: 1 } } },
+        { $push: { groups: { $each: [1] } } }
       ]) {
         await expect(middleware.tx(sessionCtx(AccountRole.Owner), [spaceUpdate(operations)])).rejects.toThrow()
       }
@@ -373,26 +420,22 @@ describe('SpaceMembershipMiddleware', () => {
     })
   })
 
-  describe('members follow groups in the same operation', () => {
+  describe('group changes are left to the recompute trigger', () => {
     const groupUpdate = (operations: Record<string, any>, _id = GROUP_ID): Tx =>
       factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, _id as Ref<Doc>, operations as any)
 
-    it('binding a group adds its members in the same update', async () => {
-      const { middleware, sent } = await setup([storedSpace([A], [A], []), storedGroup([G, B])])
-      await middleware.tx(sessionCtx(AccountRole.Maintainer), [spaceUpdate({ $push: { groups: GROUP_ID } })])
-      expect(opsOf(sent[0])).toEqual({ $push: { groups: GROUP_ID, members: { $each: [G, B], $position: 0 } } })
-    })
-
-    it('unbinding a group removes the members it gave, not the direct ones', async () => {
-      const { middleware, sent } = await setup([storedSpace([A, G], [A], [GROUP_ID]), storedGroup([A, G])])
-      await middleware.tx(sessionCtx(AccountRole.Maintainer), [spaceUpdate({ $pull: { groups: GROUP_ID } })])
-      expect(opsOf(sent[0])).toEqual({ $pull: { groups: GROUP_ID, members: G } })
-    })
-
-    it('binding a group to a space that is not migrated persists its direct members', async () => {
-      const { middleware, sent } = await setup([storedSpace([A], undefined, []), storedGroup([G])])
-      await middleware.tx(sessionCtx(AccountRole.Maintainer), [spaceUpdate({ groups: [GROUP_ID] })])
-      expect(opsOf(sent[0])).toEqual({ groups: [GROUP_ID], directMembers: [A], members: [A, G] })
+    it('binding and unbinding a group keep the update as written', async () => {
+      const { middleware, sent } = await setup([storedSpace([A, G], [A], [GROUP_ID]), storedGroup([G, B])])
+      await middleware.tx(sessionCtx(AccountRole.Maintainer), [
+        spaceUpdate({ $push: { groups: 'group-2' } }),
+        spaceUpdate({ $pull: { groups: GROUP_ID } }),
+        spaceUpdate({ groups: [GROUP_ID] })
+      ])
+      expect(sent.map(opsOf)).toEqual([
+        { $push: { groups: 'group-2' } },
+        { $pull: { groups: GROUP_ID } },
+        { groups: [GROUP_ID] }
+      ])
     })
 
     it('a space created with groups gets their members', async () => {
@@ -406,33 +449,12 @@ describe('SpaceMembershipMiddleware', () => {
       expect((sent[0] as TxCreateDoc<Space>).attributes).toMatchObject({ members: [A, G], directMembers: [A] })
     })
 
-    it('a group change leaves nothing to do when the spaces already follow it', async () => {
-      // The recompute trigger ran in the same operation: the stored space matches the stored group.
-      const { middleware, sent } = await setup([storedSpace([A, B], [A], [GROUP_ID]), storedGroup([B])])
-      await middleware.tx(sessionCtx(AccountRole.Maintainer), [groupUpdate({ members: [B] })])
-      expect(sent).toHaveLength(1)
-    })
-
-    it('a group change repairs spaces the recompute did not update', async () => {
-      // The trigger failed: G left the group, but is still a member of the bound space; B joined it.
+    it('a change of group members or a removed group does not write spaces here', async () => {
       const { middleware, sent } = await setup([storedSpace([A, G], [A], [GROUP_ID]), storedGroup([B])])
-      await middleware.tx(sessionCtx(AccountRole.Maintainer), [groupUpdate({ $pull: { members: G } })])
-      expect(sent).toHaveLength(2)
-      expect((sent[1] as TxUpdateDoc<Space>).objectId).toBe(SPACE_ID)
-      expect(opsOf(sent[1])).toEqual({ $push: { members: B }, $pull: { members: G } })
-    })
-
-    it('a removed group is unbound and its members leave', async () => {
-      const { middleware, sent } = await setup([storedSpace([A, G], [A], [GROUP_ID])])
       const remove = factory.createTxRemoveDoc(core.class.UserGroup, core.space.Workspace, GROUP_ID as Ref<Doc>)
-      await middleware.tx(sessionCtx(AccountRole.Maintainer), [remove])
-      expect(opsOf(sent[1])).toEqual({ $pull: { members: G, groups: GROUP_ID } })
-    })
-
-    it('a rename of a group does not look at spaces', async () => {
-      const { middleware, sent } = await setup([storedSpace([A, G], [A], [GROUP_ID])])
-      await middleware.tx(sessionCtx(AccountRole.Maintainer), [groupUpdate({ name: 'renamed' })])
-      expect(sent).toHaveLength(1)
+      await middleware.tx(sessionCtx(AccountRole.Maintainer), [groupUpdate({ $pull: { members: G } }), remove])
+      expect(sent).toHaveLength(2)
+      expect(sent.every((it) => (it as TxUpdateDoc<Space>).objectClass === core.class.UserGroup)).toBe(true)
     })
   })
 
@@ -460,6 +482,33 @@ describe('SpaceMembershipMiddleware', () => {
       })
       const [asUser] = await middleware.findAll(sessionCtx(AccountRole.User), CHANNEL, {}, options)
       expect((asUser as any).$lookup.groups).toHaveLength(1)
+    })
+
+    it('a guest does not read user groups through transactions', async () => {
+      const { middleware } = await setup()
+      const queries: any[] = []
+      ;(middleware as any).next.findAll = async (_ctx: MeasureContext, _class: Ref<Class<Doc>>, query: any) => {
+        queries.push(query)
+        return toFindResult([])
+      }
+      const guest = sessionCtx(AccountRole.Guest)
+      await middleware.findAll(guest, core.class.TxCreateDoc, {})
+      await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: { $in: [core.class.UserGroup, CHANNEL] } })
+      await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: { $ne: CHANNEL } })
+      expect(await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: core.class.UserGroup })).toEqual([])
+      expect(
+        await middleware.findAll(guest, core.class.TxCreateDoc, { objectClass: { $in: [core.class.UserGroup] } })
+      ).toEqual([])
+      expect(queries).toEqual([
+        { objectClass: { $nin: [core.class.UserGroup] } },
+        { objectClass: { $in: [CHANNEL] } },
+        { objectClass: { $nin: [CHANNEL, core.class.UserGroup] } }
+      ])
+
+      await middleware.findAll(sessionCtx(AccountRole.User), core.class.TxCreateDoc, {
+        objectClass: core.class.UserGroup
+      })
+      expect(queries[3]).toEqual({ objectClass: core.class.UserGroup })
     })
 
     it('a guest does not find user groups in full-text search', async () => {

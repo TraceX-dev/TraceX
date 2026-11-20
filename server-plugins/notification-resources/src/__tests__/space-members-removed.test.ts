@@ -208,6 +208,21 @@ describe('OnSpaceMembersRemoved', () => {
     expect(applied).toEqual([])
   })
 
+  it('$pull of one member leaves other collaborators alone', async () => {
+    // MEMBER is a collaborator without membership (e.g. subscribed for another reason): pulling GUEST keeps it.
+    const { control, applied } = setup([OWNER], [OWNER, MEMBER, GUEST])
+    const res = await OnSpaceMembersRemoved([update({ $pull: { members: GUEST } })], control)
+    expect(removedCollaborators(res)).toEqual(['collab-2'])
+    expect(removedContexts(applied)).toEqual(['context-2'])
+  })
+
+  it('collaborator notifications do not remove collaborators of a space a second time', async () => {
+    const { control, applied } = setup([OWNER], [OWNER, GUEST])
+    const res = await createCollaboratorNotifications(control.ctx, update({ $pull: { members: GUEST } }), control, [])
+    expect(removedCollaborators(res)).toEqual([])
+    expect(applied).toEqual([])
+  })
+
   it('ignores a pulled account that is not a collaborator', async () => {
     const { control, applied } = setup([OWNER], [OWNER])
     const res = await OnSpaceMembersRemoved([update({ $pull: { members: OUTSIDER } })], control)
