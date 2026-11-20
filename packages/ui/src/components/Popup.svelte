@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,7 +26,6 @@
 
 <script lang="ts">
   import { popupstore as popups } from '../popups'
-  import { modalStore as modals } from '../modals'
 
   import PopupInstance from './PopupInstance.svelte'
   import { onDestroy, onMount } from 'svelte'
@@ -68,7 +68,8 @@
     element={popup.element}
     onClose={popup.onClose}
     onUpdate={popup.onUpdate}
-    zIndex={($modals.findIndex((modal) => modal.type === 'popup' && modal.id === popup.id) ?? i) + 10000}
+    zIndex={popup.layer?.content}
+    overlayZIndex={popup.layer?.overlay}
     top={$popups.length - 1 === i}
     close={popup.close}
     {contentPanel}

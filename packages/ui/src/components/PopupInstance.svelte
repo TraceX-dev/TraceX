@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,7 +26,8 @@
   export let onClose: ((result: any) => void) | undefined
   export let onUpdate: ((result: any) => void) | undefined
   export let overlay: boolean
-  export let zIndex: number
+  export let zIndex: number | undefined
+  export let overlayZIndex: number | undefined = undefined
   export let top: boolean
   export let close: () => void
   export let contentPanel: HTMLElement | undefined
@@ -285,7 +287,7 @@
   class:testing
   class:anim={(element === 'float' || element === 'centered') && !testing && !drag && ALLOW_ANIMATION}
   bind:this={modalHTML}
-  style={`z-index: ${zIndex};`}
+  style:z-index={zIndex}
   style:top={options?.props?.top}
   style:bottom={options?.props?.bottom}
   style:left={options?.props?.left}
@@ -339,7 +341,7 @@
     class="modal-overlay"
     class:testing
     class:antiOverlay={options?.showOverlay && !drag}
-    style={`z-index: ${zIndex - 1};`}
+    style:z-index={overlayZIndex ?? (zIndex !== undefined ? zIndex - 1 : undefined)}
     on:click={handleOverlayClick}
     on:keydown|stopPropagation|preventDefault={() => {}}
   />
