@@ -22,7 +22,7 @@ import { getEventPositionElement, SelectPopup, showPopup } from '@hcengineering/
 import { type Editor, mergeAttributes, nodeInputRule } from '@tiptap/core'
 import { type Node, type ResolvedPos } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey } from '@tiptap/pm/state'
-import { getDefaultImageDisplay, normalizeInsertedImages } from './imageDisplay'
+import { getDefaultImageDisplay, normalizeInsertedImages, unwrapImageOnlySlice } from './imageDisplay'
 import {
   CursorSource,
   getToolbarCursor,
@@ -164,6 +164,10 @@ export const ImageExtension = ImageNode.extend<ImageOptions>({
       }),
       new Plugin({
         key: new PluginKey('image-display-normalize'),
+        props: {
+          // an image pasted/dropped into the middle of a line must not split the paragraph
+          transformPasted: (slice) => unwrapImageOnlySlice(slice)
+        },
         appendTransaction: (transactions, _oldState, newState) => normalizeInsertedImages(transactions, newState)
       }),
       ImageToolbarPlugin()
