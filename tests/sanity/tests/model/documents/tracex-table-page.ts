@@ -15,7 +15,7 @@
 import { type Locator, type Page, expect } from '@playwright/test'
 import { CommonPage } from '../common-page'
 
-export type TableCopyFormat = 'TraceX table (refreshable)' | 'Markdown (plain text)'
+export type TableCopyFormat = 'TraceX table — can be refreshed' | 'Plain text (Markdown) — not linked'
 export type TableMenuItem = 'Refresh Table' | 'Show Diff' | 'See Original Data'
 
 /** Same marker as TABLE_METADATA_MARKER in @hcengineering/view. */
@@ -68,7 +68,7 @@ export class TraceXTablePage extends CommonPage {
 
   readonly messageBox = (): Locator => this.page.locator('div.msgbox-container')
 
-  async copyTable (format: TableCopyFormat = 'TraceX table (refreshable)'): Promise<void> {
+  async copyTable (format: TableCopyFormat = 'TraceX table — can be refreshed'): Promise<void> {
     await expect(this.copyDialog()).toBeVisible()
     await this.copyDialogControl(0).click()
     await this.dropdownItem(format).click()
