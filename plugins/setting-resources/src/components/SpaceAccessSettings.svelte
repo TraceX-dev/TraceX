@@ -46,7 +46,8 @@
   } from '@hcengineering/workbench'
 
   import setting from '../plugin'
-  import { getSpaceOperationKey, type SpaceOperation } from '../spaceAccessUtils'
+  import { getSpaceOperationKey, type SpaceOperation, type UserGroupsChange } from '../spaceAccessUtils'
+  import { canChangeUserGroups } from '../userGroupGuard'
   import { getAccountClient } from '../utils'
   import GroupsAccessSettings from './access/GroupsAccessSettings.svelte'
   import MembersAccessSettings from './access/MembersAccessSettings.svelte'
@@ -187,6 +188,8 @@
   }
 
   async function updateGroups (space: Space, value: Array<Ref<UserGroup>>): Promise<boolean> {
+    const change: UserGroupsChange = { groups, bindings: new Map([[space._id, value]]) }
+    if (!canChangeUserGroups([space], change, core.string.UserGroups)) return false
     return await runSpaceOperation(space, 'groups', async () => {
       await client.updateDoc(space._class, space.space, space._id, { groups: value })
     })

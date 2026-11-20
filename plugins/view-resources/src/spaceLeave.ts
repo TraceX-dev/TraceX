@@ -20,24 +20,35 @@ import view from '@hcengineering/view'
 import plugin from './plugin'
 
 /**
+ * What a leave of a space does.
+ * @public
+ */
+export interface LeaveSpaceDecision {
+  /** Whether to go on with the leave (remove the direct membership). */
+  leave: boolean
+  /** Whether the user stays a member through bound groups after the leave: keep its notification context. */
+  keepsAccess: boolean
+}
+
+/**
  * Leaving a space removes only the direct membership: groups bound to the space keep giving access.
- * Returns whether to go on with the leave.
  * - Member through groups only: leaving changes nothing, the user is told which groups give the access.
  * - Direct member also given access by groups: the user confirms, knowing the access stays.
  * - Otherwise (no groups, or a guest who can not read groups): leave as before.
+ * @public
  */
-export async function confirmLeaveSpace (space: Space): Promise<boolean> {
+export async function decideLeaveSpace (space: Space): Promise<LeaveSpaceDecision> {
   const groups = space.groups ?? []
-  if (groups.length === 0) return true
+  if (groups.length === 0) return { leave: true, keepsAccess: false }
 
   const me = getCurrentAccount().uuid
   const memberOf = await getClient().findAll(core.class.UserGroup, { _id: { $in: groups }, members: me })
-  if (memberOf.length === 0) return true
+  if (memberOf.length === 0) return { leave: true, keepsAccess: false }
 
   const direct = (space.directMembers ?? space.members).includes(me)
   const params = { space: space.name, groups: memberOf.map((group) => group.name).join(', ') }
   // MessageBox: the main button always closes with `true`, `canSubmit` only shows Cancel next to it.
-  return await new Promise<boolean>((resolve) => {
+  return await new Promise<LeaveSpaceDecision>((resolve) => {
     showPopup(
       MessageBox,
       direct
@@ -51,8 +62,16 @@ export async function confirmLeaveSpace (space: Space): Promise<boolean> {
           { label: view.string.Leave, message: plugin.string.LeaveSpaceGroupsOnly, params, canSubmit: false },
       undefined,
       (result) => {
-        resolve(direct && result === true)
+        resolve({ leave: direct && result === true, keepsAccess: true })
       }
     )
   })
+}
+
+/**
+ * Returns whether to go on with a leave of the space, see {@link decideLeaveSpace}.
+ * @public
+ */
+export async function confirmLeaveSpace (space: Space): Promise<boolean> {
+  return (await decideLeaveSpace(space)).leave
 }

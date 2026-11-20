@@ -34,6 +34,8 @@
 
   import setting from '../../plugin'
   import CreateUserGroup from './CreateUserGroup.svelte'
+  import type { UserGroupsChange } from '../../spaceAccessUtils'
+  import { canChangeUserGroups } from '../../userGroupGuard'
 
   /** All spaces of the access page: used to show and warn about the spaces a group is bound to. */
   export let spaces: Space[]
@@ -63,10 +65,16 @@
   }
 
   async function updateMembers (group: UserGroup, members: AccountUuid[]): Promise<void> {
+    const change: UserGroupsChange = {
+      groups: groups.map((it) => (it._id === group._id ? { ...it, members } : it))
+    }
+    if (!canChangeUserGroups(spaces, change, core.string.UserGroup)) return
     await client.update(group, { members }).catch(handleError)
   }
 
   function remove (group: UserGroup): void {
+    const change: UserGroupsChange = { groups: groups.filter((it) => it._id !== group._id) }
+    if (!canChangeUserGroups(spaces, change, setting.string.DeleteUserGroup)) return
     showPopup(MessageBox, {
       label: setting.string.DeleteUserGroup,
       message: setting.string.DeleteUserGroupConfirm,

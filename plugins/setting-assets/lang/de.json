@@ -305,6 +305,7 @@
     "SearchUserGroups": "Gruppen suchen",
     "DeleteUserGroup": "Gruppe löschen",
     "DeleteUserGroupConfirm": "{name} löschen? Die Mitglieder verlieren den Zugriff auf {count} verknüpfte Bereiche, sofern sie dort nicht direkt oder über eine andere Gruppe Mitglied sind.",
+    "UserGroupChangeLeavesSpacesEmpty": "Diese privaten Bereiche hätten keine Mitglieder mehr und niemand könnte sie öffnen: {spaces}. Fügen Sie ihnen zuerst direkte Mitglieder hinzu.",
     "NoUserGroups": "Noch keine Gruppen",
     "UserGroupsNotSupported": "Mit dieser Art von Bereich können keine Gruppen verknüpft werden",
     "SearchSpaces": "Bereiche suchen",

@@ -44,7 +44,16 @@ const G2 = 'acc-g2' as AccountUuid
 const factory = new TxFactory(core.account.System)
 
 function group (_id: string, members: AccountUuid[]): UserGroup {
-  return { _id, _class: core.class.UserGroup, name: _id, members } as unknown as UserGroup
+  const value: UserGroup = {
+    _id: _id as Ref<UserGroup>,
+    _class: core.class.UserGroup,
+    space: core.space.Workspace,
+    modifiedOn: 0,
+    modifiedBy: core.account.System,
+    name: _id,
+    members
+  }
+  return value
 }
 
 function space (fields: Partial<Space> & Record<string, any>): Space {

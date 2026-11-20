@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { getCurrentAccount, Ref, notEmpty, AccountUuid } from '@hcengineering/core'
+  import core, { getCurrentAccount, Ref, notEmpty, AccountUuid, type UserGroup } from '@hcengineering/core'
   import presentation, { createQuery } from '@hcengineering/presentation'
   import { Label, showPopup, tooltip } from '@hcengineering/ui'
 
@@ -51,28 +51,44 @@
 
   // Members given only by bound user groups can not be removed here: removing them would change nothing.
   // Guests can not read groups, the list stays empty for them.
-  let groupOnlyPersons: Array<Ref<Person>> = []
+  let boundGroups: UserGroup[] = []
   const groupsQuery = createQuery()
   $: if ((object.groups ?? []).length > 0) {
     groupsQuery.query(core.class.UserGroup, { _id: { $in: object.groups ?? [] } }, (groups) => {
-      const direct = object.directMembers ?? object.members
-      const byGroups = new Set(groups.flatMap((group) => group.members))
-      groupOnlyPersons = object.members
-        .filter((account) => byGroups.has(account) && !direct.includes(account))
-        .map((account) => $employeeRefByAccountUuidStore.get(account))
-        .filter(notEmpty)
+      boundGroups = groups
     })
   } else {
     groupsQuery.unsubscribe()
-    groupOnlyPersons = []
+    boundGroups = []
   }
 
-  $: disabledRemoveFor = [
-    ...(object.createdBy !== undefined && !socialStrings.includes(object.createdBy) && creatorPersonRef !== undefined
+  // Recomputed on any change of the channel, its groups or the employees: the space and the groups arrive in
+  // separate updates, a list built only when the groups change goes stale.
+  $: directAccounts = object.directMembers ?? object.members
+  $: groupOnlyPersons = getGroupOnlyPersons(object.members, directAccounts, boundGroups, $employeeRefByAccountUuidStore)
+  $: directPersons = new Set(
+    directAccounts.map((account) => $employeeRefByAccountUuidStore.get(account)).filter(notEmpty)
+  )
+
+  function getGroupOnlyPersons (
+    members: AccountUuid[],
+    direct: AccountUuid[],
+    groups: UserGroup[],
+    refs: Map<AccountUuid, Ref<Employee>>
+  ): Array<Ref<Person>> {
+    if (groups.length === 0) return []
+    const byGroups = new Set(groups.flatMap((group) => group.members))
+    return members
+      .filter((account) => byGroups.has(account) && !direct.includes(account))
+      .map((account) => refs.get(account))
+      .filter(notEmpty)
+  }
+
+  $: creatorRemoveDisabled =
+    object.createdBy !== undefined && !socialStrings.includes(object.createdBy) && creatorPersonRef !== undefined
       ? [creatorPersonRef]
-      : []),
-    ...groupOnlyPersons
-  ]
+      : []
+  $: disabledRemoveFor = [...creatorRemoveDisabled, ...groupOnlyPersons]
   $: updateMembers(object)
 
   function updateMembers (object: Channel | undefined): void {
@@ -93,9 +109,11 @@
       return
     }
 
-    const personsToLeave = canRemoveMembers ? Array.from(members).filter((_id) => !personRefs.includes(_id)) : []
+    // The popup edits direct members: a member through a group that gets checked becomes a direct one, and one that
+    // stays unchecked is not pulled (it would change nothing).
+    const personsToLeave = canRemoveMembers ? Array.from(directPersons).filter((_id) => !personRefs.includes(_id)) : []
     const accountsToLeave = getAccountsByPersons(personsToLeave)
-    const personsToJoin = canAddMembers ? personRefs.filter((_id) => !members.has(_id)) : []
+    const personsToJoin = canAddMembers ? personRefs.filter((_id) => !directPersons.has(_id)) : []
     const accountsToJoin = getAccountsByPersons(personsToJoin)
 
     await Promise.all([leaveChannel(object, accountsToLeave), joinChannel(object, accountsToJoin)])
@@ -124,9 +142,9 @@
       SelectUsersPopup,
       {
         okLabel: presentation.string.Add,
-        disableDeselectFor: canRemoveMembers ? disabledRemoveFor : Array.from(members),
+        disableDeselectFor: canRemoveMembers ? creatorRemoveDisabled : Array.from(directPersons),
         skipInactive: true,
-        selected: members,
+        selected: directPersons,
         showStatus: true
       },
       'top',

@@ -303,6 +303,7 @@
     "SearchUserGroups": "Szukaj grup",
     "DeleteUserGroup": "Usuń grupę",
     "DeleteUserGroupConfirm": "Usunąć {name}? Jej członkowie stracą dostęp do przypisanych przestrzeni ({count}), chyba że są w nich bezpośrednio lub przez inną grupę.",
+    "UserGroupChangeLeavesSpacesEmpty": "Te prywatne przestrzenie zostałyby bez członków i nikt nie mógłby ich otworzyć: {spaces}. Najpierw dodaj do nich członków bezpośrednich.",
     "NoUserGroups": "Brak grup",
     "UserGroupsNotSupported": "Do tego typu przestrzeni nie można przypisać grup",
     "SearchSpaces": "Szukaj przestrzeni",

@@ -305,6 +305,7 @@
     "SearchUserGroups": "グループを検索",
     "DeleteUserGroup": "グループを削除",
     "DeleteUserGroupConfirm": "{name} を削除しますか？直接または別のグループ経由でメンバーでない限り、メンバーは紐付けられた {count} 件のスペースへのアクセスを失います。",
+    "UserGroupChangeLeavesSpacesEmpty": "次のプライベートスペースはメンバーがいなくなり、誰も開けなくなります: {spaces}。先に直接メンバーを追加してください。",
     "NoUserGroups": "グループはまだありません",
     "UserGroupsNotSupported": "この種類のスペースにはグループを紐付けられません",
     "SearchSpaces": "スペースを検索",

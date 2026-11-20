@@ -305,6 +305,7 @@
     "SearchUserGroups": "Rechercher des groupes",
     "DeleteUserGroup": "Supprimer le groupe",
     "DeleteUserGroupConfirm": "Supprimer {name} ? Ses membres perdront l'accès à {count} espaces liés, sauf s'ils en sont membres directement ou via un autre groupe.",
+    "UserGroupChangeLeavesSpacesEmpty": "Ces espaces privés n'auraient plus de membres et personne ne pourrait les ouvrir : {spaces}. Ajoutez-y d'abord des membres directs.",
     "NoUserGroups": "Aucun groupe pour l'instant",
     "UserGroupsNotSupported": "Impossible de lier des groupes à ce type d'espace",
     "SearchSpaces": "Rechercher des espaces",

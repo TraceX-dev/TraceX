@@ -418,7 +418,11 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
       return this.isUserGroup(objectClass as Ref<Class<Doc>>) ? undefined : query
     }
     if (typeof objectClass !== 'object' || objectClass === null) return undefined
-    const condition = objectClass as { $in?: Array<Ref<Class<Doc>>>, $nin?: Array<Ref<Class<Doc>>>, $ne?: Ref<Class<Doc>> }
+    const condition = objectClass as {
+      $in?: Array<Ref<Class<Doc>>>
+      $nin?: Array<Ref<Class<Doc>>>
+      $ne?: Ref<Class<Doc>>
+    }
     const keys = Object.keys(condition)
     if (keys.length === 1 && Array.isArray(condition.$in)) {
       const allowed = condition.$in.filter((it) => !this.isUserGroup(it))
@@ -577,11 +581,6 @@ function applyArrayOps (stored: unknown[], ops: Record<string, any>, field: stri
 
 function isOperatorKey (key: string): boolean {
   return key.startsWith('$')
-}
-
-function sameItems<T> (left: T[], right: T[]): boolean {
-  const set = new Set(left)
-  return set.size === new Set(right).size && right.every((it) => set.has(it))
 }
 
 /**

@@ -154,6 +154,7 @@ export default mergeIds(settingId, setting, {
     SearchUserGroups: '' as IntlString,
     DeleteUserGroup: '' as IntlString,
     DeleteUserGroupConfirm: '' as IntlString,
+    UserGroupChangeLeavesSpacesEmpty: '' as IntlString,
     NoUserGroups: '' as IntlString,
     UserGroupsNotSupported: '' as IntlString,
     Active: '' as IntlString,
