@@ -111,7 +111,3 @@ The OAuth issuer exchanges its stored user session through the account service's
 `extra.service = 'openauth'` and an expiration no more than 60 seconds away, as well as a complete
 ordinary user session. It is not part of the public account RPC or user SDK. Both paths bind
 the issued token to the same stable user/source social identity.
-
-The assistant integration uses the same issuer with source `ai-assistant`. Its token has the
-user's account and a dedicated external author identity; it cannot be exchanged as an ordinary
-user session. Refreshing its stored secret reuses the stable author identity.

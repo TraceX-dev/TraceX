@@ -43,8 +43,7 @@ import {
   readOnlyGuestAccountUuid,
   type WorkspaceConfiguration,
   type WorkspaceMemberInfo,
-  type WorkspaceUuid,
-  type IntegrationKind
+  type WorkspaceUuid
 } from '@hcengineering/core'
 import platform, { getMetadata, PlatformError, Severity, Status, translate } from '@hcengineering/platform'
 import {
@@ -3362,67 +3361,6 @@ async function addEmailSocialId (
   return otpInfo
 }
 
-async function addHulyAssistantSocialId (
-  ctx: MeasureContext,
-  db: AccountDB,
-  branding: Branding | null,
-  token: string
-): Promise<PersonId> {
-  const { account } = decodeTokenVerbose(ctx, token)
-
-  const socialId = await addSocialIdBase(db, account, SocialIdType.HULY_ASSISTANT, account, true)
-  await auditAccountEvent(ctx, { event: 'account.assistant.add', socialId }, token)
-  return socialId
-}
-
-export async function refreshHulyAssistantToken (
-  ctx: MeasureContext,
-  db: AccountDB,
-  branding: Branding | null,
-  token: string
-): Promise<void> {
-  const decoded = decodeTokenVerbose(ctx, token)
-  const { account, extra } = decoded
-  if (extra?.externalSocialId != null || extra?.apiKey != null) {
-    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
-  }
-
-  const assistantSocialId = await db.socialId.findOne({ type: SocialIdType.HULY_ASSISTANT, personUuid: account })
-  if (assistantSocialId == null) {
-    throw new PlatformError(
-      new Status(Severity.ERROR, platform.status.SocialIdNotFound, {
-        value: account,
-        type: SocialIdType.HULY_ASSISTANT
-      })
-    )
-  }
-
-  const key = 'access_token'
-  const integrationSecretKey = {
-    socialId: assistantSocialId._id,
-    kind: 'ai-assistant' as IntegrationKind,
-    workspaceUuid: null,
-    key
-  }
-
-  const { token: secret } = await issueExternalAccess(db, account, 'ai-assistant', {
-    kind: 'integration',
-    session: { exp: decoded.exp, nbf: decoded.nbf }
-  })
-
-  const existingToken = await db.integrationSecret.findOne(integrationSecretKey)
-
-  if (existingToken == null) {
-    await db.integrationSecret.insertOne({
-      ...integrationSecretKey,
-      secret
-    })
-  } else {
-    await db.integrationSecret.update(integrationSecretKey, { secret })
-  }
-  await auditAccountEvent(ctx, { event: 'account.assistant.token.refresh', socialId: assistantSocialId._id }, token)
-}
-
 export async function releaseSocialId (
   ctx: MeasureContext,
   db: AccountDB,
@@ -4088,8 +4026,6 @@ export type AccountMethods =
   | 'getAccountInfo'
   | 'isReadOnlyGuest'
   | 'addEmailSocialId'
-  | 'addHulyAssistantSocialId'
-  | 'refreshHulyAssistantToken'
   | 'releaseSocialId'
   | 'deleteAccount'
   | 'canMergeSpecifiedPersons'
@@ -4166,8 +4102,6 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     ensurePerson: wrap(ensurePerson),
     exchangeGuestToken: wrap(exchangeGuestToken, { guest: 'bypass' }),
     addEmailSocialId: wrap(addEmailSocialId, { guest: 'personalGuest' }),
-    addHulyAssistantSocialId: wrap(addHulyAssistantSocialId),
-    refreshHulyAssistantToken: wrap(refreshHulyAssistantToken),
     releaseSocialId: wrap(releaseSocialId, { guest: 'personalGuest' }),
     deleteAccount: wrap(deleteAccount),
     canMergeSpecifiedPersons: wrap(canMergeSpecifiedPersons),

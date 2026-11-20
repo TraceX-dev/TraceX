@@ -2235,7 +2235,6 @@ export const integrationServices = [
   'gmail',
   'google-calendar',
   'huly-mail',
-  'ai-assistant',
   'tool'
 ]
 
