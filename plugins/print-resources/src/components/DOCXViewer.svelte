@@ -19,9 +19,10 @@
   import { Analytics } from '@hcengineering/analytics'
   import { type Blob, type BlobMetadata, type Ref } from '@hcengineering/core'
   import { getMetadata } from '@hcengineering/platform'
-  import presentation, { getFileUrl, getPrintContext } from '@hcengineering/presentation'
-  import { convertToHTML } from '@hcengineering/print'
+  import presentation, { getPrintContext, BaseFilePreview } from '@hcengineering/presentation'
   import { EmbeddedHTML, Label, Spinner, themeStore } from '@hcengineering/ui'
+  import { onDestroy } from 'svelte'
+  import { loadDocxPreview } from '../docx-preview'
 
   export let value: Ref<Blob>
   export let name: string
@@ -29,31 +30,42 @@
   export let contentType: string
   // svelte-ignore unused-export-let
   export let metadata: BlobMetadata | undefined
-  export let sourceLink: string | undefined = undefined
   const printing = getPrintContext() !== undefined
 
   let isLoading = true
-  let convertedFile: string | undefined
+  let src: string | undefined
+  let generation = 0
+  let controller: AbortController | undefined
 
   const token = getMetadata(presentation.metadata.Token) ?? ''
 
-  $: if (value !== undefined && !printing) {
+  async function prepare (file: string, name: string): Promise<void> {
+    const request = ++generation
+    controller?.abort()
+    const abort = new AbortController()
+    controller = abort
+    if (src !== undefined) URL.revokeObjectURL(src)
+    src = undefined
     isLoading = true
-    convertedFile = undefined
-
-    convertToHTML(value, token).then(
-      (res) => {
-        convertedFile = res
-        isLoading = false
-      },
-      (err: any) => {
-        Analytics.handleError(err)
-        isLoading = false
-      }
-    )
+    try {
+      const blob = await loadDocxPreview(file, name, token, abort.signal)
+      if (request !== generation) return
+      src = URL.createObjectURL(blob)
+    } catch (error: unknown) {
+      if (request !== generation) return
+      Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+    } finally {
+      if (request === generation) isLoading = false
+    }
   }
 
-  $: src = convertedFile === undefined ? '' : getFileUrl(convertedFile as Ref<Blob>, name)
+  $: if (value !== undefined && !printing) void prepare(value, name)
+
+  onDestroy(() => {
+    generation++
+    controller?.abort()
+    if (src !== undefined) URL.revokeObjectURL(src)
+  })
 
   $: colors = $themeStore.dark
     ? `
@@ -281,16 +293,15 @@
 </script>
 
 {#if printing}
-  <Label label={presentation.string.ContentTypeNotSupported} />:
-  {#if sourceLink !== undefined}<a href={sourceLink}>{name}</a>{:else}{name}{/if}
-{:else if src}
-  {#if isLoading}
-    <div class="centered">
-      <Spinner size="medium" />
-    </div>
-  {:else}
-    <EmbeddedHTML {src} {name} {css} />
-  {/if}
+  <BaseFilePreview file={value} {name} {metadata} />
+{:else if isLoading}
+  <div class="centered">
+    <Spinner size="medium" />
+  </div>
+{:else if src !== undefined}
+  <EmbeddedHTML {src} {name} {css} />
+{:else}
+  <Label label={presentation.string.FailedToPreview} />
 {/if}
 
 <style lang="scss">

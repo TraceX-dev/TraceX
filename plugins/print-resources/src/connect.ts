@@ -189,7 +189,7 @@ export async function connect (title: string): Promise<Location> {
   await getResource(component)
   if (request !== generation) throw new Error('Print session was closed')
   const target: Location = {
-    path: ['print', workspace],
+    path: ['workbench', workspace],
     fragment: getPanelURI(component, _id, _class, 'content')
   }
   return target
