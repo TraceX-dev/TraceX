@@ -15,10 +15,8 @@
 //
 
 import core, {
-  AccountUuid,
   Client,
   PersonId,
-  SocialId,
   pickPrimarySocialId,
   systemAccountUuid,
   TxOperations,
@@ -35,23 +33,20 @@ async function connect (token: string): Promise<Client> {
   return await createClient(endpoint, token)
 }
 
-async function getAccountSocialIds (account: AccountUuid): Promise<SocialId[]> {
-  const token = generateToken(account, undefined, { service: 'collaborator' })
-  const accountClient = getAccountClient(config.AccountsUrl, token)
-  return await accountClient.getSocialIds()
-}
-
 async function getTxOperations (client: Client, token: Token, isDerived: boolean = false): Promise<TxOperations> {
-  let primarySocialString: PersonId
+  let socialId: PersonId
 
   if (token.account === systemAccountUuid) {
-    primarySocialString = core.account.System
+    socialId = core.account.System
   } else {
-    const socialIds = await getAccountSocialIds(token.account)
-    primarySocialString = pickPrimarySocialId(socialIds)._id
+    const info = await getAccountClient(
+      config.AccountsUrl,
+      generateToken(token.account, token.workspace, token.extra)
+    ).getLoginWithWorkspaceInfo()
+    socialId = info.socialId ?? pickPrimarySocialId(info.socialIds)._id
   }
 
-  return new TxOperations(client, primarySocialString, isDerived)
+  return new TxOperations(client, socialId, isDerived)
 }
 
 /**

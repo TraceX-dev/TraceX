@@ -16,7 +16,14 @@
 import { getClient, type AccountClient } from '@hcengineering/account-client'
 import { createRestTxOperations } from '@hcengineering/api-client'
 import { getClient as getCollaborator } from '@hcengineering/collaborator-client'
-import type { MeasureContext } from '@hcengineering/core'
+import {
+  AccountRole,
+  SocialIdType,
+  type Account,
+  type AccountUuid,
+  type PersonId,
+  type MeasureContext
+} from '@hcengineering/core'
 import type { StorageAdapter } from '@hcengineering/server-core'
 import { WorkspaceManager } from '../workspace'
 import type { McpConfig } from '../config'
@@ -24,6 +31,7 @@ import type { McpConfig } from '../config'
 jest.mock('@hcengineering/account-client', () => ({ getClient: jest.fn() }))
 jest.mock('@hcengineering/api-client', () => ({ createRestTxOperations: jest.fn() }))
 jest.mock('@hcengineering/collaborator-client', () => ({ getClient: jest.fn() }))
+jest.mock('@hcengineering/contact', () => ({ ensureEmployee: jest.fn().mockResolvedValue('person') }))
 jest.mock('@hcengineering/server-token', () => ({ decodeToken: (value: string) => JSON.parse(value) }))
 
 const ACCOUNT = '00000000-0000-4000-8000-000000000001'
@@ -59,9 +67,21 @@ describe('MCP workspace exchange', () => {
       workspace: url === 'first' ? FIRST : SECOND,
       endpoint: `http://${url}.test`
     }))
-    const accountClient: Partial<AccountClient> = { getUserWorkspaces: getWorkspaces, selectWorkspace }
+    const accountClient: Partial<AccountClient> = {
+      getUserWorkspaces: getWorkspaces,
+      selectWorkspace,
+      getPerson: jest.fn()
+    }
     jest.mocked(getClient).mockReturnValue(accountClient as AccountClient)
-    const operations: Partial<Awaited<ReturnType<typeof createRestTxOperations>>> = { close: async () => {} }
+    const account: Account = {
+      uuid: ACCOUNT as AccountUuid,
+      role: AccountRole.User,
+      primarySocialId: 'author' as PersonId,
+      socialId: 'author' as PersonId,
+      socialIds: ['author' as PersonId],
+      fullSocialIds: [{ _id: 'author' as PersonId, type: SocialIdType.HULY, value: ACCOUNT, key: `huly:${ACCOUNT}` }]
+    }
+    const operations: Partial<Awaited<ReturnType<typeof createRestTxOperations>>> = { account, close: async () => {} }
     const collaborator: Partial<ReturnType<typeof getCollaborator>> = {}
     const storage: Partial<StorageAdapter> = {}
     jest

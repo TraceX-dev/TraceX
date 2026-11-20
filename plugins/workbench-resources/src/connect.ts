@@ -483,10 +483,12 @@ export async function connect (title: string): Promise<Client | undefined> {
   const accountsUrl = getMetadata(login.metadata.AccountsUrl)
   const socialIds: SocialId[] = await getAccountClient(accountsUrl, token).getSocialIds(true)
 
+  const primarySocialId = pickPrimarySocialId(socialIds)._id
   const me: Account = {
     uuid: account,
     role: workspaceLoginInfo.role,
-    primarySocialId: pickPrimarySocialId(socialIds)._id,
+    primarySocialId,
+    socialId: workspaceLoginInfo.socialId ?? primarySocialId,
     socialIds: socialIds.map((si) => si._id),
     fullSocialIds: socialIds
   }

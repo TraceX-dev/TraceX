@@ -368,7 +368,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         modifiedBy?: PersonId
       } = (await retrieveJson(req)) ?? {}
 
-      const pid = session.getRawAccount().primarySocialId
+      const pid = session.getRawAccount().socialId
       const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
       const ops = new TxOperations(client, pid)
 
@@ -403,7 +403,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         modifiedBy?: PersonId
       } = (await retrieveJson(req)) ?? {}
 
-      const pid = session.getRawAccount().primarySocialId
+      const pid = session.getRawAccount().socialId
       const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
       const ops = new TxOperations(client, pid)
 
@@ -442,7 +442,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         modifiedBy?: PersonId
       } = (await retrieveJson(req)) ?? {}
 
-      const pid = session.getRawAccount().primarySocialId
+      const pid = session.getRawAccount().socialId
       const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
       const rops = new TxOperations(client, pid)
 
@@ -489,7 +489,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         modifiedBy?: PersonId
       } = (await retrieveJson(req)) ?? {}
 
-      const pid = session.getRawAccount().primarySocialId
+      const pid = session.getRawAccount().socialId
       const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
       const ops = new TxOperations(client, pid)
 
@@ -522,7 +522,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         modifiedBy?: PersonId
       } = (await retrieveJson(req)) ?? {}
 
-      const pid = session.getRawAccount().primarySocialId
+      const pid = session.getRawAccount().socialId
       const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
       const ops = new TxOperations(client, pid)
 
@@ -558,7 +558,7 @@ export function registerRPC (app: Express, sessions: SessionManager, ctx: Measur
         collection: string
       } = (await retrieveJson(req)) ?? {}
 
-      const pid = session.getRawAccount().primarySocialId
+      const pid = session.getRawAccount().socialId
       const client = wrapPipeline(ctx.ctx, ctx.pipeline, session.workspace, true)
       const ops = new TxOperations(client, pid)
 

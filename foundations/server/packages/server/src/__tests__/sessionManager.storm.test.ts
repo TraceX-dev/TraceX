@@ -15,9 +15,11 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
+import type { LoginInfoWithWorkspaces } from '@hcengineering/account-client'
 import core, {
   AccountRole,
   MeasureMetricsContext,
+  SocialIdType,
   type Account,
   type AccountUuid,
   type PersonId,
@@ -69,6 +71,7 @@ function mkSession (
     uuid: user as AccountUuid,
     role,
     primarySocialId: `social-${user}` as PersonId,
+    socialId: `social-${user}` as PersonId,
     socialIds: [],
     fullSocialIds: []
   }
@@ -135,6 +138,30 @@ describe('restart-storm protections', () => {
 
   afterEach(() => {
     jest.useRealTimers()
+  })
+
+  it.each(['human-author', 'external-author'])('uses the account service selected author %s', (selected) => {
+    const account = '00000000-0000-4000-8000-000000000001' as AccountUuid
+    const humanId = 'human-author' as PersonId
+    const externalId = 'external-author' as PersonId
+    const info: LoginInfoWithWorkspaces = {
+      account,
+      socialId: selected as PersonId,
+      socialIds: [
+        { _id: humanId, type: SocialIdType.HULY, value: account, key: `huly:${account}`, personUuid: account },
+        {
+          _id: externalId,
+          type: SocialIdType.EXTERNAL,
+          value: `${account}:codex`,
+          key: `external:${account}:codex`,
+          personUuid: account
+        }
+      ],
+      workspaces: {}
+    }
+    const session = sm.createSession({ account, workspace: ws }, { uuid: ws, url: 'ws-url' }, info)
+    expect(session.getRawAccount().primarySocialId).toBe(humanId)
+    expect(session.getRawAccount().socialId).toBe(selected)
   })
 
   function installWorkspace (pipeline: FakePipeline, extra: Record<string, any> = {}): any {

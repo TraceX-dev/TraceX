@@ -19,6 +19,7 @@ import { readOnlyGuestAccountUuid, systemAccountUuid } from '@hcengineering/core
 import { decodeToken, generateToken } from '@hcengineering/server-token'
 import { createOAuthApp } from './app'
 import { OAuthStore } from './store'
+import { exchangeExternalAccess } from './external-token'
 
 function requiredEnv (name: string): string {
   const value = process.env[name]?.trim()
@@ -56,6 +57,8 @@ async function main (): Promise<void> {
   const store = new OAuthStore(requiredEnv('OPENAUTH_DATABASE_URL'), config.serverSecret)
   await store.init()
   const app = createOAuthApp(config, store, {
+    delegate: async (token, source, connectionId) =>
+      await exchangeExternalAccess(accountsUrl, config.serverSecret, token, source, connectionId),
     getWorkspaces: async (token) => {
       const workspaces = await getClient(accountsUrl, token).getUserWorkspaces()
       return workspaces.map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
@@ -67,6 +70,7 @@ async function main (): Promise<void> {
         decoded.account === readOnlyGuestAccountUuid ||
         decoded.grant !== undefined ||
         decoded.sub !== undefined ||
+        decoded.extra?.externalSocialId !== undefined ||
         decoded.extra?.apiKey !== undefined ||
         decoded.extra?.service !== undefined ||
         decoded.extra?.restoreEmail !== undefined ||

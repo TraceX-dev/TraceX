@@ -28,6 +28,13 @@ Respond to user using Russian language, all comments should be in English.
 - `packages/*` - Reusable utilities
 - Projects 2-3 levels deep, each with `package.json`
 
+## MCP Tools
+
+- Use TypeBox to define tool input and output schemas and infer their TypeScript types from those schemas.
+- Keep each tool implementation in a separate file.
+- Define each tool's input and output schemas in the same file as its implementation.
+- Training tools serve authors and organizers only. Do not expose tools to create or edit trainee attempts, record trainee answers, submit attempts, grade attempts, or override their results. Reading results and authoring questions with answer keys are allowed subject to permissions.
+
 ## Observability
 
 - Before adding or changing traces, metrics, structured logging, context propagation, or observability backends, read [Observability with MeasureContext](./docs/observability.md). Application instrumentation uses `MeasureContext`; OpenTelemetry instruments and SDK calls belong inside `measurements-otlp`. Update the guide when changing the context contract or backend behavior.

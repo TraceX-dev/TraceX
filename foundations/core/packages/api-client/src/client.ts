@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -68,10 +69,12 @@ export async function connect (url: string, options: ConnectOptions): Promise<Pl
     throw new Error(`Workspace ${options.workspace} not found`)
   }
 
+  const primarySocialId = pickPrimarySocialId(socialIds)._id
   const account: Account = {
     uuid: wsLoginInfo.account,
     role: wsLoginInfo.role,
-    primarySocialId: pickPrimarySocialId(socialIds)._id,
+    primarySocialId,
+    socialId: wsLoginInfo.socialId ?? primarySocialId,
     socialIds: socialIds.map((si) => si._id),
     fullSocialIds: socialIds
   }
@@ -122,7 +125,7 @@ class PlatformClientImpl implements PlatformClient {
     private readonly connection: Client,
     private readonly account: Account
   ) {
-    this.client = new TxOperations(connection, account.primarySocialId)
+    this.client = new TxOperations(connection, account.socialId)
     this.markup = createMarkupOperations(url, workspace, token, config)
   }
 

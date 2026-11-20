@@ -303,6 +303,8 @@
     "DangerZone": "Strefa wrażliwa",
     "ApiAccess": "Dostęp API",
     "ApiToken": "Klucz API",
+    "ApplicationOrService": "Aplikacja lub usługa",
+    "ApplicationOrServiceHint": "Na przykład api, codex lub claude. Ta nazwa pojawi się w historii aktywności.",
     "ApiKeyTitle": "Nazwa klucza API",
     "ApiKeyShownOnce": "Skopiuj teraz ten klucz API. Ze względów bezpieczeństwa nie będzie wyświetlany ponownie.",
     "WorkspaceId": "ID obszaru roboczego",

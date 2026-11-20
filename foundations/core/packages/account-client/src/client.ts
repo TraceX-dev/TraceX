@@ -181,7 +181,7 @@ export interface AccountClient {
   findFullSocialIds: (socialIds: PersonId[]) => Promise<SocialId[]>
   getMailboxOptions: () => Promise<MailboxOptions>
   getMailboxSecret: (mailbox: string) => Promise<MailboxSecret | undefined>
-  createApiKey: (name?: string) => Promise<CreatedApiKey>
+  createApiKey: (name?: string, source?: string) => Promise<CreatedApiKey>
   getApiKeys: () => Promise<ApiKey[]>
   revokeApiKey: (id: string) => Promise<void>
   createMailbox: (name: string, domain: string) => Promise<{ mailbox: string, socialId: PersonId }>
@@ -1087,8 +1087,8 @@ class AccountClientImpl implements AccountClient {
     return await this.rpc(request)
   }
 
-  async createApiKey (name?: string): Promise<CreatedApiKey> {
-    return await this.rpc({ method: 'createApiKey' as const, params: { name } })
+  async createApiKey (name?: string, source?: string): Promise<CreatedApiKey> {
+    return await this.rpc({ method: 'createApiKey' as const, params: { name, source } })
   }
 
   async getApiKeys (): Promise<ApiKey[]> {

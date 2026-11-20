@@ -116,6 +116,7 @@
     "LinkExpires": "Wygaśnięcie",
     "LimitUses": "Limit użyć",
     "UsesLimit": "{count, plural, one {Do # użycia} other {Do # użyć}}",
+    "AccessSource": "Access source",
     "AuthorizeApplication": "Authorize {application}",
     "AuthorizeApplicationDescription": "This application can read and change data in all TraceX workspaces you can access, including workspaces you join later. You can revoke this connection in your account authentication settings.",
     "AuthorizeSelectedWorkspaceDescription": "This application can read and change data only in the selected TraceX workspace. You can revoke this connection in your account authentication settings.",

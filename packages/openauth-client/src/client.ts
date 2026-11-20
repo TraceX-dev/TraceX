@@ -41,11 +41,11 @@ class HttpOpenAuthClient implements OpenAuthClient {
     return (await response.json()) as OAuthWorkspace[]
   }
 
-  async completeRequest (request: string, token: string, workspaceId: string | null): Promise<void> {
+  async completeRequest (request: string, token: string, workspaceId: string | null, source?: string): Promise<void> {
     await this.fetch(`/requests/${requestId(request)}/complete`, {
       method: 'POST',
       headers: { ...authorization(token), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId })
+      body: JSON.stringify({ workspaceId, source })
     })
   }
 

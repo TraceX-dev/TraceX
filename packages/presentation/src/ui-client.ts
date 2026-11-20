@@ -50,7 +50,7 @@ export class UIClient extends TxOperations implements Client {
     private readonly rawLiveQuery: LiveQuery,
     private readonly notifyListeners: (txes: Tx[]) => void
   ) {
-    super(pipeline, getCurrentAccount().primarySocialId)
+    super(pipeline, getCurrentAccount().socialId)
   }
 
   private unwrap (tx: Tx): Array<TxCUD<Doc>> {

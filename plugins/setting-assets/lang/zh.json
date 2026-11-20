@@ -305,6 +305,8 @@
     "DangerZone": "危险区域",
     "ApiAccess": "API访问",
     "ApiToken": "API 密钥",
+    "ApplicationOrService": "应用或服务",
+    "ApplicationOrServiceHint": "例如 api、codex 或 claude。此名称将显示在活动历史记录中。",
     "ApiKeyTitle": "API 密钥标题",
     "ApiKeyShownOnce": "请立即复制此 API 密钥。出于安全考虑，它不会再次显示。",
     "WorkspaceId": "工作区 ID",

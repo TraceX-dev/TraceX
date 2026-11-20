@@ -99,3 +99,19 @@ Run `rushx test` for in-process OAuth tests. To exercise PostgreSQL persistence,
 - Check refresh after access expiration and issuer restart.
 - Authorize two connections, revoke one in settings, and verify that its old access and refresh tokens fail while the other connection continues working.
 - Confirm that production and staging connections remain separate.
+
+## External author identity
+
+API keys created in workspace settings and OAuth connections use the same internal token issuer.
+Workspace keys default to source `api` and retain their key ID and independent revocation. OAuth
+connections retain their connection ID and workspace consent; they do not create API key rows.
+
+The OAuth issuer exchanges its stored user session through the account service's
+`POST /internal/oauth/exchange` endpoint. This endpoint requires a signed system token with
+`extra.service = 'openauth'` and an expiration no more than 60 seconds away, as well as a complete
+ordinary user session. It is not part of the public account RPC or user SDK. Both paths bind
+the issued token to the same stable user/source social identity.
+
+The assistant integration uses the same issuer with source `ai-assistant`. Its token has the
+user's account and a dedicated external author identity; it cannot be exchanged as an ordinary
+user session. Refreshing its stored secret reuses the stable author identity.

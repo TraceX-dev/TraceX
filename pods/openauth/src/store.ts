@@ -124,9 +124,9 @@ export class OAuthStore {
 
   async createConnection (connection: OAuthConnection): Promise<void> {
     await this.sql`INSERT INTO openauth.connection
-      (id, account, client_id, client_name, resource, account_token, created_on, workspace_id)
+      (id, account, client_id, client_name, resource, account_token, created_on, workspace_id, source)
       VALUES (${connection.id}, ${connection.account}, ${connection.clientId}, ${connection.clientName},
-      ${connection.resource}, ${this.encrypt(connection.accountToken)}, ${connection.createdOn}, ${connection.workspaceId})`
+      ${connection.resource}, ${this.encrypt(connection.accountToken)}, ${connection.createdOn}, ${connection.workspaceId}, ${connection.source ?? 'external'})`
   }
 
   async getConnection (id: string): Promise<OAuthConnection | undefined> {
@@ -136,6 +136,7 @@ export class OAuthStore {
         account: string
         client_id: string
         client_name: string
+        source: string
         resource: string
         account_token: string
         workspace_id: string | null
@@ -151,6 +152,7 @@ export class OAuthStore {
           account: row.account,
           clientId: row.client_id,
           clientName: row.client_name,
+          source: row.source ?? 'external',
           resource: row.resource,
           accountToken: this.decrypt<string>(row.account_token),
           workspaceId: row.workspace_id,
@@ -159,12 +161,15 @@ export class OAuthStore {
   }
 
   async listConnections (account: string, resource: string): Promise<PublicConnection[]> {
-    const rows = await this.sql<{ id: string, client_name: string, created_on: string, workspace_id: string | null }[]>`
-      SELECT id, client_name, created_on, workspace_id FROM openauth.connection
+    const rows = await this.sql<
+      { id: string, client_name: string, source: string, created_on: string, workspace_id: string | null }[]
+    >`
+      SELECT id, client_name, source, created_on, workspace_id FROM openauth.connection
       WHERE account = ${account} AND resource = ${resource} AND revoked_on IS NULL ORDER BY created_on DESC`
     return rows.map((row) => ({
       id: row.id,
       clientName: row.client_name,
+      source: row.source ?? 'external',
       createdOn: Number(row.created_on),
       workspaceId: row.workspace_id
     }))

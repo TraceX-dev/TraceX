@@ -14,14 +14,15 @@
 //
 
 import { getClient, type AccountClient, type WorkspaceLoginInfo } from '@hcengineering/account-client'
-import { createRestTxOperations } from '@hcengineering/api-client'
+import { createRestTxOperations, type RestTxOperations } from '@hcengineering/api-client'
 import {
   AccountRole,
   MeasureMetricsContext,
+  type Account,
   type AccountUuid,
   type Doc,
+  type PersonId,
   type Ref,
-  type TxOperations,
   type WorkspaceUuid
 } from '@hcengineering/core'
 import { initStatisticsContext, type StorageConfiguration } from '@hcengineering/server-core'
@@ -55,7 +56,6 @@ describe('print HTTP requests', () => {
   const errorLog = jest.spyOn(ctx, 'error').mockImplementation(() => {})
   const storage: Partial<ReturnType<typeof buildStorageFromConfig>> = { put: jest.fn(), close: jest.fn() }
   const accounts: Partial<AccountClient> = { getLoginInfoByToken: jest.fn(), selectWorkspace: jest.fn() }
-  const client: Partial<TxOperations> = { findOne: jest.fn(), close: jest.fn() }
   const login: WorkspaceLoginInfo = {
     account: 'account' as AccountUuid,
     token: 'user-token',
@@ -64,6 +64,16 @@ describe('print HTTP requests', () => {
     endpoint: 'ws://localhost:3334',
     role: AccountRole.User
   }
+  const socialId = 'person' as PersonId
+  const account: Account = {
+    uuid: login.account,
+    role: login.role,
+    primarySocialId: socialId,
+    socialId,
+    socialIds: [socialId],
+    fullSocialIds: []
+  }
+  const client: Partial<RestTxOperations> = { account, findOne: jest.fn(), close: jest.fn() }
   let server: Server
   let origin: string
 
@@ -82,7 +92,7 @@ describe('print HTTP requests', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.mocked(accounts.getLoginInfoByToken!).mockResolvedValue(login)
-    jest.mocked(createRestTxOperations).mockResolvedValue(client as TxOperations)
+    jest.mocked(createRestTxOperations).mockResolvedValue(client as RestTxOperations)
     const doc: Partial<Doc> = { _id: 'document' as Ref<Doc> }
     jest.mocked(client.findOne!).mockResolvedValue(doc as Doc)
     jest.mocked(print).mockResolvedValue(Buffer.from('%PDF-test'))

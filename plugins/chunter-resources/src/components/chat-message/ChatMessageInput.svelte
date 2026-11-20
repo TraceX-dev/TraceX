@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -103,14 +104,14 @@
 
   async function deleteTypingInfo (): Promise<void> {
     if (!withTypingInfo) return
-    void clearTyping(acc.primarySocialId, object._id)
+    void clearTyping(acc.socialId, object._id)
   }
 
   async function updateTypingInfo (): Promise<void> {
     if (!withTypingInfo) return
 
     throttle.call(() => {
-      void setTyping(acc.primarySocialId, object._id, object.space)
+      void setTyping(acc.socialId, object._id, object.space)
     })
   }
 

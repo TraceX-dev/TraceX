@@ -95,6 +95,7 @@ function makeAccount (uuid: AccountUuid, role: AccountRole): Account {
     uuid,
     role,
     primarySocialId: 'test' as PersonId,
+    socialId: 'test' as PersonId,
     socialIds: ['test' as PersonId],
     fullSocialIds: []
   }

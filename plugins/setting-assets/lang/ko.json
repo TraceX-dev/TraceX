@@ -303,6 +303,8 @@
         "DangerZone": "위험 구역",
     "ApiAccess": "API 접근",
     "ApiToken": "API 키",
+    "ApplicationOrService": "애플리케이션 또는 서비스",
+    "ApplicationOrServiceHint": "예: api, codex 또는 claude. 이 이름은 활동 기록에 표시됩니다.",
     "ApiKeyTitle": "API 키 제목",
     "ApiKeyShownOnce": "지금 이 API 키를 복사하세요. 보안을 위해 다시 표시되지 않습니다.",
     "WorkspaceId": "워크스페이스 ID",

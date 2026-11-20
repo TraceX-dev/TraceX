@@ -171,6 +171,8 @@ export default mergeIds(settingId, setting, {
     ApiAccess: '' as IntlString,
     ApiToken: '' as IntlString,
     ApiKeyTitle: '' as IntlString,
+    ApplicationOrService: '' as IntlString,
+    ApplicationOrServiceHint: '' as IntlString,
     ApiKeyShownOnce: '' as IntlString,
     WorkspaceId: '' as IntlString,
     GenerateApiToken: '' as IntlString,

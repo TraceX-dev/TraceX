@@ -19,6 +19,7 @@ export interface OAuthRequestDetails {
 }
 
 export interface PublicConnection {
+  source?: string
   id: string
   clientName: string
   createdOn: number
@@ -46,7 +47,7 @@ export interface ResolvedAccessToken {
 /** Issuer API for consent, connections, and authenticated server-to-server token resolution. */
 export interface OpenAuthClient {
   getRequest: (request: string) => Promise<OAuthRequestDetails>
-  completeRequest: (request: string, token: string, workspaceId: string | null) => Promise<void>
+  completeRequest: (request: string, token: string, workspaceId: string | null, source?: string) => Promise<void>
   getWorkspaces: (request: string, token: string) => Promise<OAuthWorkspace[]>
   getConnections: (token: string | undefined) => Promise<PublicConnection[]>
   revokeConnection: (id: string, token: string | undefined) => Promise<void>

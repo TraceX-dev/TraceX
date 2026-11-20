@@ -79,7 +79,7 @@
   $: myTagsQuery.query(
     tagsPlugin.class.TagReference,
     {
-      createdBy: currentAccount.primarySocialId,
+      createdBy: currentAccount.socialId,
       tag: { $in: allTags.map((p) => p._id) }
     },
     (result) => {

@@ -15,7 +15,7 @@ MCP uses OAuth authorization code with PKCE. Add the server URL in your client a
 
 One connection can work with every workspace the authenticated account can currently access. Call `my_workspaces` first, then pass an exact returned workspace ID in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
 
-OAuth access tokens are opaque, short-lived, and bound to this MCP resource. TraceX account tokens stay on the issuer. Workspace tokens are obtained through the existing accounts `selectWorkspace` exchange when a tool runs. Membership is checked even when a workspace client is cached.
+OAuth access tokens are opaque, short-lived, and bound to this MCP resource. TraceX account tokens stay on the issuer. Workspace tokens are obtained through the existing accounts `selectWorkspace` exchange when a tool runs. Membership is checked even when a workspace client is cached. Before tools run, the workspace client synchronizes the account’s person and social identities using the same contact initialization as browser login. This makes external author IDs resolve to the user in workspace messages and card history.
 
 Consent grants access to one explicitly selected workspace or all currently accessible workspaces, including future memberships. `my_workspaces` only lists workspaces allowed by that connection. Calls for a different workspace are rejected before token exchange or cache access. Refresh preserves the original restriction; changing it requires a new authorization.
 

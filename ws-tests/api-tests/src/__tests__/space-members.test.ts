@@ -104,6 +104,7 @@ describe('space-members', () => {
         uuid: ws.info.account,
         role: ws.info.role,
         primarySocialId: pickPrimarySocialId(socialIds)._id,
+        socialId: pickPrimarySocialId(socialIds)._id,
         socialIds: socialIds.map((si) => si._id),
         fullSocialIds: socialIds
       },

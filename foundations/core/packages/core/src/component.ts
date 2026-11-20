@@ -102,6 +102,7 @@ export const systemAccount: Account = {
   uuid: systemAccountUuid,
   role: AccountRole.Owner,
   primarySocialId: '' as PersonId,
+  socialId: '' as PersonId,
   socialIds: [],
   fullSocialIds: []
 }

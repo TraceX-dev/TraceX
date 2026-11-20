@@ -126,7 +126,14 @@ function makeMiddleware (groups: Doc[] = [makeGroup()]): GuestPermissionsMiddlew
 }
 
 function makeAccount (role = AccountRole.Guest): Account {
-  return { uuid: generateId() as any, role, primarySocialId: GUEST, socialIds: [GUEST], fullSocialIds: [] }
+  return {
+    uuid: generateId() as any,
+    role,
+    socialId: GUEST,
+    primarySocialId: GUEST,
+    socialIds: [GUEST],
+    fullSocialIds: []
+  }
 }
 
 function makeCtx (account = makeAccount()): MeasureContext<SessionData> {

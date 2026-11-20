@@ -17,6 +17,18 @@
 // Copyright © 2026 TraceX SAS.
 //
 
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import account, {
   type AccountMethods,
   type Meta,
@@ -26,7 +38,8 @@ import account, {
   getAccountDB,
   getAllTransactors,
   getMethods,
-  cleanExpiredOtp
+  cleanExpiredOtp,
+  exchangeOAuthToken
 } from '@hcengineering/account'
 import accountCs from '@hcengineering/account/lang/cs.json'
 import accountDe from '@hcengineering/account/lang/de.json'
@@ -64,6 +77,7 @@ import Router from 'koa-router'
 import os from 'os'
 import { startAuditConsumer } from './audit'
 import { startWorkspaceMemberUnreadConsumer } from './unread'
+import { createOAuthExchangeHandler } from './oauth-exchange'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
 const DEFAULT_ACCOUNT_METRICS_INTERVAL_MS = 5 * 60 * 1000
@@ -442,6 +456,14 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       req.res.end()
     }
   })
+
+  router.post(
+    '/internal/oauth/exchange',
+    createOAuthExchangeHandler(async (serviceToken, input) => {
+      const [db] = await accountsDb
+      return await exchangeOAuthToken(measureCtx, db, null, serviceToken, input)
+    })
+  )
 
   router.post('rpc', '/', async (ctx) => {
     const token = extractToken(ctx.request.headers)

@@ -1,4 +1,5 @@
 /*!
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -27,6 +28,7 @@ export default mergeIds(loginId, login, {
     IncorrectValue: '' as StatusCode<{ field: string }>
   },
   string: {
+    AccessSource: '' as IntlString,
     CreateWorkspace: '' as IntlString,
     HaveWorkspace: '' as IntlString,
     LastName: '' as IntlString,

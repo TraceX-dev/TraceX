@@ -280,6 +280,7 @@ export const contactPlugin = plugin(contactId, {
     PersonIdFilter: '' as AnyComponent,
     AssigneePopup: '' as AnyComponent,
     EmployeePresenter: '' as AnyComponent,
+    ExternalSourcePresenter: '' as AnyComponent,
     WorkspaceMemberStatusEditor: '' as AnyComponent
   },
   channelProvider: {

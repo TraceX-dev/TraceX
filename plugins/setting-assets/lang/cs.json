@@ -303,6 +303,8 @@
     "DangerZone": "Nebezpečná zóna",
     "ApiAccess": "Přístup k API",
     "ApiToken": "Klíč API",
+    "ApplicationOrService": "Aplikace nebo služba",
+    "ApplicationOrServiceHint": "Například api, codex nebo claude. Tento název se zobrazí v historii aktivit.",
     "ApiKeyTitle": "Název klíče API",
     "ApiKeyShownOnce": "Zkopírujte tento klíč API nyní. Z bezpečnostních důvodů se již znovu nezobrazí.",
     "WorkspaceId": "ID pracovního prostoru",

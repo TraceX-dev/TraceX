@@ -204,7 +204,8 @@ export function createMcpServer (
               ]
             }
           })
-        } catch {
+        } catch (error: unknown) {
+          ctx.error('MCP workspace operation failed', { tool: tool.name, workspace, ...errorLog(error) })
           return jsonText(
             {
               error: {
