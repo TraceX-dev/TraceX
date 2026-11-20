@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -39,7 +40,9 @@ function makeControl (overrides: Partial<any> = {}): { control: any, send: jest.
       error: jest.fn(),
       warn: jest.fn(),
       info: jest.fn(),
-      contextData: { account: { uuid: generateId(), primarySocialId: core.account.System } }
+      contextData: {
+        account: { uuid: generateId(), socialId: core.account.System, primarySocialId: core.account.System }
+      }
     },
     workspace: { uuid: generateId(), url: 'ws', dataId: 'ws' },
     hierarchy: {

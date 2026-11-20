@@ -40,6 +40,7 @@ export interface PendingLogin {
   authorization: string
   account?: string
   accountToken?: string
+  source?: string
   workspaceId?: string | null
 }
 
@@ -48,6 +49,7 @@ export interface OAuthConnection {
   account: string
   clientId: string
   clientName: string
+  source?: string
   resource: string
   accountToken: string
   workspaceId: string | null
@@ -58,6 +60,7 @@ export interface OAuthConnection {
 export interface PublicConnection {
   id: string
   clientName: string
+  source?: string
   createdOn: number
   workspaceId: string | null
   workspaceName?: string

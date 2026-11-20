@@ -68,11 +68,20 @@ export function getMigrations (ns: string): [string, string][] {
     getV32Migration(ns),
     getV33Migration(ns),
     getV34Migration(ns),
-    getV35Migration(ns)
+    getV35Migration(ns),
+    getV36Migration(ns)
   ]
 }
 
 // NOTE: NEVER MODIFY EXISTING MIGRATIONS. IF YOU NEED TO ADJUST THE SCHEMA, ADD A NEW MIGRATION.
+function getV36Migration (ns: string): [string, string] {
+  return [
+    'account_db_v36_external_identity',
+    `ALTER TYPE ${ns}.social_id_type ADD VALUE IF NOT EXISTS 'external';
+     ALTER TABLE ${ns}.api_key ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'api';`
+  ]
+}
+
 function getV1Migration (ns: string): [string, string] {
   // For PostgreSQL, we use a custom immutable function to ensure the expression is valid.
   const keyColumnDefinition = `key ${types.string} GENERATED ALWAYS AS (${ns}.social_id_type_to_text(type) || ':' || value) STORED`

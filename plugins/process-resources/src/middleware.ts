@@ -69,7 +69,7 @@ export class ProcessMiddleware extends BasePresentationMiddleware implements Pre
     return new ProcessMiddleware(client, next)
   }
 
-  private readonly txFactory = new TxOperations(this.client, getCurrentAccount().primarySocialId).txFactory
+  private readonly txFactory = new TxOperations(this.client, getCurrentAccount().socialId).txFactory
   private readonly attachmentInput = new AttachmentInput(this.client)
 
   private canCreateExecution (space: Ref<Space>): boolean {

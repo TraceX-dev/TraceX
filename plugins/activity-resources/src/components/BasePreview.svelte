@@ -1,4 +1,5 @@
 <!--
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2024 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -14,6 +15,7 @@
 -->
 
 <script lang="ts">
+  import { ExternalSourcePresenter } from '@hcengineering/contact-resources'
   import { ComponentExtensions, getClient, LiteMessageViewer } from '@hcengineering/presentation'
   import { Person } from '@hcengineering/contact'
   import { Avatar, getPersonByPersonIdCb, SystemAvatar } from '@hcengineering/contact-resources'
@@ -123,6 +125,7 @@
             </DocNavLink>
           {:else if person}
             <ComponentExtensions extension={activity.extension.ActivityEmployeePresenter} props={{ person }} />
+            <ExternalSourcePresenter value={account} />
           {:else}
             <Label label={core.string.System} />
           {/if}

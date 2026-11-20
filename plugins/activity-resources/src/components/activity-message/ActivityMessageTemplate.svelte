@@ -1,4 +1,5 @@
 <!--
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2023 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -13,6 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
+  import { ExternalSourcePresenter } from '@hcengineering/contact-resources'
   import activity, {
     ActivityMessage,
     ActivityMessageViewlet,
@@ -21,7 +23,7 @@
   } from '@hcengineering/activity'
   import { Person } from '@hcengineering/contact'
   import { Avatar, SystemAvatar } from '@hcengineering/contact-resources'
-  import core, { Ref, type SocialId } from '@hcengineering/core'
+  import core, { getExternalSource, Ref, type SocialId } from '@hcengineering/core'
   import notification from '@hcengineering/notification'
   import { Asset } from '@hcengineering/platform'
   import { ComponentExtensions, getClient } from '@hcengineering/presentation'
@@ -223,12 +225,13 @@
         {#if !isShort}
           <div class="header clear-mins">
             {#if person}
-              <div class="username">
+              <div class="username flex-row-center flex-gap-1 overflow-label">
                 <ComponentExtensions extension={activity.extension.ActivityEmployeePresenter} props={{ person }} />
+                <ExternalSourcePresenter
+                  value={message.createdBy ?? message.modifiedBy}
+                  source={socialId === undefined ? undefined : (getExternalSource(socialId) ?? socialId.type)}
+                />
               </div>
-              {#if socialId !== undefined}
-                ({socialId.type})
-              {/if}
             {:else}
               <div class="strong">
                 <Label label={core.string.System} />

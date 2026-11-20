@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -18,7 +19,8 @@ import core, {
   type Tx,
   systemAccountUuid,
   type SessionData,
-  type TxApplyIf
+  type TxApplyIf,
+  SocialIdType
 } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import {
@@ -55,7 +57,15 @@ export class IdentityMiddleware extends BaseMiddleware implements Middleware {
       // We pass for system accounts and services.
       return this.provideTx(ctx, txes)
     }
+    const externalAuthor =
+      account.fullSocialIds.find((identity) => identity._id === account.socialId)?.type === SocialIdType.EXTERNAL
     function checkTx (tx: Tx): void {
+      const authorIsExternal = account.fullSocialIds.some(
+        (identity) => identity._id === tx.modifiedBy && identity.type === SocialIdType.EXTERNAL
+      )
+      if ((externalAuthor && tx.modifiedBy !== account.socialId) || (!externalAuthor && authorIsExternal)) {
+        throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountMismatch, { account: account.uuid }))
+      }
       const mxAccount = ctx.contextData.socialStringsToUsers.get(tx.modifiedBy)?.accontUuid
       if (mxAccount === undefined || mxAccount !== account.uuid) {
         throw new PlatformError(

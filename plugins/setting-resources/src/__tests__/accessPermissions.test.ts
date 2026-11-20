@@ -41,6 +41,7 @@ function account (uuid: AccountUuid, role: AccountRole): Account {
     uuid,
     role,
     primarySocialId: '' as PersonId,
+    socialId: '' as PersonId,
     socialIds: [],
     fullSocialIds: []
   }

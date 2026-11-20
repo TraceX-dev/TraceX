@@ -286,6 +286,7 @@ export function setupSession (
     uuid: accountUuid,
     role,
     primarySocialId: 'bench-social' as any,
+    socialId: 'bench-social' as any,
     socialIds: ['bench-social' as any],
     fullSocialIds: []
   }

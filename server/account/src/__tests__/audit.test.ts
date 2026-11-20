@@ -147,6 +147,21 @@ test('invalid token claims are never attributed', async () => {
   expect(events()[0].actorAccountUuid).toBeUndefined()
 })
 
+test('the shared actor resolver preserves external source and MFA subject', async () => {
+  const externalToken: Token = {
+    ...decoded,
+    extra: { externalSource: 'codex', apiKey: 'key-1', tfaAccount: subject }
+  }
+  jest.mocked(decodeToken).mockReturnValue(externalToken)
+  await auditAccountEvent(ctx, { event: 'account.rpc' }, 'verified-token')
+  expect(events()[0]).toMatchObject({
+    actorAccountUuid: actor,
+    actorService: 'codex',
+    actorUsesApiKey: true,
+    authenticationSubjectUuid: subject
+  })
+})
+
 test('assignment records the resolved recipient only when its role changes', async () => {
   const params: Parameters<typeof assignWorkspace>[4] = {
     email: 'private@example.com',

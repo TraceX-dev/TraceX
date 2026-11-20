@@ -1,4 +1,5 @@
 <!--
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2023 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -16,13 +17,15 @@
   import { PersonId, Ref } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import contact, { getPersonRefByPersonIdCb, Person } from '@hcengineering/contact'
-  import { IconSize } from '@hcengineering/ui'
+  import { Component, type IconSize } from '@hcengineering/ui'
 
   import ObjectPresenter from './ObjectPresenter.svelte'
 
   export let value: PersonId | undefined
   export let shouldShowName = true
   export let shouldShowAvatar = true
+  /** Show the external source in parentheses next to the person's name. */
+  export let showSource = false
   export let noUnderline = false
   export let shrink: boolean = false
   export let avatarSize: IconSize = 'x-small'
@@ -40,15 +43,20 @@
 </script>
 
 {#if person}
-  <div class={withPadding ? 'pl-3' : ''}>
-    <ObjectPresenter
-      objectId={person}
-      _class={contact.class.Person}
-      {shouldShowName}
-      {shouldShowAvatar}
-      {noUnderline}
-      shrink={shrink ? 1 : 0}
-      props={{ avatarSize }}
-    />
+  <div class="flex-row-center flex-gap-1 overflow-label" class:pl-3={withPadding}>
+    <div class="overflow-label">
+      <ObjectPresenter
+        objectId={person}
+        _class={contact.class.Person}
+        {shouldShowName}
+        {shouldShowAvatar}
+        {noUnderline}
+        shrink={shrink ? 1 : 0}
+        props={{ avatarSize }}
+      />
+    </div>
+    {#if shouldShowName && showSource}
+      <Component is={contact.component.ExternalSourcePresenter} props={{ value }} inline showLoading={false} />
+    {/if}
   </div>
 {/if}

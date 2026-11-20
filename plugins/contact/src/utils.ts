@@ -503,7 +503,7 @@ export async function ensureEmployeeForPerson (
 ): Promise<Ref<Employee> | null> {
   let personRef: Ref<Person> | undefined
   try {
-    const txFactory = new TxFactory(me.primarySocialId)
+    const txFactory = new TxFactory(me.socialId)
     const personByUuid = await client.findOne(contact.class.Person, { personUuid: person.uuid })
     personRef = personByUuid?._id
 

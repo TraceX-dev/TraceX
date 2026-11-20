@@ -202,6 +202,7 @@ export async function connect (title: string): Promise<Client | undefined> {
     uuid: account,
     role: workspaceLoginInfo.role,
     primarySocialId: '' as PersonId,
+    socialId: '' as PersonId,
     socialIds: [],
     fullSocialIds: []
   }

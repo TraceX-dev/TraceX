@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2025 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -39,18 +40,25 @@ import {
 } from '@hcengineering/core'
 import { RestClientImpl } from './rest'
 
+/** Transaction operations and the authenticated account used to create them. */
+export interface RestTxOperations extends TxOperations {
+  readonly account: Account
+}
+
 export async function createRestTxOperations (
   endpoint: string,
   workspaceId: string,
   token: string,
   fullModel: boolean = false
-): Promise<TxOperations> {
+): Promise<RestTxOperations> {
   const restClient = new RestClientImpl(endpoint, workspaceId, token)
 
   const account = await restClient.getAccount()
   const { hierarchy, model } = await restClient.getModel(fullModel)
 
-  return new TxOperations(new RestTxClient(restClient, hierarchy, model, account), account.socialIds[0])
+  return Object.assign(new TxOperations(new RestTxClient(restClient, hierarchy, model, account), account.socialId), {
+    account
+  })
 }
 
 class RestTxClient implements Client {

@@ -305,6 +305,8 @@
     "DangerZone": "Tehlike bölgesi",
     "ApiAccess": "API erişimi",
     "ApiToken": "API anahtarı",
+    "ApplicationOrService": "Uygulama veya hizmet",
+    "ApplicationOrServiceHint": "Örneğin api, codex veya claude. Bu ad etkinlik geçmişinde görünecektir.",
     "ApiKeyTitle": "API anahtarı başlığı",
     "ApiKeyShownOnce": "Bu API anahtarını şimdi kopyalayın. Güvenlik nedeniyle tekrar gösterilmeyecektir.",
     "WorkspaceId": "Çalışma alanı kimliği",

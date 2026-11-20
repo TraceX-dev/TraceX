@@ -308,6 +308,8 @@
     "DangerZone": "Опасная зона",
     "ApiAccess": "Доступ к API",
     "ApiToken": "API-ключ",
+    "ApplicationOrService": "Приложение или сервис",
+    "ApplicationOrServiceHint": "Например, api, codex или claude. Это имя будет отображаться в истории действий.",
     "ApiKeyTitle": "Название API-ключа",
     "ApiKeyShownOnce": "Скопируйте API-ключ сейчас: в целях безопасности он больше не будет показан.",
     "WorkspaceId": "ID рабочего пространства",

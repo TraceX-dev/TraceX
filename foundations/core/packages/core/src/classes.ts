@@ -74,7 +74,10 @@ export interface Obj {
 export interface Account {
   uuid: AccountUuid
   role: AccountRole
+  /** The account's preferred personal identity, independent of the current access credential. */
   primarySocialId: PersonId
+  /** The identity acting through this session and used to author its transactions. */
+  socialId: PersonId
   socialIds: PersonId[]
   fullSocialIds: SocialId[]
 }
@@ -1049,7 +1052,8 @@ export enum SocialIdType {
   HULY = 'huly',
   TELEGRAM = 'telegram',
   HULY_ASSISTANT = 'huly-assistant',
-  LOVE = 'office'
+  LOVE = 'office',
+  EXTERNAL = 'external'
 }
 
 export interface SocialId {

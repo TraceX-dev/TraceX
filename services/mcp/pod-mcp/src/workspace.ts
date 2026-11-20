@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -16,6 +17,7 @@
 import { createRestTxOperations } from '@hcengineering/api-client'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { getClient as getCollaboratorClient, type CollaboratorClient } from '@hcengineering/collaborator-client'
+import { ensureEmployee } from '@hcengineering/contact'
 import {
   type MeasureContext,
   type TxOperations,
@@ -86,10 +88,13 @@ export class WorkspaceManager {
     )
     if (login.token === undefined || login.workspace !== workspaceId) throw new Error('Workspace token exchange failed')
     const rawToken = login.token
+    const accountClaims = decodeToken(accountToken, true, this.config.ServerSecret)
     const token = decodeToken(rawToken, true, this.config.ServerSecret)
     if (
-      token.account !== decodeToken(accountToken, true, this.config.ServerSecret).account ||
-      token.workspace !== workspaceId
+      token.account !== accountClaims.account ||
+      token.workspace !== workspaceId ||
+      token.extra?.externalSocialId !== accountClaims.extra?.externalSocialId ||
+      token.extra?.externalConnectionId !== accountClaims.extra?.externalConnectionId
     ) {
       throw new Error('Workspace token exchange returned a different account or workspace')
     }
@@ -148,6 +153,21 @@ export class WorkspaceManager {
     dataId?: WorkspaceDataId
   ): Promise<WorkspaceConnection> {
     const client = await createRestTxOperations(transactorUrl, token.workspace, rawToken, true)
+    try {
+      const account = client.account
+      const accountClient = getAccountClient(this.config.AccountsURL, rawToken)
+      const person = await ensureEmployee(
+        this.ctx,
+        account,
+        client,
+        account.fullSocialIds,
+        async () => await accountClient.getPerson()
+      )
+      if (person === null) throw new Error('Workspace author identity synchronization failed')
+    } catch (error: unknown) {
+      await client.close()
+      throw error
+    }
     const collaborator = getCollaboratorClient(token.workspace, rawToken, this.config.CollaboratorURL)
 
     return {

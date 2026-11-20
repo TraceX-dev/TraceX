@@ -19,7 +19,7 @@ import calendar from '@hcengineering/calendar'
 import chunter from '@hcengineering/chunter'
 import contact from '@hcengineering/contact'
 import controlledDocuments from '@hcengineering/controlled-documents'
-import { type Class, type Client, type Doc, type PersonId, type Ref } from '@hcengineering/core'
+import { type Account, type Class, type Client, type Doc, type Ref } from '@hcengineering/core'
 import document from '@hcengineering/document'
 import platform, { errorToStatus, PlatformError, setMetadata } from '@hcengineering/platform'
 import processPlugin from '@hcengineering/process'
@@ -63,7 +63,12 @@ app.get('/health', (_req, res) => res.status(200).json({ ok: true }))
 
 registerWorkspaceApiResources()
 
-type Handler = (client: Client, primarySocialId: PersonId, workspaceId: string, req: Request) => Promise<unknown>
+type Handler = (
+  client: Client,
+  account: Pick<Account, 'primarySocialId' | 'socialId'>,
+  workspaceId: string,
+  req: Request
+) => Promise<unknown>
 
 type ApiErrorCode = 'validation_error' | 'unauthorized' | 'forbidden' | 'not_found' | 'internal_error'
 
@@ -89,9 +94,13 @@ const withWorkspace =
       const token = getBearerToken(req)
       if (decodeToken(token).workspace !== workspaceId) throw new Error('Invalid workspace')
       const accountClient = getAccountClient(accountsUrl, token)
-      const login = await accountClient.getLoginInfoByToken()
-      if (login === null || !('socialId' in login) || login.socialId === undefined) {
+      const login = await accountClient.getLoginWithWorkspaceInfo()
+      if (login.socialId === undefined || login.primarySocialId === undefined) {
         throw new Error('The API key user has no confirmed social identity')
+      }
+      const account: Pick<Account, 'primarySocialId' | 'socialId'> = {
+        primarySocialId: login.primarySocialId,
+        socialId: login.socialId
       }
       stage = 'connect_workspace'
       logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
@@ -101,7 +110,7 @@ const withWorkspace =
         logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
         stage = 'execute_operation'
         logWorkspaceProgress(req, workspaceId, message, stage, startedAt)
-        const result = await handler(client, login.socialId, workspaceId, req)
+        const result = await handler(client, account, workspaceId, req)
         logWorkspaceProgress(req, workspaceId, message, 'send_response', startedAt)
         await sendJson(res, result)
       } finally {
@@ -117,9 +126,9 @@ const withWorkspace =
 
 const session = (
   client: Client,
-  primarySocialId: PersonId,
+  account: Pick<Account, 'primarySocialId' | 'socialId'>,
   workspaceId: string
-): ReturnType<typeof createV2ClientSession> => createV2ClientSession(client, workspaceId, primarySocialId)
+): ReturnType<typeof createV2ClientSession> => createV2ClientSession(client, workspaceId, account)
 const limit = (req: Request): number | undefined =>
   req.query.limit === undefined ? undefined : Number(req.query.limit)
 const query = (req: Request, key: string): string => (typeof req.query[key] === 'string' ? req.query[key] : '')
@@ -140,50 +149,50 @@ app.get('/api/v2/swagger', (_req, res) => res.type('html').send(publicSwaggerUiH
 app.get('/api/v2/:workspaceId/swagger', (_req, res) => res.type('html').send(swaggerUiHtml()))
 app.get(
   '/api/v2/:workspaceId/swagger.json',
-  withWorkspace('Unable to get workspace OpenAPI schema', async (client, primary, workspaceId) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to get workspace OpenAPI schema', async (client, account, workspaceId) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return getWorkspaceOpenApi(await getV2Schema(ctx, clientSession))
   })
 )
 app.get(
   '/api/v2/:workspaceId/openapi.json',
-  withWorkspace('Unable to get workspace OpenAPI schema', async (client, primary, workspaceId) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to get workspace OpenAPI schema', async (client, account, workspaceId) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return getWorkspaceOpenApi(await getV2Schema(ctx, clientSession))
   })
 )
 app.get(
   '/api/v2/:workspaceId/schema',
-  withWorkspace('Unable to get workspace schema', async (client, primary, workspaceId) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to get workspace schema', async (client, account, workspaceId) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return { classes: await getV2Schema(ctx, clientSession) }
   })
 )
 app.get(
   '/api/v2/:workspaceId/spaces',
-  withWorkspace('Unable to list spaces', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to list spaces', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await getV2Spaces(ctx, clientSession, limit(req), query(req, 'class'))
   })
 )
 app.post(
   '/api/v2/:workspaceId/documents',
-  withWorkspace('Unable to create document', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to create document', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await createV2Document(ctx, clientSession, getBearerToken(req), req.body, document.class.Document)
   })
 )
 app.patch(
   '/api/v2/:workspaceId/documents',
-  withWorkspace('Unable to update document', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to update document', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await patchV2Document(ctx, clientSession, getBearerToken(req), req.body, document.class.Document)
   })
 )
 app.get(
   '/api/v2/:workspaceId/documents',
-  withWorkspace('Unable to list documents', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to list documents', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await getV2Documents(ctx, clientSession, getBearerToken(req), {
       class: query(req, 'class'),
       space: query(req, 'space'),
@@ -195,22 +204,22 @@ app.get(
 
 app.post(
   '/api/v2/:workspaceId/cards',
-  withWorkspace('Unable to create card', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to create card', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await createV2Document(ctx, clientSession, getBearerToken(req), req.body, card.class.Card)
   })
 )
 app.patch(
   '/api/v2/:workspaceId/cards',
-  withWorkspace('Unable to update card', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to update card', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await patchV2Document(ctx, clientSession, getBearerToken(req), req.body, card.class.Card)
   })
 )
 app.get(
   '/api/v2/:workspaceId/cards/:id',
-  withWorkspace('Unable to get card', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to get card', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await getV2Document(
       ctx,
       clientSession,
@@ -223,8 +232,8 @@ app.get(
 )
 app.get(
   '/api/v2/:workspaceId/cards',
-  withWorkspace('Unable to list cards', async (client, primary, workspaceId, req) => {
-    const { ctx, session: clientSession } = session(client, primary, workspaceId)
+  withWorkspace('Unable to list cards', async (client, account, workspaceId, req) => {
+    const { ctx, session: clientSession } = session(client, account, workspaceId)
     return await getV2Documents(ctx, clientSession, getBearerToken(req), {
       class: query(req, 'class'),
       baseClass: card.class.Card,
@@ -237,8 +246,8 @@ app.get(
 
 app.get(
   '/api/v2/:workspaceId/comments',
-  withWorkspace('Unable to list comments', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to list comments', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), ['legacy-comments'], {
       class: query(req, 'class'),
       defaultClass: card.class.Card,
@@ -249,8 +258,8 @@ app.get(
 )
 app.post(
   '/api/v2/:workspaceId/comments',
-  withWorkspace('Unable to create comment', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to create comment', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), ['create-legacy-comment'], {
       class: req.body.target?.class,
       defaultClass: card.class.Card,
@@ -261,8 +270,8 @@ app.post(
 )
 app.get(
   '/api/v2/:workspaceId/chats/messages',
-  withWorkspace('Unable to list chat messages', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to list chat messages', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     const channel = query(req, 'channel')
     return await invokeV2Capability(
       current.ctx,
@@ -280,8 +289,8 @@ app.get(
 )
 app.post(
   '/api/v2/:workspaceId/chats/messages',
-  withWorkspace('Unable to create chat message', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to create chat message', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(
       current.ctx,
       current.session,
@@ -299,8 +308,8 @@ app.post(
 
 app.post(
   '/api/v2/:workspaceId/contacts',
-  withWorkspace('Unable to create contact', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to create contact', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'create', {
       defaultClass: contactClass(req.body.type),
       input: req.body
@@ -309,8 +318,8 @@ app.post(
 )
 app.patch(
   '/api/v2/:workspaceId/contacts',
-  withWorkspace('Unable to update contact', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to update contact', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'patch', {
       defaultClass: contactClass(req.body.type),
       id: req.body.id,
@@ -320,8 +329,8 @@ app.patch(
 )
 app.get(
   '/api/v2/:workspaceId/contacts',
-  withWorkspace('Unable to list contacts', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to list contacts', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'find', {
       defaultClass: contactClass(query(req, 'type') === '' ? 'Person' : query(req, 'type')),
       input: { limit: limit(req) }
@@ -330,8 +339,8 @@ app.get(
 )
 app.get(
   '/api/v2/:workspaceId/calendar/events',
-  withWorkspace('Unable to list calendar events', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to list calendar events', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'find', {
       defaultClass: calendar.class.Event,
       input: { calendar: query(req, 'calendar'), limit: limit(req) }
@@ -340,8 +349,8 @@ app.get(
 )
 app.post(
   '/api/v2/:workspaceId/calendar/events',
-  withWorkspace('Unable to create calendar event', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to create calendar event', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'create', {
       defaultClass: calendar.class.Event,
       input: req.body
@@ -350,8 +359,8 @@ app.post(
 )
 app.patch(
   '/api/v2/:workspaceId/calendar/events',
-  withWorkspace('Unable to update calendar event', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to update calendar event', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'patch', {
       defaultClass: calendar.class.Event,
       id: req.body.id,
@@ -361,8 +370,8 @@ app.patch(
 )
 app.get(
   '/api/v2/:workspaceId/todos',
-  withWorkspace('Unable to list ToDos', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to list ToDos', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'find', {
       defaultClass: toDoClass(query(req, 'type') === '' ? 'ToDo' : query(req, 'type')),
       input: { limit: limit(req) }
@@ -371,8 +380,8 @@ app.get(
 )
 app.post(
   '/api/v2/:workspaceId/todos',
-  withWorkspace('Unable to create ToDo', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to create ToDo', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'create', {
       defaultClass: time.class.ToDo,
       input: req.body
@@ -381,8 +390,8 @@ app.post(
 )
 app.patch(
   '/api/v2/:workspaceId/todos',
-  withWorkspace('Unable to update ToDo', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to update ToDo', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'patch', {
       defaultClass: toDoClass(req.body.type ?? 'ToDo'),
       id: req.body.id,
@@ -393,8 +402,8 @@ app.patch(
 
 app.get(
   '/api/v2/:workspaceId/controlled-documents',
-  withWorkspace('Unable to list controlled documents', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to list controlled documents', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'find', {
       defaultClass: controlledDocuments.class.ControlledDocument,
       input: { limit: limit(req) }
@@ -403,8 +412,8 @@ app.get(
 )
 app.get(
   '/api/v2/:workspaceId/controlled-documents/:id/versions',
-  withWorkspace('Unable to list controlled document versions', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to list controlled document versions', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'versions', {
       defaultClass: controlledDocuments.class.ControlledDocument,
       id: req.params.id
@@ -413,8 +422,8 @@ app.get(
 )
 app.post(
   '/api/v2/:workspaceId/controlled-documents/:id/drafts',
-  withWorkspace('Unable to create controlled document draft', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to create controlled document draft', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'create-draft', {
       defaultClass: controlledDocuments.class.ControlledDocument,
       id: req.params.id
@@ -423,8 +432,8 @@ app.post(
 )
 app.post(
   '/api/v2/:workspaceId/controlled-documents/:id/review',
-  withWorkspace('Unable to send controlled document for review', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to send controlled document for review', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'send-review', {
       defaultClass: controlledDocuments.class.ControlledDocument,
       id: req.params.id,
@@ -434,8 +443,8 @@ app.post(
 )
 app.post(
   '/api/v2/:workspaceId/controlled-documents/:id/approval',
-  withWorkspace('Unable to send controlled document for approval', async (client, primary, workspaceId, req) => {
-    const current = session(client, primary, workspaceId)
+  withWorkspace('Unable to send controlled document for approval', async (client, account, workspaceId, req) => {
+    const current = session(client, account, workspaceId)
     return await invokeV2Capability(current.ctx, current.session, getBearerToken(req), 'send-approval', {
       defaultClass: controlledDocuments.class.ControlledDocument,
       id: req.params.id,

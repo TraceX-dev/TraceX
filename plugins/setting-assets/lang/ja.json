@@ -305,6 +305,8 @@
     "DangerZone": "危険ゾーン",
     "ApiAccess": "APIアクセス",
     "ApiToken": "API キー",
+    "ApplicationOrService": "アプリケーションまたはサービス",
+    "ApplicationOrServiceHint": "例：api、codex、claude。この名前はアクティビティ履歴に表示されます。",
     "ApiKeyTitle": "API キーのタイトル",
     "ApiKeyShownOnce": "この API キーを今すぐコピーしてください。セキュリティ上、再度表示されません。",
     "WorkspaceId": "ワークスペース ID",

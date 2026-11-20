@@ -181,7 +181,7 @@ export interface AccountClient {
   findFullSocialIds: (socialIds: PersonId[]) => Promise<SocialId[]>
   getMailboxOptions: () => Promise<MailboxOptions>
   getMailboxSecret: (mailbox: string) => Promise<MailboxSecret | undefined>
-  createApiKey: (name?: string) => Promise<CreatedApiKey>
+  createApiKey: (name?: string, source?: string) => Promise<CreatedApiKey>
   getApiKeys: () => Promise<ApiKey[]>
   revokeApiKey: (id: string) => Promise<void>
   createMailbox: (name: string, domain: string) => Promise<{ mailbox: string, socialId: PersonId }>
@@ -264,8 +264,6 @@ export interface AccountClient {
   mergeSpecifiedPersons: (primaryPerson: PersonUuid, secondaryPerson: PersonUuid) => Promise<void>
   mergeSpecifiedAccounts: (primaryAccount: AccountUuid, secondaryAccount: AccountUuid) => Promise<void>
   addEmailSocialId: (email: string) => Promise<OtpInfo>
-  addHulyAssistantSocialId: () => Promise<PersonId>
-  refreshHulyAssistantToken: () => Promise<void>
   updatePasswordAgingRule: (days?: number) => Promise<void>
   checkPasswordAging: () => Promise<boolean>
 
@@ -1087,8 +1085,8 @@ class AccountClientImpl implements AccountClient {
     return await this.rpc(request)
   }
 
-  async createApiKey (name?: string): Promise<CreatedApiKey> {
-    return await this.rpc({ method: 'createApiKey' as const, params: { name } })
+  async createApiKey (name?: string, source?: string): Promise<CreatedApiKey> {
+    return await this.rpc({ method: 'createApiKey' as const, params: { name, source } })
   }
 
   async getApiKeys (): Promise<ApiKey[]> {
@@ -1291,24 +1289,6 @@ class AccountClientImpl implements AccountClient {
     }
 
     return await this.rpc(request)
-  }
-
-  async addHulyAssistantSocialId (): Promise<PersonId> {
-    const request = {
-      method: 'addHulyAssistantSocialId' as const,
-      params: {}
-    }
-
-    return await this.rpc(request)
-  }
-
-  async refreshHulyAssistantToken (): Promise<void> {
-    const request = {
-      method: 'refreshHulyAssistantToken' as const,
-      params: {}
-    }
-
-    await this.rpc(request)
   }
 
   async setCookie (): Promise<void> {

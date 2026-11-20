@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -161,7 +162,7 @@
       attachedToClass: time.class.ToDo,
       collection: 'workslots',
       modifiedOn: now,
-      modifiedBy: myAccount.primarySocialId,
+      modifiedBy: myAccount.socialId,
       user: myAccount.primarySocialId
     })
     slots = slots

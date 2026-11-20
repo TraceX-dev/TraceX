@@ -15,7 +15,7 @@
 
 /** Ordered schema migrations for the issuer's private PostgreSQL schema. */
 export function getMigrations (): [string, string][] {
-  return [getV1Migration()]
+  return [getV1Migration(), getV2Migration()]
 }
 
 // Never modify an existing migration. Add a new migration when changing the schema.
@@ -46,5 +46,12 @@ function getV1Migration (): [string, string] {
       expires_on BIGINT NOT NULL
     );
     `
+  ]
+}
+
+function getV2Migration (): [string, string] {
+  return [
+    'openauth_db_v2_external_source',
+    "ALTER TABLE openauth.connection ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'external';"
   ]
 }

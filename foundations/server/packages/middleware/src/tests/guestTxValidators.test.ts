@@ -132,7 +132,14 @@ function makeMiddleware ({ enabled = true, application = APP } = {}): GuestPermi
 }
 
 function makeCtx (role = AccountRole.Guest): MeasureContext<SessionData> {
-  const account: Account = { uuid: GUEST_UUID, role, primarySocialId: GUEST, socialIds: [GUEST], fullSocialIds: [] }
+  const account: Account = {
+    uuid: GUEST_UUID,
+    role,
+    socialId: GUEST,
+    primarySocialId: GUEST,
+    socialIds: [GUEST],
+    fullSocialIds: []
+  }
   const ctx = new MeasureMetricsContext('test', {}) as MeasureContext<SessionData>
   ctx.contextData = { account, broadcast: { txes: [], queue: [], sessions: {} } } as any
   return ctx

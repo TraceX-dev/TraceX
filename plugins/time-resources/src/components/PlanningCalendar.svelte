@@ -130,7 +130,7 @@
           blockTime: true,
           calendar: personalCalendar,
           space: calendar.space.Calendar,
-          modifiedBy: myAcc.primarySocialId,
+          modifiedBy: myAcc.socialId,
           participants: [getCurrentEmployee()],
           modifiedOn: Date.now(),
           date: e.detail.date.getTime(),

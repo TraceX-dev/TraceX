@@ -16,30 +16,12 @@
 import { randomUUID } from 'crypto'
 import type { MeasureContext } from '@hcengineering/core'
 import platform from '@hcengineering/platform'
-import { hashAuditValue, recordAuditEvent, type AuditEvent } from '@hcengineering/server-core'
-import { decodeToken } from '@hcengineering/server-token'
+import { auditActorFromToken, hashAuditValue, recordAuditEvent, type AuditEvent } from '@hcengineering/server-core'
 import type { WorkspaceInvite } from './types'
 
 /** Add only verified caller identity to explicitly selected domain fields. */
 export async function auditAccountEvent (ctx: MeasureContext, event: AuditEvent, token?: string): Promise<void> {
-  let actor: AuditEvent = { event: event.event }
-  if (token != null && token !== '') {
-    try {
-      const { account, workspace, extra } = decodeToken(token)
-      actor = {
-        event: event.event,
-        actorAccountUuid: account,
-        workspaceUuid: workspace,
-        actorService: typeof extra?.service === 'string' ? extra.service : undefined,
-        actorIsAdmin: extra?.admin === 'true',
-        actorUsesApiKey: extra?.apiKey != null,
-        authenticationSubjectUuid: typeof extra?.tfaAccount === 'string' ? extra.tfaAccount : undefined
-      }
-    } catch {
-      // Invalid claims cannot identify the actor of a denied request.
-    }
-  }
-  await recordAuditEvent(ctx, { ...actor, ...event })
+  await recordAuditEvent(ctx, { ...auditActorFromToken(token), ...event })
 }
 
 /** Attribute an exhausted invite to its persisted workspace, never to request parameters. */

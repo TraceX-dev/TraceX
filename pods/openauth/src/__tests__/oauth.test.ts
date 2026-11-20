@@ -127,6 +127,7 @@ describe.each([
       { id: secondWorkspace, name: 'Same name', url: 'second' }
     ]
     app = createOAuthApp(config, store, {
+      delegate: async (token) => token,
       authenticate: async (token) => {
         if (!sessionActive || !['account-session', 'other-session'].includes(token)) throw new Error('Invalid session')
         return { account: token === 'other-session' ? otherAccount : account, token }

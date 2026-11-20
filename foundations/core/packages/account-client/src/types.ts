@@ -64,6 +64,8 @@ export interface LoginInfoWorkspace {
 }
 
 export interface LoginInfoWithWorkspaces extends LoginInfo {
+  /** The account's preferred personal identity; absent when no confirmed identity exists. */
+  primarySocialId?: PersonId
   // Information necessary to handle user <--> transactor connectivity.
   workspaces: Record<WorkspaceUuid, LoginInfoWorkspace>
   socialIds: SocialId[]
@@ -150,6 +152,7 @@ export interface MailboxSecret {
 export interface ApiKey {
   id: string
   name: string
+  source?: string
   /** Last characters of the key, retained solely to identify it in the settings list. */
   keySuffix?: string
   workspaceUuid: WorkspaceUuid

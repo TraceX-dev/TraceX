@@ -44,7 +44,7 @@ export async function updateDocReactions (
     await client.addCollection(activity.class.Reaction, object.space, object._id, object._class, 'reactions', {
       emoji,
       image,
-      createBy: currentAccount.primarySocialId
+      createBy: currentAccount.socialId
     })
   } else {
     await client.remove(reaction)

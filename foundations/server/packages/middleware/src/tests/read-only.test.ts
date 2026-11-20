@@ -41,6 +41,7 @@ function context (readonly?: boolean, role: AccountRole = AccountRole.User): Mea
     uuid: 'test:account:reader' as AccountUuid,
     role,
     primarySocialId: SOCIAL,
+    socialId: SOCIAL,
     socialIds: [SOCIAL],
     fullSocialIds: []
   }

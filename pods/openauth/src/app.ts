@@ -14,6 +14,7 @@
 //
 
 import { randomUUID } from 'node:crypto'
+import { normalizeExternalSource } from '@hcengineering/core'
 import { issuer } from '@openauthjs/openauth'
 import { createSubjects } from '@openauthjs/openauth/subject'
 import type { Provider } from '@openauthjs/openauth/provider/provider'
@@ -31,6 +32,7 @@ interface SubjectProperties {
 }
 
 interface AccountAccess {
+  delegate: (token: string, source: string, connectionId: string) => Promise<string>
   authenticate: (token: string, requireAccountToken: boolean) => Promise<TraceXIdentity>
   getWorkspaces: (token: string) => Promise<OAuthWorkspace[]>
   isServiceToken: (token: string) => boolean
@@ -64,6 +66,7 @@ function pendingLogin (value: unknown): PendingLogin | undefined {
     clientId: value.clientId,
     authorization: value.authorization,
     account: typeof value.account === 'string' ? value.account : undefined,
+    source: typeof value.source === 'string' ? value.source : undefined,
     accountToken: typeof value.accountToken === 'string' ? value.accountToken : undefined,
     workspaceId: value.workspaceId === null || typeof value.workspaceId === 'string' ? value.workspaceId : undefined
   }
@@ -177,6 +180,12 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
       return c.json({ error: 'invalid_request' }, 400)
     }
     const workspaceId = input.workspaceId
+    let source: string
+    try {
+      source = normalizeExternalSource(typeof input.source === 'string' ? input.source : 'external')
+    } catch {
+      return c.json({ error: 'invalid_request' }, 400)
+    }
     return await store.withLock(`login:${c.req.param('id')}`, async () => {
       const key = ['login', c.req.param('id')]
       const pending = pendingLogin(await store.get(key))
@@ -195,7 +204,7 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
       }
       await store.set(
         key,
-        { ...pending, account: identity.account, accountToken: identity.token, workspaceId },
+        { ...pending, account: identity.account, accountToken: identity.token, workspaceId, source },
         new Date(Date.now() + 60_000)
       )
       return c.json({
@@ -264,15 +273,21 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
     if (resolved === undefined || resolved.connection.resource !== config.resourceUrl) {
       return c.json({ error: 'invalid_token' }, 401)
     }
+    let accountToken: string
     try {
       await accounts.authenticate(resolved.connection.accountToken, true)
+      accountToken = await accounts.delegate(
+        resolved.connection.accountToken,
+        resolved.connection.source ?? 'external',
+        resolved.connection.id
+      )
     } catch {
       return c.json({ error: 'invalid_token' }, 401)
     }
     return c.json({
       connectionId: resolved.connection.id,
       account: resolved.connection.account,
-      accountToken: resolved.connection.accountToken,
+      accountToken,
       clientId: resolved.connection.clientId,
       workspaceId: resolved.connection.workspaceId,
       resource: resolved.connection.resource,
@@ -326,6 +341,7 @@ export function createOAuthApp (config: OAuthConfig, store: OAuthStore, accounts
             workspaceId: pending.workspaceId,
             clientId: client.id,
             clientName: client.name,
+            source: pending.source ?? 'external',
             resource: config.resourceUrl,
             createdOn: Date.now()
           })

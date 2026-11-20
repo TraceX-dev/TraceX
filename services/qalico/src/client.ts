@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -23,7 +24,7 @@ export async function getClient (workspace: WorkspaceUuid, token: string): Promi
   const account = await client.getAccount()
   const { model, hierarchy } = await client.getModel()
 
-  return new TxOperations(new RestClientAdapter(client, hierarchy, model), account.primarySocialId)
+  return new TxOperations(new RestClientAdapter(client, hierarchy, model), account.socialId)
 }
 
 function toHttpUrl (url: string): string {

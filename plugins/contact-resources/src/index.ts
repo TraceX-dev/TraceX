@@ -15,6 +15,8 @@
 // limitations under the License.
 //
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import ExternalSourcePresenter from './components/ExternalSourcePresenter.svelte'
+
 import {
   getGravatarUrl,
   getName,
@@ -190,6 +192,7 @@ export {
   EmployeeEditor,
   EmployeePresenter,
   EmployeeRefPresenter,
+  ExternalSourcePresenter,
   ExpandRightDouble,
   IconAddMember,
   IconMembers,
@@ -364,6 +367,7 @@ export default async (): Promise<Resources> => ({
     NameChangedActivityMessage
   },
   component: {
+    ExternalSourcePresenter,
     CreateGuest,
     ContactArrayEditor,
     PersonEditor,

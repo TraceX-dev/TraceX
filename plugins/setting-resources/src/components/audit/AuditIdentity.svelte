@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
   import { employeeByAccountStore, EmployeePresenter } from '@hcengineering/contact-resources'
+  import { ExternalSourcePresenter } from '@hcengineering/contact-resources'
   import type { AccountUuid } from '@hcengineering/core'
   import { Label } from '@hcengineering/ui'
   import setting from '../../plugin'
@@ -28,14 +29,15 @@
   $: person = account !== undefined ? $employeeByAccountStore.get(account as AccountUuid) : undefined
 </script>
 
-{#if service}
-  <span class="select-text">{service}</span>
-{:else if person !== undefined}
+{#if person !== undefined}
   <EmployeePresenter value={person} avatarSize="x-small" showPopup={false} colorInherit noUnderline disabled />
 {:else if account}
   <span class="identity select-text">{account}</span>
 {:else}
   <span class="content-dark-color"><Label label={setting.string.UnknownActor} /></span>
+{/if}
+{#if service}
+  <ExternalSourcePresenter source={service} />
 {/if}
 
 <style lang="scss">

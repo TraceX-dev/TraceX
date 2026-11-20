@@ -203,10 +203,12 @@
     const guestUserInfo = await accountClient.updateAllowReadOnlyGuests(enabled)
     allowReadOnlyGuests = enabled
     if (guestUserInfo !== undefined) {
+      const primarySocialId = pickPrimarySocialId(guestUserInfo.guestSocialIds)._id
       const guestAccount: Account = {
         uuid: guestUserInfo.guestPerson.uuid as AccountUuid,
         role: AccountRole.ReadOnlyGuest,
-        primarySocialId: pickPrimarySocialId(guestUserInfo.guestSocialIds)._id,
+        primarySocialId,
+        socialId: primarySocialId,
         socialIds: guestUserInfo.guestSocialIds.map((si) => si._id),
         fullSocialIds: guestUserInfo.guestSocialIds
       }

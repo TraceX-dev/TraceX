@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -96,6 +97,7 @@ describe('rest-api-server', () => {
         uuid: apiWorkspace1.info.account,
         role: apiWorkspace1.info.role,
         primarySocialId: pickPrimarySocialId(socialIds)._id,
+        socialId: pickPrimarySocialId(socialIds)._id,
         socialIds: socialIds.map((si) => si._id),
         fullSocialIds: socialIds
       },
@@ -110,6 +112,7 @@ describe('rest-api-server', () => {
         uuid: apiWorkspace2.info.account,
         role: apiWorkspace2.info.role,
         primarySocialId: pickPrimarySocialId(socialIds)._id,
+        socialId: pickPrimarySocialId(socialIds)._id,
         socialIds: socialIds.map((si) => si._id),
         fullSocialIds: socialIds
       },
