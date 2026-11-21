@@ -18,8 +18,9 @@
   import core, { Class, ClassifierKind, Data, Ref, toRank } from '@hcengineering/core'
   import { makeRank } from '@hcengineering/rank'
   import { getEmbeddedLabel } from '@hcengineering/platform'
-  import { Card, getClient } from '@hcengineering/presentation'
+  import { Card, getClient, IconWithEmoji } from '@hcengineering/presentation'
   import { EditBox, getColorNumberByText, Icon, Label } from '@hcengineering/ui'
+  import view from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import card from '../plugin'
   import { Analytics } from '@hcengineering/analytics'
@@ -33,6 +34,8 @@
   const dispatch = createEventDispatcher()
 
   $: isMasterTag = _class === card.class.MasterTag
+  $: icon = isMasterTag ? (parent?.icon ?? card.icon.MasterTag) : card.icon.Tag
+  $: color = isMasterTag ? parent?.color : undefined
 
   function getLastSiblingRank (): string | undefined {
     if (parent === undefined) return
@@ -54,7 +57,8 @@
       label: getEmbeddedLabel(name),
       description: description.trim().length > 0 ? description.trim() : undefined,
       kind: isMasterTag ? ClassifierKind.CLASS : ClassifierKind.MIXIN,
-      icon: isMasterTag ? card.icon.MasterTag : card.icon.Tag,
+      icon,
+      color,
       background: getColorNumberByText(name),
       ...(isMasterTag ? {} : { rank: makeRank(getLastSiblingRank(), undefined) })
     }
@@ -77,7 +81,11 @@
 >
   <svelte:fragment slot="header">
     <div class="flex-row-center">
-      <Icon icon={isMasterTag ? card.icon.MasterTag : card.icon.Tag} size={'large'} />
+      <Icon
+        icon={icon === view.ids.IconWithEmoji ? IconWithEmoji : icon}
+        iconProps={icon === view.ids.IconWithEmoji ? { icon: color } : {}}
+        size={'large'}
+      />
       <div class="ml-2">
         <Label label={parent?.label ?? (isMasterTag ? card.string.MasterTag : card.string.Tag)} />
       </div>
