@@ -182,7 +182,7 @@ test.describe('TraceX tables in documents', () => {
 
     test('Markdown format pastes a plain table without metadata', async () => {
       await createIssue()
-      const text = await copyIssueTable('Markdown (plain text)')
+      const text = await copyIssueTable('Plain text (Markdown) — not linked')
       expect(text).toContain(issueTitle)
       expect(text).not.toContain(TABLE_METADATA_MARKER)
 
