@@ -21,6 +21,7 @@
   import { downloadCatalogRelease, getMarketplaceClient } from '../catalog'
   import DefinitionPackageInstallPopup from './DefinitionPackageInstallPopup.svelte'
   import PackageCard from './PackageCard.svelte'
+  import PackageOrigin from './PackageOrigin.svelte'
 
   export let entry: CatalogPackage
   export let masterTag: Ref<MasterTag> | undefined = undefined
@@ -94,6 +95,7 @@
           <time class="text-sm content-dark-color" datetime={new Date(release.publishedOn).toISOString()}>
             {new Date(release.publishedOn).toLocaleDateString()}
           </time>
+          <PackageOrigin identity={entry} version={release.version} />
         </div>
         <Button label={marketplace.string.InstallPackage} disabled={busy} on:click={() => install(release.version)} />
       </div>

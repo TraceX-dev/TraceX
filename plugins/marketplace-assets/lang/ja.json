@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "公開元",
     "RemovingDependencyLinksKeepsPackagesInstalled": "依存関係のリンクを削除しても、パッケージ、プロセス設定、実行中の処理は保持されます。",
     "PackageDependencies": "パッケージの依存関係",
     "MakePackage": "パッケージを作成",

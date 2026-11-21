@@ -10,10 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { AccountUuid } from '@hcengineering/core'
+import type { AccountUuid, WorkspaceUuid } from '@hcengineering/core'
 import {
   type CatalogPackage,
   type CatalogPackageIdentity,
+  type CatalogPackageOrigin,
   createDefinitionPackageRelease,
   serializeDefinitionPackageRelease,
   MarketplaceClient,
@@ -29,6 +30,13 @@ import type { CatalogStore } from '../store'
 const author = '267c1923-5983-4ab0-ac89-82f481836724' as AccountUuid
 const stranger = 'ac842ec2-bd9e-4f51-86ef-ce1393386348' as AccountUuid
 const identity: CatalogPackageIdentity = { id: 'acme/review', author }
+const origin: CatalogPackageOrigin = {
+  workspace: '44371923-5983-4ab0-ac89-82f481836724' as WorkspaceUuid,
+  workspaceName: 'Private client workspace',
+  workspaceUrl: 'private-client',
+  path: ['setting', 'types', 'source-type'],
+  labels: ['Requests', 'Approval']
+}
 const definition = readFileSync(
   `${__dirname}/../../../../plugins/process/docs/examples/review-task.process.yaml`,
   'utf8'
@@ -58,15 +66,18 @@ describe('Marketplace HTTP boundary', () => {
     setVisibility: jest.fn(),
     releases: jest.fn(),
     download: jest.fn(),
+    origin: jest.fn(),
     publish: jest.fn()
   }
   const resolveRecipient = jest.fn<Promise<AccountUuid>, [string, string]>()
+  const resolveWorkspace = jest.fn()
   const onError = jest.fn()
   beforeAll(async () => {
     server = createCatalogServer({
       store,
       onError,
       resolveRecipient,
+      resolveWorkspace,
       authenticate: async (token) => {
         if (token === 'recipient-token') return { uuid: stranger, name: 'Recipient' }
         if (token !== 'signed-account') throw new CatalogError(401, 'Invalid token')
@@ -89,6 +100,8 @@ describe('Marketplace HTTP boundary', () => {
   })
   beforeEach(() => {
     jest.clearAllMocks()
+    resolveWorkspace.mockReset()
+    store.origin.mockReset()
     store.readers.mockResolvedValue([])
     resolveRecipient.mockResolvedValue(stranger)
   })
@@ -134,6 +147,84 @@ describe('Marketplace HTTP boundary', () => {
     store.publish.mockRejectedValueOnce(new CatalogError(403, 'Only the package owner can publish releases'))
     await expect(client.publish(await artifact(stranger))).rejects.toMatchObject({ status: 403 })
     expect(store.publish).toHaveBeenCalledWith(expect.objectContaining({ author: stranger, publisher: author }))
+  })
+
+  it('stores provenance separately from YAML and resolves workspace metadata through the authority', async () => {
+    resolveWorkspace.mockResolvedValueOnce({ name: origin.workspaceName, url: origin.workspaceUrl })
+    const source = await artifact()
+    await client.publish(source, '', 'public', origin)
+    expect(resolveWorkspace).toHaveBeenCalledWith('signed-account', origin.workspace)
+    expect(store.publish).toHaveBeenCalledWith(expect.objectContaining({ origin, publisher: author }))
+    expect(store.publish.mock.calls[0][0].source).not.toContain(origin.workspaceName)
+    expect(store.publish.mock.calls[0][0].source).not.toContain(origin.workspace)
+  })
+
+  it('rejects unverified workspaces and malformed origin headers before publishing', async () => {
+    resolveWorkspace.mockResolvedValue(undefined)
+    await expect(client.publish(await artifact(), '', 'public', origin)).rejects.toMatchObject({ status: 403 })
+    const headers = {
+      Authorization: 'Bearer signed-account',
+      'Content-Type': 'application/yaml',
+      'X-Marketplace-Origin': '%invalid'
+    }
+    expect((await fetch(`${url}/releases`, { method: 'POST', headers, body: await artifact() })).status).toBe(400)
+    await expect(
+      client.publish(await artifact(), '', 'public', { ...origin, path: ['arbitrary-app'] })
+    ).rejects.toMatchObject({ status: 400 })
+    expect(store.publish).not.toHaveBeenCalled()
+  })
+
+  it('shows provenance to the current owner without requiring source workspace access', async () => {
+    store.origin.mockResolvedValue(origin)
+    expect(await client.origin(identity, '1.0.0')).toEqual(origin)
+    expect(store.origin).toHaveBeenCalledWith(identity, author, '1.0.0')
+    expect(resolveWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('reveals no provenance to package readers even with source workspace membership', async () => {
+    store.origin.mockResolvedValue(undefined)
+    resolveWorkspace.mockResolvedValue({ name: origin.workspaceName, url: origin.workspaceUrl })
+    const reader = new MarketplaceClient(url, 'recipient-token')
+    expect(await reader.origin(identity)).toBeUndefined()
+    const response = await fetch(`${url}/package/origin?${new URLSearchParams({ ...identity })}`, {
+      headers: { Authorization: 'Bearer recipient-token' }
+    })
+    expect(response.status).toBe(404)
+    const body = await response.text()
+    for (const secret of [
+      origin.workspace,
+      origin.workspaceName,
+      origin.workspaceUrl,
+      ...origin.path,
+      ...origin.labels
+    ]) {
+      expect(body).not.toContain(secret)
+    }
+    expect(store.origin).toHaveBeenCalledWith(identity, stranger, undefined)
+    expect(resolveWorkspace).not.toHaveBeenCalled()
+    expect(store.readers).not.toHaveBeenCalled()
+  })
+
+  it('moves origin access to the current owner after transfer, including for earlier releases', async () => {
+    let owner = author
+    store.origin.mockImplementation(async (_identity, viewer) => (viewer === owner ? origin : undefined))
+    store.transferOwnership.mockImplementationOnce(async (_identity, _viewer, recipient) => {
+      owner = recipient
+    })
+    const recipient = new MarketplaceClient(url, 'recipient-token')
+    expect(await client.origin(identity, '1.0.0')).toEqual(origin)
+    expect(await recipient.origin(identity, '1.0.0')).toBeUndefined()
+    await client.transferOwnership(identity, 'recipient@example.com')
+    expect(await client.origin(identity, '1.0.0')).toBeUndefined()
+    expect(await recipient.origin(identity, '1.0.0')).toEqual(origin)
+    expect(resolveWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('uses the same missing-origin response for legacy releases and requires authentication', async () => {
+    store.origin.mockResolvedValue(undefined)
+    expect(await client.origin(identity)).toBeUndefined()
+    expect((await fetch(`${url}/package/origin?${new URLSearchParams({ ...identity })}`)).status).toBe(401)
+    expect(resolveWorkspace).not.toHaveBeenCalled()
   })
 
   it('rejects a modified release digest and malformed definitions before storage', async () => {

@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "来源",
     "RemovingDependencyLinksKeepsPackagesInstalled": "删除依赖链接后，软件包仍保持安装状态，其流程配置和正在进行的执行也会保留。",
     "PackageDependencies": "软件包依赖项",
     "MakePackage": "创建包",

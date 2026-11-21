@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Původ",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Odstranění odkazu na závislost ponechá balíček nainstalovaný, včetně nastavení procesů a aktivních běhů.",
     "PackageDependencies": "Závislosti balíčku",
     "MakePackage": "Vytvořit balíček",

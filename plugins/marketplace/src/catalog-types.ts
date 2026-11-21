@@ -10,7 +10,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { AccountUuid } from '@hcengineering/core'
+import type { AccountUuid, WorkspaceUuid } from '@hcengineering/core'
+
+/** Private provenance sent separately from portable package contents. */
+export interface CatalogPackageOriginInput {
+  workspace: WorkspaceUuid
+  path: string[]
+  labels: string[]
+}
+
+/** Workspace names and URLs are resolved by the account authority at publication time. */
+export interface CatalogPackageOrigin extends CatalogPackageOriginInput {
+  workspaceName: string
+  workspaceUrl: string
+}
 
 /** Catalog identities retain the original author's global account, independently of current ownership. */
 export interface CatalogPackageIdentity {

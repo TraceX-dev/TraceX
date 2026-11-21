@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "출처",
     "RemovingDependencyLinksKeepsPackagesInstalled": "종속성 연결을 제거해도 패키지, 프로세스 설정 및 활성 실행은 유지됩니다.",
     "PackageDependencies": "패키지 종속성",
     "MakePackage": "패키지 만들기",

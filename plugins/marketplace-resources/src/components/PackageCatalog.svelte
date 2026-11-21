@@ -36,6 +36,7 @@
   import DefinitionPackageInstallPopup from './DefinitionPackageInstallPopup.svelte'
   import PackageVersionsPopup from './PackageVersionsPopup.svelte'
   import PackageCard from './PackageCard.svelte'
+  import PackageOrigin from './PackageOrigin.svelte'
   import PackageAccessPopup from './PackageAccessPopup.svelte'
 
   export let kind: CatalogPackage['kind'] | undefined = undefined
@@ -198,6 +199,7 @@
               visibility={entry.visibility}
               installedVersions={getInstalledPackageVersions(entry, installations)}
             >
+              <PackageOrigin identity={entry} version={entry.version} />
               <svelte:fragment slot="actions">
                 <Button
                   label={marketplace.string.InstallPackage}

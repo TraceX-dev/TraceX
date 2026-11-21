@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Origine",
     "RemovingDependencyLinksKeepsPackagesInstalled": "La rimozione del collegamento alla dipendenza mantiene il pacchetto installato, incluse la configurazione dei processi e le esecuzioni attive.",
     "PackageDependencies": "Dipendenze del pacchetto",
     "MakePackage": "Crea pacchetto",
