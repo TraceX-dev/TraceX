@@ -33,5 +33,6 @@
   "HULYLAKE_URL": "http://tracex.local:8096",
   "EXCLUDED_APPLICATIONS_FOR_ANONYMOUS": "[]",
   "ANALYTICS_COLLECTOR_URL": "http://tracex.local:4017",
-  "LINK_PREVIEW_URL": "http://tracex.local:4041"
+  "LINK_PREVIEW_URL": "http://tracex.local:4041",
+  "DISABLED_FEATURES": "mail,auto-translate,github,inventory,survey,lead,recruit,gmail,mailboxes,testManagement,telegram,hr"
 }
