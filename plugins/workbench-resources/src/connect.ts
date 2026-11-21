@@ -277,6 +277,10 @@ async function doConnect (title: string, connectId: number): Promise<Client | un
   }
   _token = token
 
+  // A connection that never received hello (e.g. model version mismatch) is never assigned to _client,
+  // so it is not closed on workspace switch. Ignore its callbacks to keep it from touching the current UI.
+  const isStale = (): boolean => _token !== token
+
   const clientFactory = await getResource(client.function.GetClient)
   let version: Version | undefined
   const newClient = await ctx.with(
@@ -285,6 +289,7 @@ async function doConnect (title: string, connectId: number): Promise<Client | un
     async (ctx) =>
       await clientFactory(token, endpoint, {
         onHello: (serverVersion?: string) => {
+          if (isStale()) return false
           const frontVersion = getMetadata(presentation.metadata.FrontVersion)
           if (
             serverVersion !== undefined &&
@@ -327,10 +332,12 @@ async function doConnect (title: string, connectId: number): Promise<Client | un
           return true
         },
         onUpgrade: () => {
+          if (isStale()) return
           console.log('reload due to upgrade')
           location.reload()
         },
         onError: (status: StatusCode) => {
+          if (isStale()) return
           switch (status) {
             case platform.status.WorkspaceArchived: {
               const selectWorkspace: Pages = 'selectWorkspace'
@@ -391,6 +398,7 @@ async function doConnect (title: string, connectId: number): Promise<Client | un
         },
         // We need to refresh all active live queries and clear old queries.
         onConnect: async (event: ClientConnectEvent, data: any): Promise<void> => {
+          if (isStale()) return
           console.log('WorkbenchClient: onConnect', event)
           if (event === ClientConnectEvent.Maintenance) {
             if (data != null && data.total !== 0) {
@@ -489,6 +497,7 @@ async function doConnect (title: string, connectId: number): Promise<Client | un
         },
         ctx,
         onDialTimeout: async () => {
+          if (isStale()) return
           const newLoginInfo = await ctx.with(
             'select-workspace',
             {},
