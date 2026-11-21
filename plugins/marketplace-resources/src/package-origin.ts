@@ -60,10 +60,12 @@ export async function findLocalPackageOrigin (
   ]
   const definition = definitions.find((candidate) => {
     const info = candidate.definitionPackage
-    return info !== undefined &&
+    return (
+      info !== undefined &&
       info.id === release.package.id &&
       info.author === release.package.author &&
       info.version === release.package.version
+    )
   })
   return definition === undefined ? undefined : await createPackageOrigin(definition)
 }

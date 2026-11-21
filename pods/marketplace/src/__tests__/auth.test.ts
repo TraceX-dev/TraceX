@@ -34,7 +34,12 @@ const authenticate = createAuthenticator('https://accounts.example.test', secret
 
 beforeEach(() => {
   jest.clearAllMocks()
-  const client: Partial<ReturnType<typeof getClient>> = { getAccountInfo, getPerson, resolveAccountByEmail, getUserWorkspaces }
+  const client: Partial<ReturnType<typeof getClient>> = {
+    getAccountInfo,
+    getPerson,
+    resolveAccountByEmail,
+    getUserWorkspaces
+  }
   jest.mocked(getClient).mockReturnValue(client as ReturnType<typeof getClient>)
   getAccountInfo.mockResolvedValue({})
   getPerson.mockResolvedValue({ firstName: 'Jane', lastName: 'Doe' })

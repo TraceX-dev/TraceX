@@ -12,7 +12,11 @@
 
 import card, { type MasterTag } from '@hcengineering/card'
 import type { AccountUuid, Doc, FindResult, Ref, WorkspaceUuid } from '@hcengineering/core'
-import type { DefinitionPackageInfo, DefinitionPackageOwner, DefinitionPackageRelease } from '@hcengineering/marketplace'
+import type {
+  DefinitionPackageInfo,
+  DefinitionPackageOwner,
+  DefinitionPackageRelease
+} from '@hcengineering/marketplace'
 import { getEmbeddedLabel } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
 import process, { type Process } from '@hcengineering/process'
@@ -36,16 +40,22 @@ const client: Partial<ReturnType<typeof getClient>> = {
   getModel: () => model as ReturnType<ReturnType<typeof getClient>['getModel']>
 }
 const root: Partial<MasterTag> = {
-  _id: 'source-root' as Ref<MasterTag>, _class: card.class.MasterTag,
-  extends: card.class.Card, label: getEmbeddedLabel('Requests')
+  _id: 'source-root' as Ref<MasterTag>,
+  _class: card.class.MasterTag,
+  extends: card.class.Card,
+  label: getEmbeddedLabel('Requests')
 }
 const tag: Partial<MasterTag> = {
-  _id: 'source-tag' as Ref<MasterTag>, _class: card.class.Tag,
-  extends: root._id, label: getEmbeddedLabel('Approvals')
+  _id: 'source-tag' as Ref<MasterTag>,
+  _class: card.class.Tag,
+  extends: root._id,
+  label: getEmbeddedLabel('Approvals')
 }
 const workflow: Partial<Process> = {
-  _id: 'source-process' as Ref<Process>, _class: process.class.Process,
-  masterTag: tag._id, name: 'Review request'
+  _id: 'source-process' as Ref<Process>,
+  _class: process.class.Process,
+  masterTag: tag._id,
+  name: 'Review request'
 }
 
 beforeEach(() => {
@@ -61,15 +71,23 @@ beforeEach(() => {
 it('retains the complete card type and nested tag breadcrumb with a direct settings link', async () => {
   expect(await createPackageOrigin(tag as DefinitionPackageOwner)).toEqual({
     workspace: '44371923-5983-4ab0-ac89-82f481836724',
-    path: ['setting', 'types', 'source-tag'], labels: ['Requests', 'Approvals']
+    path: ['setting', 'types', 'source-tag'],
+    labels: ['Requests', 'Approvals']
   })
   expect((await createPackageOrigin(root as DefinitionPackageOwner)).labels).toEqual(['Requests'])
 })
 
 it('links a process to its own type and editor rather than the currently selected package owner', async () => {
   const location: Location = {
-    path: ['workbench', 'source-workspace', 'setting', 'types', 'another-type',
-      'process:component:ProcessEditor', 'another-process']
+    path: [
+      'workbench',
+      'source-workspace',
+      'setting',
+      'types',
+      'another-type',
+      'process:component:ProcessEditor',
+      'another-process'
+    ]
   }
   jest.mocked(getCurrentResolvedLocation).mockReturnValue(location)
   expect(await createPackageOrigin(workflow as DefinitionPackageOwner)).toEqual({
@@ -81,7 +99,9 @@ it('links a process to its own type and editor rather than the currently selecte
 
 it('recovers uploaded file provenance from exact live package membership and never guesses from YAML labels', async () => {
   const info: DefinitionPackageInfo = {
-    id: 'test/package', version: '1.0.0', author: '267c1923-5983-4ab0-ac89-82f481836724' as AccountUuid
+    id: 'test/package',
+    version: '1.0.0',
+    author: '267c1923-5983-4ab0-ac89-82f481836724' as AccountUuid
   }
   const local: Partial<DefinitionPackageOwner> = { ...tag, definitionPackage: info }
   documents.set(String(tag._id), local as DefinitionPackageOwner)

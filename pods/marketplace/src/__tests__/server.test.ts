@@ -167,8 +167,9 @@ describe('Marketplace HTTP boundary', () => {
       'X-Marketplace-Origin': '%invalid'
     }
     expect((await fetch(`${url}/releases`, { method: 'POST', headers, body: await artifact() })).status).toBe(400)
-    await expect(client.publish(await artifact(), '', 'public', { ...origin, path: ['arbitrary-app'] }))
-      .rejects.toMatchObject({ status: 400 })
+    await expect(
+      client.publish(await artifact(), '', 'public', { ...origin, path: ['arbitrary-app'] })
+    ).rejects.toMatchObject({ status: 400 })
     expect(store.publish).not.toHaveBeenCalled()
   })
 
@@ -189,7 +190,13 @@ describe('Marketplace HTTP boundary', () => {
     })
     expect(response.status).toBe(404)
     const body = await response.text()
-    for (const secret of [origin.workspace, origin.workspaceName, origin.workspaceUrl, ...origin.path, ...origin.labels]) {
+    for (const secret of [
+      origin.workspace,
+      origin.workspaceName,
+      origin.workspaceUrl,
+      ...origin.path,
+      ...origin.labels
+    ]) {
       expect(body).not.toContain(secret)
     }
     expect(store.origin).toHaveBeenCalledWith(identity, stranger, undefined)
@@ -199,7 +206,7 @@ describe('Marketplace HTTP boundary', () => {
 
   it('moves origin access to the current owner after transfer, including for earlier releases', async () => {
     let owner = author
-    store.origin.mockImplementation(async (_identity, viewer) => viewer === owner ? origin : undefined)
+    store.origin.mockImplementation(async (_identity, viewer) => (viewer === owner ? origin : undefined))
     store.transferOwnership.mockImplementationOnce(async (_identity, _viewer, recipient) => {
       owner = recipient
     })

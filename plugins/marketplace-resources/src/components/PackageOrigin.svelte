@@ -38,9 +38,12 @@
   }
 
   $: void load(identity, version)
-  $: href = origin === undefined ? '' : locationToUrl({
-    path: [getCurrentResolvedLocation().path[0], origin.workspaceUrl, ...origin.path]
-  })
+  $: href =
+    origin === undefined
+      ? ''
+      : locationToUrl({
+          path: [getCurrentResolvedLocation().path[0], origin.workspaceUrl, ...origin.path]
+        })
 </script>
 
 {#if origin !== undefined}

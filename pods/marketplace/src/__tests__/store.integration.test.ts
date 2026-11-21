@@ -79,7 +79,10 @@ integration('Marketplace PostgreSQL release storage', () => {
     expect(await store.origin(publication, author)).toBeUndefined()
     expect(await store.origin(publication, other)).toEqual(origin)
     await store.publish({
-      ...publication, publisher: other, version: '1.0.1', contentHash: 'updated',
+      ...publication,
+      publisher: other,
+      version: '1.0.1',
+      contentHash: 'updated',
       origin: { ...origin, labels: ['New source'] }
     })
     expect(await store.origin(publication, author, '1.0.0')).toBeUndefined()
