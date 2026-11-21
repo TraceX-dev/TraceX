@@ -250,7 +250,10 @@ function checkSpace (account: AccountUuid, space: Space, control: TriggerControl
   }
 
   if (!isMember) {
-    res.push(control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { $push: { members: account } }))
+    // Derived txes bypass SpaceMembershipMiddleware: write the source field, members is recomputed from it.
+    res.push(
+      control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { $push: { directMembers: account } })
+    )
   }
 
   return true

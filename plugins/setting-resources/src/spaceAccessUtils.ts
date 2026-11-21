@@ -13,9 +13,16 @@
 // limitations under the License.
 //
 
-import type { Space } from '@hcengineering/core'
+import {
+  computeSpaceMembers,
+  notEmpty,
+  readOnlyGuestAccountUuid,
+  type Ref,
+  type Space,
+  type UserGroup
+} from '@hcengineering/core'
 
-export type SpaceOperation = 'members' | 'autojoin' | 'guest-autojoin'
+export type SpaceOperation = 'members' | 'groups' | 'autojoin' | 'guest-autojoin'
 
 export function getSpaceOperationKey (space: Space, operation: SpaceOperation): string {
   return `${space._id}:${operation}`
@@ -28,4 +35,32 @@ export function isSpaceOperationPending (
 ): boolean {
   if (operation !== undefined) return pendingOperations.has(getSpaceOperationKey(space, operation))
   return [...pendingOperations].some((key) => key.startsWith(`${space._id}:`))
+}
+
+/** A change of user groups or of their bindings, checked before it is written. */
+export interface UserGroupsChange {
+  /** The groups after the change (a removed group is absent, a changed one has its new members). */
+  groups: UserGroup[]
+  /** New bindings of spaces, by space. Spaces not listed keep their groups. */
+  bindings?: Map<Ref<Space>, Array<Ref<UserGroup>>>
+}
+
+/**
+ * Private spaces that have members now and would have none after the change: nobody could open them anymore, not
+ * even workspace owners in Access control. `members` after the change is `directMembers ∪ members of groups`, as
+ * the server computes it.
+ */
+export function getSpacesLeftWithoutMembers (spaces: Space[], change: UserGroupsChange): Space[] {
+  const groups = new Map(change.groups.map((group) => [group._id, group]))
+  return spaces.filter((space) => {
+    if (!space.private || space.archived) return false
+    const current = space.members.filter((member) => member !== readOnlyGuestAccountUuid)
+    if (current.length === 0) return false
+    const bound = change.bindings?.get(space._id) ?? space.groups ?? []
+    const next = computeSpaceMembers(
+      space.directMembers ?? space.members,
+      bound.map((id) => groups.get(id)).filter(notEmpty)
+    )
+    return next.filter((member) => member !== readOnlyGuestAccountUuid).length === 0
+  })
 }

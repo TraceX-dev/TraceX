@@ -57,4 +57,7 @@ echo "Assigning user1 to workspaces..."
 ./tool.sh assign-workspace user1 api-tests
 ./tool.sh assign-workspace user1 api-tests-cr
 
+echo "Assigning user2 to api-tests as maintainer (user groups tests)..."
+./tool.sh set-user-role user2 api-tests MAINTAINER
+
 rm -rf ./sanity/.auth

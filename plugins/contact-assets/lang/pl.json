@@ -158,6 +158,7 @@
     "AnonymousGuestAccessWorkspaceOffNote": "Anonimowy dostęp gości jest wyłączony w tym obszarze roboczym",
     "AnonymousGuestAccessOwnerOnlyNote": "Tylko właściciele mogą zmienić to ustawienie",
     "PublicBadge": "Publiczne",
-    "SpaceMembershipGroup": "Członkostwo"
+    "SpaceMembershipGroup": "Członkostwo",
+    "MembersThroughGroups": "Członkowie przez grupy"
   }
 }

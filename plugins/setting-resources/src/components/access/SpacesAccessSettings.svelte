@@ -13,14 +13,22 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { type Employee, formatName } from '@hcengineering/contact'
+  import contact, { type Employee, formatName } from '@hcengineering/contact'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import contactResources from '@hcengineering/contact-resources/src/plugin'
-  import core, { AccountRole, type AccountUuid, type Space } from '@hcengineering/core'
-  import presentation from '@hcengineering/presentation'
+  import core, {
+    AccountRole,
+    type AccountUuid,
+    type Ref,
+    type Space,
+    supportsUserGroups,
+    type UserGroup
+  } from '@hcengineering/core'
+  import presentation, { getClient } from '@hcengineering/presentation'
   import {
     type Action,
     type ActiveFilter,
+    DropdownLabels,
     FilterButton,
     type FilterCategory,
     IconCheck,
@@ -31,7 +39,8 @@
     Menu,
     Scroller,
     SearchInput,
-    Toggle
+    Toggle,
+    tooltip
   } from '@hcengineering/ui'
   import type { SpaceApplicationResolver } from '@hcengineering/workbench'
   import workbenchResources from '@hcengineering/workbench-resources/src/plugin'
@@ -44,7 +53,8 @@
   const OTHER_APPLICATIONS = 'other'
   const SPACE_COLUMNS: SpacesViewColumn[] = [
     { id: 'name', label: core.string.Name, width: 'minmax(13rem, 1.6fr)' },
-    { id: 'members', label: core.string.Members, width: '10rem' },
+    { id: 'members', label: core.string.DirectMembers, width: '10rem' },
+    { id: 'groups', label: core.string.UserGroups, width: '10rem' },
     { id: 'visibility', label: setting.string.Visibility, width: '6rem' },
     { id: 'user-autojoin', label: setting.string.User, width: '4rem' },
     { id: 'guest-autojoin', label: setting.string.Guest, width: '4rem' }
@@ -56,7 +66,9 @@
   export let spacesLoading: boolean
   export let employeesLoading: boolean
   export let pendingSpaceOperations: Set<string>
+  export let groups: UserGroup[]
   export let updateMembers: (space: Space, members: AccountUuid[]) => Promise<boolean>
+  export let updateGroups: (space: Space, groups: Array<Ref<UserGroup>>) => Promise<boolean>
   export let setAutoJoin: (space: Space, value: boolean) => Promise<void>
   export let setGuestAutoJoin: (space: Space, value: boolean) => Promise<void>
   export let handleError: (error: unknown) => void
@@ -64,6 +76,16 @@
   let search = ''
   let activeFilters: ActiveFilter[] = []
   let selectedSpaces = new Set<string>()
+
+  const hierarchy = getClient().getHierarchy()
+
+  function supportsGroups (space: Space): boolean {
+    return supportsUserGroups(hierarchy, space._class)
+  }
+
+  $: groupItems = [...groups]
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((group) => ({ id: group._id, label: group.name }))
 
   function getOwnerEmployees (space: Space): Employee[] {
     return employees.filter(
@@ -298,7 +320,7 @@
           {#if column.id === 'members'}
             <div class="interactiveCell" on:click|stopPropagation role="none">
               <AccountArrayEditor
-                value={space.members}
+                value={space.directMembers ?? space.members}
                 label={core.string.Members}
                 kind={'link'}
                 size={'small'}
@@ -307,6 +329,36 @@
                   updateMembers(space, refs).catch(handleError)
                 }}
               />
+            </div>
+          {:else if column.id === 'groups'}
+            <div class="interactiveCell" on:click|stopPropagation role="none">
+              {#if supportsGroups(space)}
+                <DropdownLabels
+                  icon={contact.icon.ComponentMembers}
+                  justify={'left'}
+                  items={groupItems}
+                  multiselect
+                  selected={space.groups ?? []}
+                  label={core.string.UserGroups}
+                  placeholder={setting.string.SearchUserGroups}
+                  kind={'link'}
+                  size={'small'}
+                  disabled={isSpaceOperationPending(pendingSpaceOperations, space, 'groups')}
+                  on:selected={(event) => {
+                    updateGroups(space, event.detail ?? []).catch(handleError)
+                  }}
+                >
+                  <svelte:fragment slot="content" let:selected>
+                    {@const count = Array.isArray(selected) ? selected.length : 0}
+                    <Label
+                      label={count > 0 ? core.string.NumberUserGroups : core.string.UserGroups}
+                      params={{ count }}
+                    />
+                  </svelte:fragment>
+                </DropdownLabels>
+              {:else}
+                <span class="unsupported" use:tooltip={{ label: setting.string.UserGroupsNotSupported }}>—</span>
+              {/if}
             </div>
           {:else if column.id === 'user-autojoin'}
             <div class="toggleCell" on:click|stopPropagation role="none">
@@ -369,6 +421,9 @@
     display: flex;
     align-items: center;
     min-width: 0;
+  }
+  .unsupported {
+    color: var(--theme-dark-color);
   }
   .toggleCell {
     display: flex;

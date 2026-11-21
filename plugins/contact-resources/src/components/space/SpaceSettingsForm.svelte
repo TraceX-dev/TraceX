@@ -26,11 +26,15 @@
     type AccountUuid,
     type Ref,
     type Role,
-    type RolesAssignment
+    type RolesAssignment,
+    type Space,
+    computeSpaceMembers,
+    supportsUserGroups,
+    type UserGroup
   } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
-  import presentation from '@hcengineering/presentation'
-  import { FormGroup, FormRow, StateTag, StateType, Toggle } from '@hcengineering/ui'
+  import presentation, { createQuery, getClient } from '@hcengineering/presentation'
+  import { DropdownLabels, FormGroup, FormRow, Label, StateTag, StateType, Toggle } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
 
@@ -54,6 +58,18 @@
   export let restricted: boolean | undefined = undefined
   export let roles: Array<Pick<Role, '_id' | 'name'>> = []
   export let rolesAssignment: RolesAssignment | undefined = undefined
+  /**
+   * The edited space, undefined on create. Enables user groups: members given by groups are shown apart and kept,
+   * the members editor changes direct members only, and maintainers bind groups.
+   */
+  export let space: Space | undefined = undefined
+  /**
+   * Direct members edited by the form, set when the space supports user groups. Bind it and save it with
+   * `getSpaceMembersUpdate`: `members` alone can not make a member through a group a direct one.
+   */
+  export let directMembers: AccountUuid[] | undefined = undefined
+  /** Groups bound to the space, edited with the rest of the form: bind it and save it with `getSpaceMembersUpdate`. */
+  export let groups: Array<Ref<UserGroup>> | undefined = undefined
 
   export let readonly: boolean = false
   /** Overrides the default rule: a public space without members cannot be made private. */
@@ -95,7 +111,48 @@
 
   $: anonymousRefs = getAnonymousRefs($employeeRefByAccountUuidStore)
   $: ownersExcludeItems = getAnonymousRefs($employeeRefByAccountUuidStore, owners)
-  $: visibleMembers = members.filter((m) => m !== readOnlyGuestAccountUuid)
+  const client = getClient()
+  const hierarchy = client.getHierarchy()
+  const canManageGroups = hasAccountRole(currentAccount, AccountRole.Maintainer)
+  $: supportsGroups = space !== undefined && supportsUserGroups(hierarchy, space._class)
+
+  // Guests can not read groups: the query is empty for them and members stay a plain list.
+  let allGroups: UserGroup[] = []
+  const groupsQuery = createQuery()
+  $: if (supportsGroups) {
+    groupsQuery.query(core.class.UserGroup, {}, (result) => {
+      allGroups = [...result].sort((left, right) => left.name.localeCompare(right.name))
+    })
+  } else {
+    groupsQuery.unsubscribe()
+    allGroups = []
+  }
+  $: if (supportsGroups && directMembers === undefined) {
+    directMembers = [...(space?.directMembers ?? space?.members ?? [])]
+  }
+  $: if (supportsGroups && groups === undefined) {
+    groups = [...(space?.groups ?? [])]
+  }
+  $: boundGroups = allGroups.filter((group) => groups?.includes(group._id) === true)
+  $: groupItems = allGroups.map((group) => ({ id: group._id, label: group.name }))
+  $: byGroups = new Set(boundGroups.flatMap((group) => group.members))
+  // Members only through groups: not editable here, they follow the groups. `members` covers groups the user can
+  // not read (guests), `byGroups` the groups just bound in the form.
+  $: groupOnlyMembers =
+    directMembers === undefined
+      ? []
+      : Array.from(new Set([...members, ...byGroups])).filter(
+          (m) => m !== readOnlyGuestAccountUuid && directMembers?.includes(m) !== true
+        )
+
+  /** Changes the bound groups in the form; `members` shows the result, the dialog saves it. */
+  function setGroups (selected: Array<Ref<UserGroup>>): void {
+    groups = selected
+    const selectedGroups = allGroups.filter((group) => selected.includes(group._id))
+    setMembers(computeSpaceMembers(directMembers ?? [], selectedGroups))
+  }
+
+  $: visibleMembers = (directMembers ?? members).filter((m) => m !== readOnlyGuestAccountUuid)
   $: membersPersons = visibleMembers.map((m) => $employeeRefByAccountUuidStore.get(m)).filter(notEmpty)
 
   $: isPrivateDisabled = readonly || (privateDisabled ?? (!isPrivate && members.length === 0))
@@ -134,15 +191,37 @@
   function handleOwnersChanged (newOwners: AccountUuid[]): void {
     owners = newOwners
     members = Array.from(new Set([...members, ...newOwners]))
+    if (directMembers !== undefined) directMembers = Array.from(new Set([...directMembers, ...newOwners]))
+  }
+
+  /**
+   * Sets direct members; members given by groups stay members, also when they stop being direct ones.
+   * Groups give no roles: an account that is no longer a direct member leaves the roles, as the server does.
+   */
+  function setDirectMembers (newDirect: AccountUuid[]): void {
+    const next = new Set(newDirect)
+    removeFromRoles(new Set((directMembers ?? []).filter((m) => !next.has(m))))
+    directMembers = newDirect
+    setMembers(computeSpaceMembers(newDirect, boundGroups))
   }
 
   function handleMembersChanged (newVisibleMembers: AccountUuid[]): void {
+    if (directMembers !== undefined) {
+      setDirectMembers(anonymousAccess ? [...newVisibleMembers, readOnlyGuestAccountUuid] : newVisibleMembers)
+      return
+    }
     setMembers(anonymousAccess ? [...newVisibleMembers, readOnlyGuestAccountUuid] : newVisibleMembers)
   }
 
   function setAnonymousAccess (enabled: boolean): void {
     if (anonymousDisabled || enabled === anonymousAccess) return
-    setMembers(enabled ? [...members, readOnlyGuestAccountUuid] : members.filter((m) => m !== readOnlyGuestAccountUuid))
+    const toggle = (list: AccountUuid[]): AccountUuid[] =>
+      enabled ? [...list, readOnlyGuestAccountUuid] : list.filter((m) => m !== readOnlyGuestAccountUuid)
+    if (directMembers !== undefined) {
+      setDirectMembers(toggle(directMembers))
+      return
+    }
+    setMembers(toggle(members))
   }
 
   function setGuestAutoJoin (enabled: boolean): void {
@@ -182,6 +261,45 @@
       size={'large'}
     />
   </FormRow>
+
+  {#if supportsGroups && (canManageGroups || boundGroups.length > 0)}
+    <FormRow label={core.string.UserGroups}>
+      <DropdownLabels
+        icon={contact.icon.ComponentMembers}
+        justify={'left'}
+        items={groupItems}
+        multiselect
+        selected={groups ?? []}
+        label={core.string.UserGroups}
+        kind={'regular'}
+        size={'large'}
+        disabled={readonly || !canManageGroups}
+        dataId={'space-settings-groups'}
+        on:selected={(event) => {
+          setGroups(event.detail ?? [])
+        }}
+      >
+        <svelte:fragment slot="content" let:selected>
+          {@const count = Array.isArray(selected) ? selected.length : 0}
+          <Label label={count > 0 ? core.string.NumberUserGroups : core.string.UserGroups} params={{ count }} />
+        </svelte:fragment>
+      </DropdownLabels>
+    </FormRow>
+  {/if}
+
+  {#if groupOnlyMembers.length > 0}
+    <FormRow label={contact.string.MembersThroughGroups}>
+      <AccountArrayEditor
+        value={groupOnlyMembers}
+        label={contact.string.MembersThroughGroups}
+        allowGuests
+        onChange={undefined}
+        readonly
+        kind={'regular'}
+        size={'large'}
+      />
+    </FormRow>
+  {/if}
 </FormGroup>
 
 <FormGroup label={contact.string.SpaceAccessGroup} dataId={'space-settings-access'}>
