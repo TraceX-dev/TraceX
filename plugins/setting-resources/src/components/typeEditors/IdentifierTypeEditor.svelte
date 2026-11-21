@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -31,7 +32,7 @@
 
   let identifier: string = ''
   let sequences: CustomSequence[] = []
-  let showInPresenter = attribute?.showInPresenter ?? false
+  let showInPresenter = attribute === undefined ? true : (attribute.showInPresenter ?? false)
 
   $: identifiers = new Set(sequences.filter((p) => p._id !== seq).map((s) => s.prefix.toUpperCase()))
 
