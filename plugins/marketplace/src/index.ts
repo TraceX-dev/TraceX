@@ -98,6 +98,8 @@ export default plugin(marketplaceId, {
     Catalog: '' as IntlString,
     MyPublications: '' as IntlString,
     PublishPackage: '' as IntlString,
+    DeletePackage: '' as IntlString,
+    DeletePackageConfirmation: '' as IntlString,
     VersionHistory: '' as IntlString,
     ContactEmailOptional: '' as IntlString,
     ContactEmailVisible: '' as IntlString,

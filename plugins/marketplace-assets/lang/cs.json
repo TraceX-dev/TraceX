@@ -25,6 +25,8 @@
     "Catalog": "Catalog",
     "MyPublications": "My publications",
     "PublishPackage": "Publish package",
+    "DeletePackage": "Odstranit balíček",
+    "DeletePackageConfirmation": "Trvale odstranit „{name}“ a všechny jeho publikované verze z Marketplace? Tuto akci nelze vrátit zpět. Nainstalované definice a stažené soubory zůstanou zachovány.",
     "VersionHistory": "Version history",
     "ContactEmailOptional": "Contact email (optional)",
     "ContactEmailVisible": "This email will be visible in the catalog. It does not determine package ownership.",

@@ -25,6 +25,8 @@
     "Catalog": "Catalog",
     "MyPublications": "My publications",
     "PublishPackage": "Publish package",
+    "DeletePackage": "Excluir pacote",
+    "DeletePackageConfirmation": "Excluir permanentemente \"{name}\" e todas as suas versões publicadas do Marketplace? Esta ação não pode ser desfeita. As definições instaladas e os arquivos baixados serão preservados.",
     "VersionHistory": "Version history",
     "ContactEmailOptional": "Contact email (optional)",
     "ContactEmailVisible": "This email will be visible in the catalog. It does not determine package ownership.",

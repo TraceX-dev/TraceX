@@ -15,10 +15,11 @@
   import type { MasterTag } from '@hcengineering/card'
   import type { Ref } from '@hcengineering/core'
   import marketplace, { type CatalogPackage, type DefinitionPackageInstallation } from '@hcengineering/marketplace'
-  import { createQuery } from '@hcengineering/presentation'
+  import { createQuery, MessageBox } from '@hcengineering/presentation'
   import ui, {
     Button,
     IconAdd,
+    IconDelete,
     IconHistory,
     Label,
     Notice,
@@ -144,6 +145,33 @@
     }
   }
 
+  function deletePackage (entry: CatalogPackage): void {
+    if (busy || destroyed) return
+    showPopup(
+      MessageBox,
+      {
+        label: marketplace.string.DeletePackage,
+        message: marketplace.string.DeletePackageConfirmation,
+        params: { name: entry.name },
+        okLabel: marketplace.string.DeletePackage,
+        dangerous: true,
+        action: async () => {
+          busy = true
+          error = ''
+          try {
+            await getMarketplaceClient().delete(entry)
+          } finally {
+            busy = false
+          }
+        }
+      },
+      'centered',
+      (result) => {
+        if (result === true && !destroyed) void reload()
+      }
+    )
+  }
+
   $: void reload(search, mine, kind)
 </script>
 
@@ -208,6 +236,15 @@
                       kind="ghost"
                       disabled={busy}
                       on:click={() => toggleVisibility(entry)}
+                    />
+                  </div>
+                  <div data-id="package-delete">
+                    <Button
+                      label={marketplace.string.DeletePackage}
+                      icon={IconDelete}
+                      kind="dangerous"
+                      disabled={busy}
+                      on:click={() => deletePackage(entry)}
                     />
                   </div>
                 {/if}

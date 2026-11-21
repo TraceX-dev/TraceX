@@ -77,6 +77,11 @@ export class MarketplaceClient {
     return await (await this.request('package', { ...identity })).json()
   }
 
+  /** Permanently delete a package and every release; only the current owner may do so. */
+  async delete (identity: CatalogPackageIdentity): Promise<void> {
+    await this.request('package', { ...identity }, { method: 'DELETE' })
+  }
+
   /** Change visibility for all releases; only the current package owner may do so. */
   async setVisibility (identity: CatalogPackageIdentity, visibility: CatalogPackageVisibility): Promise<void> {
     await this.request(

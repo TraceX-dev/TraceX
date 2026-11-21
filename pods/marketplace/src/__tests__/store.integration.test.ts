@@ -279,4 +279,66 @@ integration('Marketplace PostgreSQL release storage', () => {
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
     await expect(store.publish(publication)).rejects.toMatchObject({ status: 403 })
   })
+
+  it('deletes every release and reader without affecting another author with the same package ID', async () => {
+    await store.publish(publication)
+    await store.publish({ ...publication, version: '1.0.1', contentHash: 'new', source: 'new YAML' })
+    await store.grantRead(publication, author, { account: other, email: 'reader@example.com' })
+    await store.publish({ ...publication, author: other, publisher: other, source: 'other author' })
+    await store.delete(publication, author)
+
+    const page = await store.list({ viewer: author, search: '', owner: author, offset: 0, limit: 100 })
+    expect(page.items.some((entry) => entry.id === publication.id && entry.author === author)).toBe(false)
+    await expect(store.get(publication, author)).rejects.toMatchObject({ status: 404 })
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
+    await expect(store.releases(publication, author, 0)).rejects.toMatchObject({ status: 404 })
+    for (const version of [undefined, '1.0.0', '1.0.1']) {
+      await expect(store.download(publication, author, version)).rejects.toMatchObject({ status: 404 })
+    }
+    expect(await store.download({ ...publication, author: other }, other)).toBe('other author')
+
+    await store.publish({ ...publication, visibility: 'private' })
+    expect(await store.readers(publication, author)).toEqual([])
+    expect((await store.releases(publication, author, 0)).items).toHaveLength(1)
+    await expect(store.download(publication, author, '1.0.1')).rejects.toMatchObject({ status: 404 })
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('rejects deletion by non-owners for public and private packages, including explicit readers', async () => {
+    await store.publish(publication)
+    await expect(store.delete(publication, other)).rejects.toMatchObject({ status: 404 })
+    await store.setVisibility(publication, author, 'private')
+    await expect(store.delete(publication, other)).rejects.toMatchObject({ status: 404 })
+    await store.grantRead(publication, author, { account: other, email: 'reader@example.com' })
+    await expect(store.delete(publication, other)).rejects.toMatchObject({ status: 404 })
+    expect(await store.download(publication, other)).toBe('original YAML')
+    expect(await store.readers(publication, author)).toEqual([{ account: other, email: 'reader@example.com' }])
+    await store.delete(publication, author)
+    await expect(store.delete(publication, author)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('permits deletion by the current owner after transfer and rejects the original author', async () => {
+    await store.publish(publication)
+    await store.transferOwnership(publication, author, other)
+    await expect(store.delete(publication, author)).rejects.toMatchObject({ status: 404 })
+    expect(await store.download(publication, other)).toBe('original YAML')
+    await store.delete(publication, other)
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('serializes competing deletions and ownership transfers', async () => {
+    await store.publish(publication)
+    const results = await Promise.allSettled([
+      store.delete(publication, author),
+      store.transferOwnership(publication, author, other)
+    ])
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
+    await expect(store.delete(publication, author)).rejects.toMatchObject({ status: 404 })
+    if (results[1].status === 'fulfilled') {
+      expect((await store.get(publication, other)).owner).toBe(other)
+      await store.delete(publication, other)
+    }
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
+  })
 })
