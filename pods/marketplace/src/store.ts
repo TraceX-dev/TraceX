@@ -42,6 +42,7 @@ export interface CatalogListOptions {
 export interface CatalogStore {
   list: (options: CatalogListOptions) => Promise<CatalogPage<CatalogPackage>>
   get: (identity: CatalogPackageIdentity, viewer: AccountUuid) => Promise<CatalogPackage>
+  delete: (identity: CatalogPackageIdentity, viewer: AccountUuid) => Promise<void>
   readers: (identity: CatalogPackageIdentity, viewer: AccountUuid) => Promise<CatalogPackageReader[]>
   grantRead: (identity: CatalogPackageIdentity, viewer: AccountUuid, reader: CatalogPackageReader) => Promise<void>
   revokeRead: (identity: CatalogPackageIdentity, viewer: AccountUuid, reader: AccountUuid) => Promise<void>
@@ -194,6 +195,15 @@ export class PostgresCatalogStore implements CatalogStore {
         WHERE author = ${identity.author} AND id = ${identity.id}`
       await sql`DELETE FROM marketplace.readers
         WHERE author = ${identity.author} AND id = ${identity.id} AND account = ${owner}`
+    })
+  }
+
+  /** Delete catalog data atomically under the same owner lock used by access changes and publication. */
+  async delete (identity: CatalogPackageIdentity, viewer: AccountUuid): Promise<void> {
+    await this.mutateAccess(identity, viewer, async (sql) => {
+      await sql`DELETE FROM marketplace.readers WHERE author = ${identity.author} AND id = ${identity.id}`
+      await sql`DELETE FROM marketplace.releases WHERE author = ${identity.author} AND id = ${identity.id}`
+      await sql`DELETE FROM marketplace.packages WHERE author = ${identity.author} AND id = ${identity.id}`
     })
   }
 

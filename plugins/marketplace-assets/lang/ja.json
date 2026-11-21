@@ -25,6 +25,8 @@
     "Catalog": "Catalog",
     "MyPublications": "My publications",
     "PublishPackage": "Publish package",
+    "DeletePackage": "パッケージを削除",
+    "DeletePackageConfirmation": "「{name}」とそのすべての公開済みバージョンをMarketplaceから完全に削除しますか？この操作は取り消せません。インストール済みの定義とダウンロード済みのファイルは保持されます。",
     "VersionHistory": "Version history",
     "ContactEmailOptional": "Contact email (optional)",
     "ContactEmailVisible": "This email will be visible in the catalog. It does not determine package ownership.",

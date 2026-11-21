@@ -128,6 +128,14 @@ export function createCatalogServer ({
       res.sendStatus(204)
     })
   )
+  app.delete(
+    '/package',
+    requestLimiter,
+    route(async (req, res, account) => {
+      await store.delete(identity(req), account.uuid)
+      res.sendStatus(204)
+    })
+  )
   app.get(
     '/package/access',
     requestLimiter,

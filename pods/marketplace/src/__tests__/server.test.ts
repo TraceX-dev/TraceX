@@ -50,6 +50,7 @@ describe('Marketplace HTTP boundary', () => {
   const store: jest.Mocked<CatalogStore> = {
     list: jest.fn(),
     get: jest.fn(),
+    delete: jest.fn(),
     readers: jest.fn(),
     grantRead: jest.fn(),
     revokeRead: jest.fn(),
@@ -210,6 +211,48 @@ describe('Marketplace HTTP boundary', () => {
     expect((await fetch(`${url}/releases`, { method: 'POST', headers, body: 'invalid' })).status).toBe(400)
     expect(store.setVisibility).not.toHaveBeenCalled()
     expect(store.publish).not.toHaveBeenCalled()
+  })
+
+  it('deletes a package using the authenticated account, including after ownership transfer', async () => {
+    await expect(client.delete(identity)).resolves.toBeUndefined()
+    expect(store.delete).toHaveBeenCalledWith(identity, author)
+    const recipient = new MarketplaceClient(url, 'recipient-token')
+    await recipient.delete(identity)
+    expect(store.delete).toHaveBeenLastCalledWith(identity, stranger)
+  })
+
+  it('authenticates deletion and validates package identities before storage', async () => {
+    const path = `${url}/package?${new URLSearchParams({ ...identity })}`
+    expect((await fetch(path, { method: 'DELETE' })).status).toBe(401)
+    await expect(new MarketplaceClient(url, 'bad-token').delete(identity)).rejects.toMatchObject({ status: 401 })
+    const headers: Record<string, string> = { Authorization: 'Bearer signed-account' }
+    for (const query of ['', 'id=acme/review&author=invalid', `author=${author}`]) {
+      expect((await fetch(`${url}/package?${query}`, { method: 'DELETE', headers })).status).toBe(400)
+    }
+    expect(store.delete).not.toHaveBeenCalled()
+  })
+
+  it('preserves deletion authorization errors and hides internal failures', async () => {
+    store.delete.mockRejectedValueOnce(new CatalogError(404, 'Package not found'))
+    await expect(client.delete(identity)).rejects.toMatchObject({ status: 404, message: 'Package not found' })
+    store.delete.mockRejectedValueOnce(new Error('private connection details'))
+    await expect(client.delete(identity)).rejects.toMatchObject({ status: 500, message: 'Marketplace request failed' })
+    expect(onError).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows cross-origin deletion requests', async () => {
+    const response = await fetch(`${url}/package`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://workspace.example.com',
+        'Access-Control-Request-Method': 'DELETE',
+        'Access-Control-Request-Headers': 'Authorization'
+      }
+    })
+    expect(response.status).toBe(204)
+    expect(response.headers.get('Access-Control-Allow-Methods')).toContain('DELETE')
+    expect(response.headers.get('Access-Control-Allow-Headers')).toContain('Authorization')
+    expect(store.delete).not.toHaveBeenCalled()
   })
 
   it('allows cross-origin visibility requests', async () => {

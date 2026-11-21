@@ -25,6 +25,8 @@
     "Catalog": "Catalog",
     "MyPublications": "My publications",
     "PublishPackage": "Publish package",
+    "DeletePackage": "Delete package",
+    "DeletePackageConfirmation": "Permanently delete \"{name}\" and all its published versions from Marketplace? This cannot be undone. Installed definitions and downloaded files will be preserved.",
     "VersionHistory": "Version history",
     "ContactEmailOptional": "Contact email (optional)",
     "ContactEmailVisible": "This email will be visible in the catalog. It does not determine package ownership.",

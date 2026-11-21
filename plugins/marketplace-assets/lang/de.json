@@ -25,6 +25,8 @@
     "Catalog": "Catalog",
     "MyPublications": "My publications",
     "PublishPackage": "Publish package",
+    "DeletePackage": "Paket löschen",
+    "DeletePackageConfirmation": "„{name}“ und alle veröffentlichten Versionen dauerhaft aus Marketplace löschen? Dies kann nicht rückgängig gemacht werden. Installierte Definitionen und heruntergeladene Dateien bleiben erhalten.",
     "VersionHistory": "Version history",
     "ContactEmailOptional": "Contact email (optional)",
     "ContactEmailVisible": "This email will be visible in the catalog. It does not determine package ownership.",
