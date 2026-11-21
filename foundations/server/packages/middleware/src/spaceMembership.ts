@@ -88,8 +88,8 @@ function opValues (value: ArrayOp | undefined, op: '$push' | '$pull'): AccountUu
 interface BatchSpace {
   /** The stored space before the batch: what the client saw when it wrote a whole `members` list. */
   stored: Space
-  /** Direct members after the updates of the batch processed so far; undefined while not migrated. */
-  direct: AccountUuid[] | undefined
+  /** Direct members after the updates of the batch processed so far. */
+  direct: AccountUuid[]
 }
 
 /**
@@ -240,9 +240,7 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     }
 
     const storedMembers = state.stored.members ?? []
-    // Not migrated: `members` is still the list of direct members.
-    const migrated = state.direct !== undefined
-    const current: AccountUuid[] = state.direct ?? [...storedMembers]
+    const current: AccountUuid[] = state.direct
     let direct: AccountUuid[] = writtenDirect ?? current
     if (replaced !== undefined) {
       const next = new Set(replaced)
@@ -257,8 +255,7 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     // An update is applied either as operators or as plain field writes, never both (`isOperator`): the storage
     // takes an update with a plain field as plain writes and drops its `$push` / `$pull`. So the change keeps the
     // form of the update.
-    const asOperators =
-      writtenDirect === undefined && replaced === undefined && migrated && Object.keys(ops).every(isOperatorKey)
+    const asOperators = writtenDirect === undefined && replaced === undefined && Object.keys(ops).every(isOperatorKey)
     if (asOperators) {
       // $push / $pull: concurrent joins and leaves do not overwrite each other. Accounts that are already direct
       // are not pushed again.
@@ -268,8 +265,7 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
       if (toPull.length > 0) addOp(ops, '$pull', 'directMembers', toPull)
       return
     }
-    // Whole list: a full write, a space that is not migrated yet (a $push would start `directMembers` from the
-    // pushed accounts only), or an update with other plain fields.
+    // Whole list: a full write, or an update with other plain fields.
     ops.directMembers = direct
     moveOperatorsToPlain(ops, state.stored)
   }
@@ -283,10 +279,9 @@ export class SpaceMembershipMiddleware extends BaseMiddleware implements Middlew
     if (known !== undefined) return known
     const stored = (await this.findInternal(ctx, tx.objectClass, { _id: tx.objectId }, { limit: 1 }))[0]
     if (stored === undefined) return undefined
-    const state: BatchSpace = {
-      stored,
-      direct: stored.directMembers !== undefined ? [...stored.directMembers] : undefined
-    }
+    // Every space has directMembers: existing ones from the migration, created ones from this middleware or, for
+    // spaces created by server code, from OnSpaceMembershipChange.
+    const state: BatchSpace = { stored, direct: [...(stored.directMembers ?? [])] }
     batch.set(tx.objectId, state)
     return state
   }

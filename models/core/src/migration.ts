@@ -1022,8 +1022,9 @@ export const coreOperation: MigrateOperation = {
 }
 
 /**
- * Fills `Space.directMembers` from `members` for spaces that have no groups yet, so `members` keeps its value once
- * the server starts computing it from `directMembers` and groups. Idempotent: migrated spaces are skipped.
+ * Fills `Space.directMembers` from `members` for every space without them, so `members` keeps its value once the
+ * server computes it from `directMembers` and groups. The server relies on every space having `directMembers`.
+ * Idempotent: spaces that have them are skipped.
  */
 export async function migrateSpaceDirectMembers (client: MigrationClient): Promise<void> {
   let processed = 0

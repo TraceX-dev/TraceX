@@ -168,26 +168,7 @@ describe('SpaceMembershipMiddleware', () => {
       expect(opsOf(sent[0])).toEqual({ directMembers: [A] })
     })
 
-    it('full replacement of a space not migrated yet starts from members', async () => {
-      const { middleware, sent } = await setup([storedSpace([A, B])])
-      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ members: [B, C] })])
-      expect(opsOf(sent[0])).toEqual({ directMembers: [B, C] })
-    })
-
-    it('a $push on a space without directMembers writes the whole list from members', async () => {
-      // A blind $push would start directMembers from C only and the recompute would drop A and B.
-      const { middleware, sent } = await setup([storedSpace([A, B])])
-      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: C } })])
-      expect(opsOf(sent[0])).toEqual({ directMembers: [A, B, C] })
-    })
-
-    it('a direct $pull of directMembers on a space without them writes the whole list', async () => {
-      const { middleware, sent } = await setup([storedSpace([A, B])])
-      await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $pull: { directMembers: B } })])
-      expect(opsOf(sent[0])).toEqual({ directMembers: [A] })
-    })
-
-    it('a $push on a migrated space stays a $push of directMembers, members are left to the recompute', async () => {
+    it('a $push stays a $push of directMembers, members are left to the recompute', async () => {
       const { middleware, sent } = await setup([storedSpace([A, B, G], [A, B]), storedGroup([G])])
       await middleware.tx(sessionCtx(AccountRole.User), [spaceUpdate({ $push: { members: C } })])
       expect(opsOf(sent[0])).toEqual({ $push: { directMembers: C } })
