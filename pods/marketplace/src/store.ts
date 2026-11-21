@@ -15,6 +15,7 @@ import {
   compareDefinitionPackageVersions,
   type CatalogPackage,
   type CatalogPackageIdentity,
+  type CatalogPackageOrigin,
   type CatalogPackageReader,
   type CatalogPackageVisibility,
   type CatalogPage,
@@ -28,6 +29,7 @@ export interface CatalogPublication extends Omit<CatalogPackage, 'visibility' | 
   visibility?: CatalogPackageVisibility
   contentHash: string
   source: string
+  origin?: CatalogPackageOrigin
 }
 
 export interface CatalogListOptions {
@@ -58,6 +60,11 @@ export interface CatalogStore {
   ) => Promise<CatalogPage<CatalogRelease>>
   download: (identity: CatalogPackageIdentity, viewer: AccountUuid, version?: string) => Promise<string>
   publish: (publication: CatalogPublication) => Promise<CatalogRelease>
+  origin: (
+    identity: CatalogPackageIdentity,
+    viewer: AccountUuid,
+    version?: string
+  ) => Promise<CatalogPackageOrigin | undefined>
 }
 
 /** Owns only the marketplace schema; account and workspace storage are independent. */
@@ -106,6 +113,7 @@ export class PostgresCatalogStore implements CatalogStore {
       PRIMARY KEY (author, id, version),
       FOREIGN KEY (author, id) REFERENCES marketplace.packages (author, id)
     )`
+    await this.sql`ALTER TABLE marketplace.releases ADD COLUMN IF NOT EXISTS origin JSONB`
     await this.sql`CREATE INDEX IF NOT EXISTS marketplace_packages_order
       ON marketplace.packages (published_on DESC, author, id)`
     await this.sql`CREATE INDEX IF NOT EXISTS marketplace_packages_owner_order
@@ -252,7 +260,7 @@ export class PostgresCatalogStore implements CatalogStore {
   }
 
   async publish (publication: CatalogPublication): Promise<CatalogRelease> {
-    const { visibility, publisher } = publication
+    const { visibility, publisher, origin } = publication
     const { id, author, version, kind, name, description, authorName, contactEmail, publishedOn, contentHash, source } =
       publication
     const result = await this.sql.begin(async (sql) => {
@@ -282,8 +290,9 @@ export class PostgresCatalogStore implements CatalogStore {
       if (current.version !== '' && compareDefinitionPackageVersions(version, current.version) <= 0) {
         throw new CatalogError(409, 'Publish a version newer than the latest release')
       }
-      await sql`INSERT INTO marketplace.releases (id, author, version, content_hash, source, published_on)
-        VALUES (${id}, ${author}, ${version}, ${contentHash}, ${source}, ${publishedOn})`
+      await sql`INSERT INTO marketplace.releases (id, author, version, content_hash, source, published_on, origin)
+        VALUES (${id}, ${author}, ${version}, ${contentHash}, ${source}, ${publishedOn},
+          ${origin === undefined ? null : sql.json({ ...origin })})`
       await sql`UPDATE marketplace.packages SET name = ${name}, description = ${description}, latest_version = ${version},
         author_name = CASE WHEN author = ${publisher} THEN ${authorName} ELSE author_name END,
         contact_email = ${contactEmail ?? null}, published_on = ${publishedOn},
@@ -292,6 +301,20 @@ export class PostgresCatalogStore implements CatalogStore {
       return { id, author, version, contentHash, publishedOn }
     })
     return result
+  }
+
+  /** Only the current package owner can read provenance, including origins of earlier releases. */
+  async origin (
+    { id, author }: CatalogPackageIdentity,
+    viewer: AccountUuid,
+    version?: string
+  ): Promise<CatalogPackageOrigin | undefined> {
+    const [record] = await this.sql<Array<{ origin: CatalogPackageOrigin }>>`
+      SELECT r.origin FROM marketplace.releases r
+      JOIN marketplace.packages p ON r.id = p.id AND r.author = p.author
+      WHERE r.id = ${id} AND r.author = ${author} AND r.version = COALESCE(${version ?? null}, p.latest_version)
+        AND p.owner = ${viewer} AND r.origin IS NOT NULL`
+    return record?.origin
   }
 }
 

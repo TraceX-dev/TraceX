@@ -13,6 +13,9 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  moduleNameMapper: {
+    '^@hcengineering/marketplace$': '<rootDir>/../../plugins/marketplace/src/index.ts'
+  },
   testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)'],
   roots: ["./src"],
   coverageReporters: ["text-summary", "html"]

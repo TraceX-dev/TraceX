@@ -10,8 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { AccountUuid } from '@hcengineering/core'
-import type { CatalogPackageReader } from '@hcengineering/marketplace'
+import type { AccountUuid, WorkspaceUuid } from '@hcengineering/core'
+import type { CatalogPackageOrigin, CatalogPackageReader } from '@hcengineering/marketplace'
 import { PostgresCatalogStore, type CatalogPublication } from '../store'
 
 // Point only at a disposable database; these tests never use the service's DB_URL.
@@ -58,6 +58,49 @@ integration('Marketplace PostgreSQL release storage', () => {
       '1.0.1',
       '1.0.0'
     ])
+  })
+
+  it('keeps immutable origins per release outside every public metadata and download response', async () => {
+    const origin: CatalogPackageOrigin = {
+      workspace: '44371923-5983-4ab0-ac89-82f481836724' as WorkspaceUuid,
+      workspaceName: 'Confidential client',
+      workspaceUrl: 'confidential-client',
+      path: ['setting', 'types', 'private-source-type'],
+      labels: ['Source card type', 'Source tag']
+    }
+    await store.publish({ ...publication, origin })
+    expect(await store.origin(publication, author)).toEqual(origin)
+    expect(await store.origin(publication, other)).toBeUndefined()
+    await store.grantRead(publication, author, { account: other, email: 'reader@example.com' })
+    expect(await store.origin(publication, other)).toBeUndefined()
+    await store.publish({ ...publication, origin: { ...origin, labels: ['Different source'] } })
+    expect(await store.origin(publication, author)).toEqual(origin)
+    await store.transferOwnership(publication, author, other)
+    expect(await store.origin(publication, author)).toBeUndefined()
+    expect(await store.origin(publication, other)).toEqual(origin)
+    await store.publish({
+      ...publication, publisher: other, version: '1.0.1', contentHash: 'updated',
+      origin: { ...origin, labels: ['New source'] }
+    })
+    expect(await store.origin(publication, author, '1.0.0')).toBeUndefined()
+    expect(await store.origin(publication, other, '1.0.0')).toEqual(origin)
+    expect(await store.origin(publication, other)).toEqual({ ...origin, labels: ['New source'] })
+    const responses = [
+      await store.get(publication, other),
+      await store.list({ viewer: other, search: publication.name, offset: 0, limit: 100 }),
+      await store.releases(publication, other, 0),
+      await store.download(publication, other)
+    ]
+    for (const response of responses) {
+      expect(JSON.stringify(response)).not.toContain(origin.workspaceName)
+      expect(JSON.stringify(response)).not.toContain(origin.workspace)
+      expect(JSON.stringify(response)).not.toContain(origin.path[2])
+    }
+  })
+
+  it('does not guess missing origins for old releases or file publications', async () => {
+    await store.publish(publication)
+    expect(await store.origin(publication, author)).toBeUndefined()
   })
 
   it('accepts identical retries without changing the publication timestamp', async () => {

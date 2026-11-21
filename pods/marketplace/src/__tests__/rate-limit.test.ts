@@ -41,6 +41,7 @@ describe('Marketplace request quotas', () => {
     setVisibility: jest.fn(),
     releases: jest.fn(),
     download: jest.fn(),
+    origin: jest.fn(),
     publish: jest.fn()
   }
   const onError = jest.fn()
@@ -53,6 +54,7 @@ describe('Marketplace request quotas', () => {
       authenticate,
       onError,
       resolveRecipient: async () => author,
+      resolveWorkspace: async () => undefined,
       ...limits
     }).listen(0, '127.0.0.1')
     await new Promise<void>((resolve, reject) => {

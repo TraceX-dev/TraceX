@@ -13,6 +13,8 @@
 import type {
   CatalogPackage,
   CatalogPackageIdentity,
+  CatalogPackageOrigin,
+  CatalogPackageOriginInput,
   CatalogPackageReader,
   CatalogPackageVisibility,
   CatalogPage,
@@ -93,6 +95,18 @@ export class MarketplaceClient {
     return await (await this.request('release', { ...identity, ...(version === undefined ? {} : { version }) })).text()
   }
 
+  /** Only the current package owner can read origin details. */
+  async origin (identity: CatalogPackageIdentity, version?: string): Promise<CatalogPackageOrigin | undefined> {
+    try {
+      return await (
+        await this.request('package/origin', { ...identity, ...(version === undefined ? {} : { version }) })
+      ).json()
+    } catch (error) {
+      if (error instanceof MarketplaceError && error.status === 404) return undefined
+      throw error
+    }
+  }
+
   /** List explicit readers; only the current owner can inspect the access list. */
   async readers (identity: CatalogPackageIdentity): Promise<CatalogPackageReader[]> {
     return await (await this.request('package/access', { ...identity })).json()
@@ -129,7 +143,12 @@ export class MarketplaceClient {
     )
   }
 
-  async publish (source: string, contactEmail = '', visibility?: CatalogPackageVisibility): Promise<CatalogRelease> {
+  async publish (
+    source: string,
+    contactEmail = '',
+    visibility?: CatalogPackageVisibility,
+    origin?: CatalogPackageOriginInput
+  ): Promise<CatalogRelease> {
     return await (
       await this.request(
         'releases',
@@ -139,6 +158,7 @@ export class MarketplaceClient {
           headers: {
             'Content-Type': 'application/yaml',
             'X-Marketplace-Contact-Email': contactEmail,
+            ...(origin === undefined ? {} : { 'X-Marketplace-Origin': encodeURIComponent(JSON.stringify(origin)) }),
             ...(visibility === undefined ? {} : { 'X-Marketplace-Visibility': visibility })
           },
           body: source

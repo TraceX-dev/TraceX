@@ -36,6 +36,14 @@ A future external catalog would use its own authenticated publisher accounts and
 
 Continue planning and implementation in this order: installation from a release file, reviewed updates from a release file, catalog publication and discovery, then installation and updates through the catalog. Both delivery paths use the same package format and workspace installation/update logic. The existing export actions keep their current role in producing release files.
 
+## Private package origins
+
+Catalog publications can retain a workspace, card type/tag breadcrumb and settings link per release. The origin travels separately from portable YAML. Workspace names and URLs are verified through the account authority at publication time. Ordinary catalog metadata, release history and downloads never contain this provenance.
+
+The dedicated origin endpoint returns details only to the current package owner. Public visibility, explicit package read access, source workspace membership and previous publication do not grant origin access. Transferring ownership moves origin access to the new owner, including for earlier releases. Missing and unauthorized origins have the same response. The catalog and version history render the breadcrumb only after this check.
+
+Direct publication captures the live definition. File publication can recover it from matching local package membership; files without a matching local definition and older releases have no inferred origin. Publishing a new version from the source definition records provenance without changing earlier releases.
+
 ## Process bundles
 
 A process-only package may contain one or more standalone processes under one package ID, author, description and release version. A single-process package is the smallest instance of this model. Bundles use the existing `version: 2`, `kind: process` document with multiple named entries in `processes`. The compiler accepts one or more processes; the ordinary single-process editor and import route still require exactly one. Package files are detected at the existing file import entry points and use the Marketplace installation dialog.

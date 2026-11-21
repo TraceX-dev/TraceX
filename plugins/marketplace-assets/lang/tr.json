@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Kaynak",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Bağımlılık bağlantısını kaldırmak, süreç yapılandırması ve etkin yürütmeler dahil paketi yüklü tutar.",
     "PackageDependencies": "Paket bağımlılıkları",
     "MakePackage": "Paket oluştur",

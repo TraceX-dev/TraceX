@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Herkunft",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Beim Entfernen einer Abhängigkeit bleibt das Paket einschließlich seiner Prozesskonfiguration und aktiven Ausführungen installiert.",
     "PackageDependencies": "Paketabhängigkeiten",
     "MakePackage": "Paket erstellen",

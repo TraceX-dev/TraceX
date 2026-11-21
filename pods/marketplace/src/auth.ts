@@ -11,7 +11,13 @@
 // limitations under the License.
 
 import { getClient } from '@hcengineering/account-client'
-import { docGuestAccountUuid, readOnlyGuestAccountUuid, systemAccountUuid, type AccountUuid } from '@hcengineering/core'
+import {
+  docGuestAccountUuid,
+  readOnlyGuestAccountUuid,
+  systemAccountUuid,
+  type AccountUuid,
+  type WorkspaceUuid
+} from '@hcengineering/core'
 import { PlatformError } from '@hcengineering/platform'
 import { decodeToken } from '@hcengineering/server-token'
 import { CatalogError } from './errors'
@@ -19,6 +25,26 @@ import { CatalogError } from './errors'
 export interface CatalogAccount {
   uuid: AccountUuid
   name: string
+}
+
+export interface CatalogWorkspace {
+  name: string
+  url: string
+}
+
+/** Verify source workspace membership when recording provenance for a publication. */
+export function createWorkspaceResolver (
+  accountsUrl: string
+): (token: string, workspace: WorkspaceUuid) => Promise<CatalogWorkspace | undefined> {
+  return async (token, workspace) => {
+    try {
+      const workspaces = await getClient(accountsUrl, token).getUserWorkspaces()
+      const match = workspaces.find((entry) => entry.uuid === workspace && entry.isDisabled !== true)
+      return match === undefined ? undefined : { name: match.name, url: match.url }
+    } catch {
+      throw new CatalogError(503, 'The workspace access could not be verified')
+    }
+  }
 }
 
 /** Resolve recipients through the configured account authority and verified registered email identities. */

@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Origin",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Removing a dependency link keeps the package installed, including its process configuration and active executions.",
     "PackageDependencies": "Package dependencies",
     "MakePackage": "Make package",

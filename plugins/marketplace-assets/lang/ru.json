@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Источник",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Удаление связи с зависимостью сохраняет установленный пакет, настройки его процессов и активные исполнения.",
     "PackageDependencies": "Зависимости пакета",
     "MakePackage": "Создать пакет",

@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Pochodzenie",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Usunięcie powiązania zależności zachowuje zainstalowany pakiet, konfigurację procesów i aktywne wykonania.",
     "PackageDependencies": "Zależności pakietu",
     "MakePackage": "Utwórz pakiet",

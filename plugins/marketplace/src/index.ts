@@ -82,6 +82,7 @@ export default plugin(marketplaceId, {
     PackageDraftReview: '' as IntlString,
     PackageOverview: '' as IntlString,
     PackageSource: '' as IntlString,
+    Origin: '' as IntlString,
     Fields: '' as IntlString,
     FieldType: '' as IntlString,
     Required: '' as IntlString,
