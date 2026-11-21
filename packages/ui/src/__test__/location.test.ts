@@ -5,7 +5,7 @@ import { type Location } from '../types'
 jest.mock('svelte/store', () => ({
   derived: jest.fn(),
   get: jest.fn(),
-  writable: jest.fn()
+  writable: jest.fn(() => ({ subscribe: jest.fn() }))
 }))
 
 describe('location', () => {

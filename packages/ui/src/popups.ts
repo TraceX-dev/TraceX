@@ -1,3 +1,18 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { getResource } from '@hcengineering/platform'
 import { type ComponentType } from 'svelte'
 import { derived, get } from 'svelte/store'
@@ -14,6 +29,7 @@ import type {
 
 import { Analytics } from '@hcengineering/analytics'
 import { modalStore } from './modals'
+import { reserveZIndex, type ZIndexReservation } from './z-index'
 
 export interface CompAndProps {
   type?: 'popup'
@@ -32,6 +48,7 @@ export interface CompAndProps {
     refId?: string
   }
   dock?: boolean
+  readonly layer?: ZIndexReservation
 
   // Internal
   closing?: boolean
@@ -41,6 +58,7 @@ export interface PopupResult {
   id: string
   close: () => void
   update: (props: Record<string, any>) => void
+  readonly layer?: Pick<ZIndexReservation, 'content' | 'overlay'>
 }
 
 export const popupstore = derived(modalStore, (modals) => {
@@ -115,7 +133,9 @@ export function showPopup (
   }
 ): PopupResult {
   const id = options?.id ?? `${popupId++}`
-  const closePopupOp = (): void => {
+  let closed = false
+  let layer: ZIndexReservation | undefined
+  const removePopup = (): void => {
     modalStore.update((popups) => {
       const pos = popups.findIndex((p) => (p as CompAndProps).id === id && p.type === 'popup')
       if (pos !== -1) {
@@ -124,7 +144,11 @@ export function showPopup (
       return popups
     })
   }
-  closePopupOp()
+  const closePopupOp = (): void => {
+    closed = true
+    removePopup()
+  }
+  removePopup()
   const anchor = document.activeElement as HTMLElement
   const editable = anchor?.isContentEditable || anchor?.tagName === 'INPUT' || anchor?.tagName === 'TEXTAREA'
   if (anchor != null && !editable) anchor.blur()
@@ -143,20 +167,26 @@ export function showPopup (
   if (checkDockPosition(options.refId)) {
     data.dock = true
   }
+  const openPopup = (is: CompAndProps['is']): void => {
+    if (closed) return
+    layer = reserveZIndex()
+    addPopup({ ...data, is, layer })
+  }
   if (typeof component === 'string') {
     getResource(component)
-      .then((resolved) => {
-        addPopup({ ...data, is: resolved })
-      })
+      .then(openPopup)
       .catch((err) => {
         Analytics.handleError(err)
         console.error(err)
       })
   } else {
-    addPopup({ ...data, is: component })
+    openPopup(component)
   }
   return {
     id,
+    get layer () {
+      return layer
+    },
     close: closePopupOp,
     update: (props) => {
       updatePopup(id, { props })
