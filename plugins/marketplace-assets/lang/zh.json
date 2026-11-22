@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "来源",
     "RemovingDependencyLinksKeepsPackagesInstalled": "删除依赖链接后，软件包仍保持安装状态，其流程配置和正在进行的执行也会保留。",
     "PackageDependencies": "软件包依赖项",
     "MakePackage": "创建包",
@@ -25,6 +26,8 @@
     "Catalog": "Catalog",
     "MyPublications": "My publications",
     "PublishPackage": "Publish package",
+    "DeletePackage": "删除包",
+    "DeletePackageConfirmation": "确定要从Marketplace中永久删除“{name}”及其所有已发布版本吗？此操作无法撤销。已安装的定义和已下载的文件将保留。",
     "VersionHistory": "Version history",
     "ContactEmailOptional": "Contact email (optional)",
     "ContactEmailVisible": "This email will be visible in the catalog. It does not determine package ownership.",

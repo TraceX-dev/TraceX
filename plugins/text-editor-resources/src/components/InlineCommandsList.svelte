@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2022, 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,7 +19,7 @@
     showPopup,
     resizeObserver,
     deviceOptionsStore as deviceInfo,
-    PopupResult,
+    type PopupResult,
     SelectPopup
   } from '@hcengineering/ui'
   import { onDestroy, onMount } from 'svelte'
@@ -31,7 +32,7 @@
   export let query: string = ''
 
   let popup: HTMLDivElement
-  let dummyPopup: PopupResult
+  let dummyPopup: PopupResult | undefined
   let menuPopup: SelectPopup
 
   onMount(() => {
@@ -49,7 +50,7 @@
   })
 
   onDestroy(() => {
-    dummyPopup.close()
+    dummyPopup?.close()
   })
 
   export function onKeyDown (ev: KeyboardEvent): boolean {
@@ -101,6 +102,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   class="overlay"
+  style:z-index={dummyPopup?.layer?.overlay}
   on:click={() => {
     close()
   }}
@@ -109,6 +111,7 @@
   bind:this={popup}
   class="inline-commands"
   {style}
+  style:z-index={dummyPopup?.layer?.content}
   use:resizeObserver={(element) => {
     wPopup = element.clientWidth
     updateStyle()
@@ -124,7 +127,6 @@
     left: 0;
     bottom: 0;
     right: 0;
-    z-index: 1999;
   }
 
   .inline-commands {
@@ -133,6 +135,5 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
-    z-index: 10001;
   }
 </style>

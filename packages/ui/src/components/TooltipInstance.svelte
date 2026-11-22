@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -350,7 +351,7 @@
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
       class="modal-overlay antiOverlay"
-      style:z-index={($modals.findIndex((t) => t.type === 'tooltip') ?? 1) + 10000}
+      style:z-index={$tooltip.layer?.overlay}
       on:click|stopPropagation|preventDefault={() => {
         closeTooltip()
       }}
@@ -375,7 +376,7 @@
       style:width={options.width}
       style:height={options.height}
       style:transform={options.transform}
-      style:z-index={($modals.findIndex((t) => t.type === 'tooltip') ?? 1) + 10000}
+      style:z-index={$tooltip.layer?.content}
       bind:this={tooltipHTML}
     >
       {#if $tooltip.label}
@@ -404,7 +405,7 @@
     {#if !$tooltip.noArrow}
       <div
         bind:this={nubHTML}
-        style:z-index={($modals.findIndex((t) => t.type === 'tooltip') ?? 1) + 10000}
+        style:z-index={$tooltip.layer?.content}
         class="nub {nubDirection ?? ''}"
         class:testing
         class:shown
@@ -423,7 +424,7 @@
       style:max-width={options.maxWidth}
       style:transform={options.transform}
       style:visibility={options.visibility}
-      style:z-index={($modals.findIndex((t) => t.type === 'tooltip') ?? 1) + 10000}
+      style:z-index={$tooltip.layer?.content}
       style:text-align={$tooltip.textAlign}
     >
       <span class="label l1">
@@ -462,7 +463,7 @@
       style:width={options.width}
       style:height={options.height}
       style:transform={options.transform}
-      style:z-index={($modals.findIndex((t) => t.type === 'tooltip') ?? 1) + 10000}
+      style:z-index={$tooltip.layer?.content}
       bind:this={tooltipHTML}
     >
       {#if typeof $tooltip.component === 'string'}

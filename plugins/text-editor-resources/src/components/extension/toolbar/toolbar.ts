@@ -26,6 +26,7 @@ import { SvelteRenderer } from '../../node-view'
 import EditorToolbar from './EditorToolbar.svelte'
 import { mapLoadingPos } from './mapLoadingPos'
 import { type ActionContext } from '@hcengineering/text-editor'
+import { tippyZIndex } from '../tippy-z-index'
 
 export interface ToolbarCursor<T> {
   source: CursorSource
@@ -268,7 +269,6 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
         placement: viewOptions?.placement,
         hideOnClick: 'toggle',
         appendTo: viewOptions?.floating !== true ? (options.popupContainer ?? document.body) : document.body,
-        zIndex: 10001,
         offset: viewOptions?.offset,
         popperOptions: {
           modifiers: [
@@ -355,11 +355,21 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
       })
       renderer.updateProps({ editor, cursor: currCursor })
 
+      let showFrame: number | undefined
+      let renderedTag: string | undefined
+      const cancelPendingShow = (): void => {
+        if (showFrame === undefined) return
+        cancelAnimationFrame(showFrame)
+        showFrame = undefined
+      }
+
       const updateToolbar = (): void => {
+        if (tippyNode.state.isDestroyed) return
         getReferenceClientRect()
         killPendingMouseEvents()
 
-        const isSwapping = prevCursor !== null && currCursor !== null && prevCursor.tag !== currCursor.tag
+        const isSwapping = renderedTag !== undefined && currCursor !== null && renderedTag !== currCursor.tag
+        renderedTag = currCursor?.tag
         const shouldRespectMouseDown = !eqCursors(prevCursor, currCursor)
         const shouldShow = !isCursorRangeLoading && currCursor !== null && !(shouldRespectMouseDown && isMouseDown)
 
@@ -370,13 +380,14 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
         const viewOptions = currCursor?.viewOptions
         tippyNode.setProps(getTippyProps(viewOptions))
 
-        if (!tippyNode.state.isShown && shouldShow) {
-          requestAnimationFrame(() => {
+        if (!shouldShow) {
+          cancelPendingShow()
+          if (tippyNode.state.isVisible) tippyNode.hide()
+        } else if (!tippyNode.state.isVisible && showFrame === undefined) {
+          showFrame = requestAnimationFrame(() => {
+            showFrame = undefined
             tippyNode.show()
           })
-        }
-        if (tippyNode.state.isShown && !shouldShow) {
-          tippyNode.hide()
         }
 
         renderer.updateProps({ editor, cursor: currCursor })
@@ -389,7 +400,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
         })
       }
 
-      const tippyNode = tippy(view.dom, getTippyProps())
+      const tippyNode = tippy(view.dom, { ...getTippyProps(), plugins: [tippyZIndex] })
       // Actions are rendered asynchronously, after Popper's initial measurement.
       const resizeObserver = new ResizeObserver(() => {
         tippyNode.popperInstance?.forceUpdate()
@@ -401,6 +412,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
         const loadingState = tr.getMeta('loadingState') as boolean | undefined
 
         if (meta?.cursor !== undefined && !eqCursors(currCursor, meta.cursor)) {
+          cancelPendingShow()
           prevCursor = currCursor
           currCursor = meta.cursor !== null ? { ...meta.cursor } : null
         }
@@ -418,6 +430,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
       })
 
       editor.on('blur', (e) => {
+        cancelPendingShow()
         const target = e.event.relatedTarget
         const [ignore] = scanMarker(target as HTMLElement | null, 'blockEditorBlur')
 
@@ -434,6 +447,7 @@ export function ToolbarControlPlugin (editor: Editor, options: ToolbarOptions): 
 
       return {
         destroy () {
+          cancelPendingShow()
           resizeObserver.disconnect()
           tippyNode.destroy()
           window.removeEventListener('mousemove', mousemove)

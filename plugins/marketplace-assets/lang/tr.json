@@ -1,5 +1,6 @@
 {
   "string": {
+    "Origin": "Kaynak",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Bağımlılık bağlantısını kaldırmak, süreç yapılandırması ve etkin yürütmeler dahil paketi yüklü tutar.",
     "PackageDependencies": "Paket bağımlılıkları",
     "MakePackage": "Paket oluştur",
@@ -25,6 +26,8 @@
     "Catalog": "Catalog",
     "MyPublications": "My publications",
     "PublishPackage": "Publish package",
+    "DeletePackage": "Paketi sil",
+    "DeletePackageConfirmation": "\"{name}\" ve yayımlanmış tüm sürümleri Marketplace üzerinden kalıcı olarak silinsin mi? Bu işlem geri alınamaz. Yüklü tanımlar ve indirilen dosyalar korunacaktır.",
     "VersionHistory": "Version history",
     "ContactEmailOptional": "Contact email (optional)",
     "ContactEmailVisible": "This email will be visible in the catalog. It does not determine package ownership.",

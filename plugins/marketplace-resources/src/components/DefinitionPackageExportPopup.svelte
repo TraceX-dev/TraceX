@@ -28,6 +28,7 @@
   import { Button, CheckBox, Dialog, Label, Notice, SettingsCard, TextArea, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher, tick } from 'svelte'
   import { getMarketplaceClient, hasMarketplace } from '../catalog'
+  import { createPackageOrigin } from '../package-origin'
   import PublishPackagePopup from './PublishPackagePopup.svelte'
 
   export let source: string
@@ -70,6 +71,7 @@
       const client = getClient()
       const current = client.getModel().findObject<DefinitionPackageOwner>(definition._id)
       if (current === undefined) throw new DefinitionPackageError('package', 'The package definition is unavailable')
+      const origin = publish ? await createPackageOrigin(current) : undefined
       const info = current.definitionPackage
       if (newVersion ? info === undefined : info !== undefined) {
         throw new DefinitionPackageError('package', 'Package membership changed; reopen the export dialog')
@@ -147,7 +149,7 @@
       dispatch('close')
       if (publish) {
         await tick()
-        showPopup(PublishPackagePopup, { source: content }, 'centered')
+        showPopup(PublishPackagePopup, { source: content, origin }, 'centered')
       }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause)

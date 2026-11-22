@@ -21,7 +21,7 @@ import {
 } from '@hcengineering/core'
 import { generateToken } from '@hcengineering/server-token'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
-import { createAuthenticator, createRecipientResolver } from '../auth'
+import { createAuthenticator, createRecipientResolver, createWorkspaceResolver } from '../auth'
 
 jest.mock('@hcengineering/account-client', () => ({ getClient: jest.fn() }))
 const account = '267c1923-5983-4ab0-ac89-82f481836724' as AccountUuid
@@ -29,14 +29,40 @@ const secret = 'marketplace-test-secret'
 const getAccountInfo = jest.fn()
 const getPerson = jest.fn()
 const resolveAccountByEmail = jest.fn()
+const getUserWorkspaces = jest.fn()
 const authenticate = createAuthenticator('https://accounts.example.test', secret)
 
 beforeEach(() => {
   jest.clearAllMocks()
-  const client: Partial<ReturnType<typeof getClient>> = { getAccountInfo, getPerson, resolveAccountByEmail }
+  const client: Partial<ReturnType<typeof getClient>> = {
+    getAccountInfo,
+    getPerson,
+    resolveAccountByEmail,
+    getUserWorkspaces
+  }
   jest.mocked(getClient).mockReturnValue(client as ReturnType<typeof getClient>)
   getAccountInfo.mockResolvedValue({})
   getPerson.mockResolvedValue({ firstName: 'Jane', lastName: 'Doe' })
+})
+
+describe('origin workspace membership', () => {
+  const workspace = '44371923-5983-4ab0-ac89-82f481836724' as WorkspaceUuid
+  const resolve = createWorkspaceResolver('https://accounts.example.test')
+
+  it('uses current account workspaces and returns only the verified name and URL', async () => {
+    getUserWorkspaces.mockResolvedValueOnce([{ uuid: workspace, name: 'Private workspace', url: 'private' }])
+    expect(await resolve('viewer-token', workspace)).toEqual({ name: 'Private workspace', url: 'private' })
+    expect(getClient).toHaveBeenCalledWith('https://accounts.example.test', 'viewer-token')
+    getUserWorkspaces.mockResolvedValueOnce([])
+    expect(await resolve('viewer-token', workspace)).toBeUndefined()
+  })
+
+  it('rejects disabled workspaces and does not grant access during authority outages', async () => {
+    getUserWorkspaces.mockResolvedValueOnce([{ uuid: workspace, name: 'Private', url: 'private', isDisabled: true }])
+    expect(await resolve('viewer-token', workspace)).toBeUndefined()
+    getUserWorkspaces.mockRejectedValueOnce(new Error('offline'))
+    await expect(resolve('viewer-token', workspace)).rejects.toMatchObject({ status: 503 })
+  })
 })
 
 it('verifies the signed global account through the configured authority', async () => {
