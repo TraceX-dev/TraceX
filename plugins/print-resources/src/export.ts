@@ -35,7 +35,8 @@ export async function exportPDF (
     getMetadata(presentation.metadata.Token) ?? '',
     params.signed === true,
     {
-      orientation: options.orientation
+      orientation: options.orientation,
+      printHeaderFooter: options.printHeaderFooter
     }
   )
   return { file: result.blobId as Ref<Blob>, name: result.title, contentType: 'application/pdf' }
@@ -60,7 +61,8 @@ export async function exportBulkPDF (
   const props: ComponentProps<PrintBulkToPDF> = {
     objects,
     signed: params.signed === true,
-    orientation: options.orientation ?? 'portrait'
+    orientation: options.orientation ?? 'portrait',
+    printHeaderFooter: options.printHeaderFooter ?? true
   }
   showPopup(PrintBulkToPDF, props, 'float')
 }

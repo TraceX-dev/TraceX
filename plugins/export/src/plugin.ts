@@ -41,6 +41,7 @@ export const exportPlugin = plugin(exportId, {
     DocumentExporter: '' as Ref<Class<DocumentExporter>>
   },
   string: {
+    PrintHeaderFooter: '' as IntlString,
     Export: '' as IntlString,
     ExportDots: '' as IntlString,
     ExportList: '' as IntlString,

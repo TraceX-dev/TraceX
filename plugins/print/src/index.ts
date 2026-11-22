@@ -17,7 +17,18 @@
 import { print, printId } from './plugin'
 
 export * from './utils'
-export type { PrintExportParams, PrintPageOrientation, PrintToPDFOptions } from './types'
+export type {
+  PrintConfiguration,
+  PrintConfigurationValues,
+  PrintConfig,
+  PrintData,
+  PrintDataProvider,
+  PrintExportParams,
+  PrintPageOrientation,
+  PrintToPDFOptions
+} from './types'
+export { defaultPrintConfiguration } from './defaults'
+export { selectPrintConfiguration } from './configuration'
 
 export { printId }
 

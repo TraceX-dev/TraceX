@@ -24,6 +24,7 @@ import { type IntlString, mergeIds, type Resource } from '@hcengineering/platfor
 import { type AnyComponent, type Location } from '@hcengineering/ui/src/types'
 import type { KeyFilter, ReferenceVersion, SortFunc, ViewActionAvailabilityFunction } from '@hcengineering/view'
 
+import type { PrintDataProvider } from '@hcengineering/print'
 export default mergeIds(documentsId, documents, {
   component: {
     ControlledDocumentArrayEditor: '' as AnyComponent,
@@ -237,6 +238,7 @@ export default mergeIds(documentsId, documents, {
     ToReview: '' as IntlString
   },
   function: {
+    PrintData: '' as Resource<PrintDataProvider>,
     CanCreateTemplate: '' as Resource<ViewActionAvailabilityFunction<DocumentSpace>>,
     CanCreateDocument: '' as Resource<ViewActionAvailabilityFunction<DocumentSpace>>,
     CanCreateFolder: '' as Resource<ViewActionAvailabilityFunction<DocumentSpace>>,

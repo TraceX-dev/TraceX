@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021 Hardcore Engineering Inc.
 //
@@ -14,6 +15,7 @@
 // limitations under the License.
 //
 
+import FieldPopup from './components/FieldPopup.svelte'
 import { type Resources } from '@hcengineering/platform'
 import Templates from './components/Templates.svelte'
 import { type TextEditorHandler } from '@hcengineering/text-editor'
@@ -32,6 +34,7 @@ function ShowTemplates (element: HTMLElement, editor: TextEditorHandler): void {
 
 export default async (): Promise<Resources> => ({
   component: {
+    FieldPopup,
     Templates,
     TemplatePopup,
     CreateTemplateCategory,

@@ -48,7 +48,10 @@ beforeEach(() => {
 
 it('prepares a signed PDF without downloading or opening a popup', async () => {
   await expect(exportPDF(doc as Doc, options, { signed: true })).resolves.toEqual(file)
-  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', true, { orientation: 'landscape' })
+  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', true, {
+    orientation: 'landscape',
+    printHeaderFooter: undefined
+  })
   expect(showPopup).not.toHaveBeenCalled()
 })
 
@@ -69,7 +72,11 @@ it('opens the PDF viewer through its own resource', async () => {
 it('opens the existing bulk progress with shared orientation and signing', async () => {
   const objects: Doc[] = [doc as Doc, doc as Doc]
   await exportBulkPDF(objects, options, { signed: true })
-  expect(showPopup).toHaveBeenCalledWith(PrintBulkToPDF, { objects, signed: true, orientation: 'landscape' }, 'float')
+  expect(showPopup).toHaveBeenCalledWith(
+    PrintBulkToPDF,
+    { objects, signed: true, orientation: 'landscape', printHeaderFooter: true },
+    'float'
+  )
   expect(preparePdf).not.toHaveBeenCalled()
 })
 
@@ -82,11 +89,39 @@ it('checks only the print service configuration', async () => {
 
 it('does not sign a PDF when no action parameters were supplied', async () => {
   await exportPDF(doc as Doc, options)
-  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', false, { orientation: 'landscape' })
+  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', false, {
+    orientation: 'landscape',
+    printHeaderFooter: undefined
+  })
 })
 
 it('keeps unsigned bulk export as the default', async () => {
   const objects: Doc[] = [doc as Doc, doc as Doc]
   await exportBulkPDF(objects, options)
-  expect(showPopup).toHaveBeenCalledWith(PrintBulkToPDF, { objects, signed: false, orientation: 'landscape' }, 'float')
+  expect(showPopup).toHaveBeenCalledWith(
+    PrintBulkToPDF,
+    { objects, signed: false, orientation: 'landscape', printHeaderFooter: true },
+    'float'
+  )
+})
+
+it('preserves header/footer opt-out for signed and bulk exports', async () => {
+  const noDecorations: DocumentExporterOptions = { format: 'pdf', printHeaderFooter: false }
+  await exportPDF(doc as Doc, noDecorations, { signed: true })
+  expect(preparePdf).toHaveBeenCalledWith(client, doc, 'token', true, {
+    orientation: undefined,
+    printHeaderFooter: false
+  })
+  const objects: Doc[] = [doc as Doc]
+  await exportBulkPDF(objects, noDecorations, { signed: true })
+  expect(showPopup).toHaveBeenCalledWith(
+    PrintBulkToPDF,
+    {
+      objects,
+      signed: true,
+      orientation: 'portrait',
+      printHeaderFooter: false
+    },
+    'float'
+  )
 })

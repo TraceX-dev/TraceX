@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Stampa intestazioni e piè di pagina",
     "WorkspaceNamePattern": "Il nome deve essere di 40 caratteri o meno, non vuoto e non può contenere caratteri speciali (<, >, /)",
     "ExportList": "Esporta elenco",
     "Export": "Esporta",

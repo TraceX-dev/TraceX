@@ -1,5 +1,6 @@
 //
 // Copyright © 2020 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -25,6 +26,7 @@ import { calendarOperation } from '@hcengineering/model-calendar'
 import { cardOperation } from '@hcengineering/model-card'
 import { chunterOperation } from '@hcengineering/model-chunter'
 import { contactOperation } from '@hcengineering/model-contact'
+import { printId, printOperation } from '@hcengineering/model-print'
 import { documentsOperation } from '@hcengineering/model-controlled-documents'
 import { coreOperation } from '@hcengineering/model-core'
 import { documentOperation } from '@hcengineering/model-document'
@@ -82,6 +84,7 @@ export const migrateOperations: [string, MigrateOperation][] = [
   ['setting', settingOperation],
   ['tracker', trackerOperation],
   ['documents', documentsOperation],
+  [printId, printOperation],
   ['questions', questionsOperation],
   ['training', trainingOperation],
   ['request', requestOperation],

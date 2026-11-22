@@ -51,6 +51,7 @@ export async function exportDocuments (
         format: exporter.format,
         orientation: exporter.supportsOrientation ? settings.orientation : undefined
       }
+      if (exporter.supportsHeaderFooter === true) exportOptions.printHeaderFooter = settings.printHeaderFooter ?? true
       if (!bulk) {
         const generate = await getResource(exporter.export)
         prepared = await generate(objects[0], exportOptions, params)

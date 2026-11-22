@@ -51,6 +51,10 @@ export async function printToPDF (
     url.searchParams.append('orientation', options.orientation)
   }
 
+  if (options?.printHeaderFooter !== undefined) {
+    url.searchParams.set('printHeaderFooter', String(options.printHeaderFooter))
+  }
+
   const response = await fetch(url, {
     method: 'GET',
     headers: {

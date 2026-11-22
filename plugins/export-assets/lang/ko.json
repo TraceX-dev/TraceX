@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "머리글 및 바닥글 인쇄",
     "WorkspaceNamePattern": "이름은 40자 이내여야 하며, 비워둘 수 없고 특수 문자(<, >, /)를 포함할 수 없습니다",
     "ExportList": "목록 내보내기",
     "Export": "내보내기",

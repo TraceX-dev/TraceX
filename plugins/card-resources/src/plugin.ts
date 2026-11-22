@@ -29,6 +29,7 @@ import { type AnyComponent } from '@hcengineering/ui/src/types'
 import type { ViewletDescriptor, Viewlet } from '@hcengineering/view'
 import type { ValueFormatter } from '@hcengineering/converter'
 
+import type { PrintDataProvider } from '@hcengineering/print'
 export default mergeIds(cardId, card, {
   component: {
     ManageMasterTags: '' as AnyComponent,
@@ -71,6 +72,7 @@ export default mergeIds(cardId, card, {
     CardGridView: '' as AnyComponent
   },
   function: {
+    PrintData: '' as Resource<PrintDataProvider>,
     CardFactory: '' as Resource<(props?: Record<string, any>) => Promise<Ref<Doc> | undefined>>,
     CardReferenceObjectProvider: '' as Resource<
       <T extends Doc>(client: Client, ref: Ref<T>, doc?: T) => Promise<Doc | undefined>
