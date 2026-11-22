@@ -67,8 +67,11 @@
   let copying = false
   let error: { label: IntlString, params: Record<string, string | number> } | undefined
 
-  const viewSourceItems = [
-    { id: 'savedView', label: view.string.TableSourceLiveSavedView },
+  // Naming the saved view in the option makes the choice concrete; the name loads after the dialog opens.
+  $: viewSourceItems = [
+    savedViewName !== ''
+      ? { id: 'savedView', label: view.string.TableSourceSavedViewNamed, params: { name: savedViewName } }
+      : { id: 'savedView', label: view.string.TableSourceLiveSavedView },
     { id: 'frozen', label: view.string.TableSourceAsShown }
   ]
 
@@ -103,7 +106,13 @@
     ...(selected.length > 0
       ? [{ id: 'selection', label: view.string.SelectedRows, params: { count: selected.length } }]
       : []),
-    ...(showLoaded ? [{ id: 'loaded', label: view.string.LoadedRows, params: { count: loaded.length } }] : []),
+    ...(showLoaded
+      ? [
+          total === undefined
+            ? { id: 'loaded', label: view.string.LoadedRows, params: { count: loaded.length } }
+            : { id: 'loaded', label: view.string.LoadedRowsOfTotal, params: { count: loaded.length, total } }
+        ]
+      : []),
     ...(props.query !== undefined
       ? [
           knownTotal === undefined
@@ -222,9 +231,9 @@
         />
       </div>
     </div>
-    {#if scope === 'view' && hasSavedView}
+    {#if format === 'tracex' && scope === 'view' && hasSavedView}
       <div class="flex-between flex-gap-4">
-        <span class="font-medium caption-color"><Label label={view.string.TableSource} /></span>
+        <span class="font-medium caption-color"><Label label={view.string.TableRefreshFilters} /></span>
         <div class="control">
           <DropdownLabelsIntl
             items={viewSourceItems}
@@ -240,6 +249,9 @@
   </div>
 
   <span class="text-md content-dark-color mt-6"><Label label={hint.label} params={hint.params} /></span>
+  {#if format === 'tracex'}
+    <span class="text-md content-dark-color mt-2"><Label label={view.string.TableRefreshManualHint} /></span>
+  {/if}
 
   {#if notice !== undefined}
     <div class="mt-4"><Notice kind="error" label={notice.label} params={notice.params} /></div>
