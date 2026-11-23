@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2021, 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -22,7 +23,6 @@
     getBlobRef,
     getFileUrl,
     previewTypes,
-    getJsonOrEmpty,
     sizeToWidth
   } from '@hcengineering/presentation'
   import { Label, Spinner } from '@hcengineering/ui'
@@ -33,6 +33,7 @@
   import { Readable } from 'svelte/store'
   import { getType, isAttachment, openAttachmentInSidebar, showAttachmentPreviewPopup } from '../utils'
   import AttachmentName from './AttachmentName.svelte'
+  import { getLinkPreviewDetails } from '../link-preview'
 
   export let value: WithLookup<Attachment> | BlobType | undefined
   export let removable: boolean = false
@@ -82,7 +83,7 @@
 
   let canPreview = false
   let useDefaultIcon = false
-  const canLinkPreview = value?.type.includes('link-preview') ?? false
+  $: canLinkPreview = value?.type === 'application/link-preview'
 
   $: if (value !== undefined) {
     void canPreviewFile(value.type, $previewTypes).then((res) => {
@@ -140,7 +141,7 @@
   <div class="flex-row-center attachment-container">
     {#if value}
       {#if canLinkPreview}
-        {#await getJsonOrEmpty(value.file, value.name)}
+        {#await getLinkPreviewDetails(value)}
           <Spinner size="small" />
         {:then linkPreviewDetails}
           {#if linkPreviewDetails !== undefined}
@@ -161,7 +162,7 @@
             <div class="flex-col info-container">
               <div class="name">
                 <a target="_blank" class="no-line" style:flex-shrink={0} href={linkPreviewDetails.url}
-                  >{trimFilename(linkPreviewDetails?.title ?? value.name)}</a
+                  >{trimFilename(linkPreviewDetails.title ?? linkPreviewDetails.url ?? value.name)}</a
                 >
               </div>
               <div class="info-content flex-row-center">
