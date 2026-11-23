@@ -28,6 +28,7 @@
   import { Label } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import presentation, { searchFor, type SearchItem } from '..'
+  import { toPrefixFulltextQuery } from '../fulltextQuery'
   import { ObjectCreate, type ObjectSearchCategory } from '../types'
   import { createQuery, getClient } from '../utils'
   import DocPopup from './DocPopup.svelte'
@@ -109,8 +110,8 @@
         case 'disabled':
           return { _id: { $nin: ignoreObjects, ..._idExtra } }
         case 'fulltext':
-          return search !== ''
-            ? { $search: search, _id: { $nin: ignoreObjects, ..._idExtra } }
+          return search.trim() !== ''
+            ? { $search: toPrefixFulltextQuery(search), _id: { $nin: ignoreObjects, ..._idExtra } }
             : { _id: { $nin: ignoreObjects, ..._idExtra } }
         case 'spotlight':
           return extraItems.length > 0
