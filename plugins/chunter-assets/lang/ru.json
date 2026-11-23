@@ -167,6 +167,8 @@
     "MarkAsResolved": "Отметить как решённое",
     "ReopenDiscussion": "Открыть заново",
     "HideResolvedDiscussions": "Скрыть решённые",
+    "DiscussionResolvedMessage": "Обсуждение закрыто как решённое",
+    "DiscussionReopenedMessage": "Обсуждение переоткрыто",
     "ParticipantsCount": "{count, plural, one {# участник} few {# участника} other {# участников}}",
     "Discussion": "Обсуждение",
     "Discussions": "Обсуждения",

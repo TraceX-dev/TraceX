@@ -77,7 +77,7 @@ import { extractReferences, markupToText, stripTags } from '@hcengineering/text-
 import { workbenchId } from '@hcengineering/workbench'
 
 import { NOTIFICATION_BODY_SIZE } from '@hcengineering/server-notification'
-import { encodeObjectURI } from '@hcengineering/view'
+import view, { encodeObjectURI } from '@hcengineering/view'
 
 export {
   CreateChannelMessage,
@@ -566,6 +566,31 @@ export async function OnDefaultDiscussionRenamed (txes: Tx[], control: TriggerCo
 }
 
 /**
+ * Records resolving and reopening in the discussion channel, so the history shows who changed it and when.
+ * @public
+ */
+export async function OnDiscussionResolvedChanged (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
+  const res: Tx[] = []
+  for (const tx of txes) {
+    if (tx._class !== core.class.TxUpdateDoc) continue
+    const updateTx = tx as TxUpdateDoc<Discussion>
+    const resolved = updateTx.operations.resolved
+    if (typeof resolved !== 'boolean') continue
+    res.push(
+      control.txFactory.createTxCreateDoc(activity.class.ActivityInfoMessage, updateTx.objectSpace, {
+        attachedTo: updateTx.objectId,
+        attachedToClass: updateTx.objectClass,
+        collection: 'activity',
+        message: resolved ? chunter.string.DiscussionResolvedMessage : chunter.string.DiscussionReopenedMessage,
+        // The icons of the resolve/reopen actions.
+        contentIcon: resolved ? view.icon.CheckCircle : view.icon.Undo
+      })
+    )
+  }
+  return res
+}
+
+/**
  * Keeps discussions consistent when the owner object changes its class (e.g. the card type is changed).
  * A discussion keeps its source configuration if that configuration is still effective for the new class.
  * Otherwise it is linked to an effective configuration with the same name, if any, or becomes regular.
@@ -773,6 +798,7 @@ export default async () => ({
     OnDiscussionOwnerCreated,
     OnDefaultDiscussionUpdated,
     OnDefaultDiscussionRenamed,
+    OnDiscussionResolvedChanged,
     OnDiscussionOwnerClassChanged
   },
   function: {
