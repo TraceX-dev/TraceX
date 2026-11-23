@@ -33,16 +33,18 @@ async function connect (token: string): Promise<Client> {
   return await createClient(endpoint, token)
 }
 
-async function getTxOperations (client: Client, token: Token, isDerived: boolean = false): Promise<TxOperations> {
+async function getTxOperations (
+  client: Client,
+  rawToken: string,
+  token: Token,
+  isDerived: boolean = false
+): Promise<TxOperations> {
   let socialId: PersonId
 
   if (token.account === systemAccountUuid) {
     socialId = core.account.System
   } else {
-    const info = await getAccountClient(
-      config.AccountsUrl,
-      generateToken(token.account, token.workspace, token.extra)
-    ).getLoginWithWorkspaceInfo()
+    const info = await getAccountClient(config.AccountsUrl, rawToken).getLoginWithWorkspaceInfo()
     socialId = info.socialId ?? pickPrimarySocialId(info.socialIds)._id
   }
 
@@ -66,7 +68,7 @@ export function userClientFactory (rawToken: string, token: Token): ClientFactor
   return async (params?: ClientFactoryParams) => {
     const client = await connect(rawToken)
     try {
-      return await getTxOperations(client, token, params?.derived ?? false)
+      return await getTxOperations(client, rawToken, token, params?.derived ?? false)
     } catch (error: unknown) {
       await client.close()
       throw error
@@ -77,22 +79,27 @@ export function userClientFactory (rawToken: string, token: Token): ClientFactor
 /**
  * @public
  */
-export function simpleClientFactory (token: Token): ClientFactory {
+export function simpleClientFactory (rawToken: string, token: Token): ClientFactory {
   return async (params?: ClientFactoryParams) => {
     const derived = params?.derived ?? false
     const client = await connect(generateToken(systemAccountUuid, token.workspace, { service: 'collaborator' }))
-    return await getTxOperations(client, token, derived)
+    try {
+      return await getTxOperations(client, rawToken, token, derived)
+    } catch (error: unknown) {
+      await client.close()
+      throw error
+    }
   }
 }
 
 /**
  * @public
  */
-export function reusableClientFactory (token: Token, controller: Controller): ClientFactory {
+export function reusableClientFactory (rawToken: string, token: Token, controller: Controller): ClientFactory {
   return async (params?: ClientFactoryParams) => {
     const derived = params?.derived ?? false
     const workspaceClient = await controller.get(token.workspace)
-    return await getTxOperations(workspaceClient.client, token, derived)
+    return await getTxOperations(workspaceClient.client, rawToken, token, derived)
   }
 }
 
