@@ -37,6 +37,7 @@
   let exporters: DocumentExporterState[] = []
   let exporter: DocumentExportSettingsValues['exporter'] | undefined
   let orientation: DocumentExportOrientation = 'portrait'
+  let printHeaderFooter = true
   let preview = true
   let result: DocumentExportSettingsValues | undefined
   let loading = true
@@ -69,7 +70,8 @@
     const settings: DocumentExportSettingsValues = {
       exporter,
       orientation,
-      preview: !bulk && previewChecked
+      preview: !bulk && previewChecked,
+      printHeaderFooter: selected.exporter.supportsHeaderFooter === true ? printHeaderFooter : undefined
     }
     submitting = true
     try {
@@ -125,6 +127,19 @@
         width="100%"
         dataId="export-orientation"
       />
+
+      {#if selected?.exporter.supportsHeaderFooter === true}
+        <label class="label" for="export-header-footer"><Label label={exportPlugin.string.PrintHeaderFooter} /></label>
+        <Toggle
+          inputId="export-header-footer"
+          data-id="export-header-footer"
+          on={printHeaderFooter}
+          disabled={submitting}
+          on:change={(event) => {
+            printHeaderFooter = event.detail
+          }}
+        />
+      {/if}
 
       {#if !bulk}
         <label class="label" for={previewId}><Label label={presentation.string.DocumentPreview} /></label>

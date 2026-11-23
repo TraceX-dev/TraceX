@@ -15,6 +15,7 @@
 // limitations under the License.
 //
 
+import print, { defaultPrintConfiguration } from '@hcengineering/print'
 import activity from '@hcengineering/activity'
 import contact from '@hcengineering/contact'
 import documentsPlugin, {
@@ -144,6 +145,11 @@ export function createModel (builder: Builder): void {
 
     TDocumentComment
   )
+
+  builder.mixin(documents.class.ControlledDocument, core.class.Class, print.mixin.PrintConfig, {
+    provider: documents.function.PrintData,
+    defaultConfiguration: defaultPrintConfiguration
+  })
 
   defineRelationMetadata(builder)
 

@@ -48,6 +48,12 @@ describe('PDF export requests', () => {
     })
   })
 
+  it('passes explicit header/footer opt-out to the service', async () => {
+    await printToPDF(doc as Doc, 'test-token', { printHeaderFooter: false })
+    const url = new URL(String(fetchMock.mock.calls[0][0]))
+    expect(url.searchParams.get('printHeaderFooter')).toBe('false')
+  })
+
   it('does not issue an unauthenticated request', async () => {
     await expect(printToPDF(doc as Doc, '')).resolves.toBe('')
     expect(fetchMock).not.toHaveBeenCalled()

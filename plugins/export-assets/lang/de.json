@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Kopf- und Fußzeilen drucken",
     "WorkspaceNamePattern": "Name muss 40 Zeichen oder weniger sein, nicht leer sein und keine Sonderzeichen (<, >, /) enthalten",
     "ExportList": "Liste exportieren",
     "Export": "Exportieren",

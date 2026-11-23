@@ -29,6 +29,7 @@
   export let objects: Doc[] = []
   export let signed: boolean = false
   export let orientation: PrintPageOrientation = 'portrait'
+  export let printHeaderFooter: boolean = true
 
   const client = getClient()
 
@@ -77,7 +78,7 @@
             currentIndex = current
           },
           getCancelled: () => cancelled,
-          printOptions: { orientation }
+          printOptions: { orientation, printHeaderFooter }
         })
       } catch (error) {
         failed = true

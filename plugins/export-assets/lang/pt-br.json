@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Imprimir cabeçalhos e rodapés",
     "WorkspaceNamePattern": "O nome deve ter 40 caracteres ou menos, não estar vazio e não pode conter caracteres especiais (<, >, /)",
     "ExportList": "Exportar lista",
     "Export": "Exportar",

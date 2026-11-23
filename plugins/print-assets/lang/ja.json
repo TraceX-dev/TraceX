@@ -1,5 +1,17 @@
 {
   "string": {
+    "Enabled": "有効",
+    "Printing": "印刷",
+    "Header": "ヘッダー",
+    "Footer": "フッター",
+    "PrintLogo": "ロゴを印刷",
+    "InsertField": "フィールドを挿入",
+    "InvalidPrintSettings": "印刷設定を保存できませんでした。フィールドを確認してください。",
+    "PrintedObject": "印刷対象",
+    "Title": "タイトル",
+    "Page": "ページ ",
+    "Of": " / ",
+    "CreatedFromTemplate": "テンプレートから作成: ",
     "PrintToPDF": "PDFとして印刷",
     "PrintingDocumentOf": "ドキュメント {current} / {total} を印刷中",
     "DownloadAll": "すべてダウンロード",

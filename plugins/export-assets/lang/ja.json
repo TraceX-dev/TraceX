@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "ヘッダーとフッターを印刷",
     "WorkspaceNamePattern": "名前は40文字以内で、空にすることはできず、特殊文字(<, >, /)を含めることはできません",
     "ExportList": "リストをエクスポート",
     "Export": "エクスポート",

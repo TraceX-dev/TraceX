@@ -13,10 +13,43 @@
 // limitations under the License.
 //
 
+import type { Class, Client, Doc, Ref } from '@hcengineering/core'
+import type { Resource } from '@hcengineering/platform'
+import type { TemplateDataProvider } from '@hcengineering/templates'
+
 export type PrintPageOrientation = 'portrait' | 'landscape'
 
 export interface PrintToPDFOptions {
   orientation?: PrintPageOrientation
+  printHeaderFooter?: boolean
+}
+
+/** Editable decoration values shared by configuration records and class defaults. */
+export interface PrintConfigurationValues {
+  enabled: boolean
+  header: string
+  footer: string
+  printLogo: boolean
+}
+
+/** Class-specific configuration, protected by the configuration domain. */
+export interface PrintConfiguration extends Doc, PrintConfigurationValues {
+  targetClass: Ref<Class<Doc>>
+}
+
+/** Values supplied by the module owning the actual printed document. */
+export interface PrintData {
+  title: string
+  reference?: string
+  templateReference?: string
+}
+
+export type PrintDataProvider = (client: Client, object: Doc, provider: TemplateDataProvider) => Promise<PrintData>
+
+/** Opt a document class and its descendants into common PDF decorations. */
+export interface PrintConfig extends Class<Doc> {
+  provider: Resource<PrintDataProvider>
+  defaultConfiguration?: PrintConfigurationValues
 }
 
 /** PDF-specific parameters supplied by document export actions. */

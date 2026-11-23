@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Print headers and footers",
     "WorkspaceNamePattern": "Name must be 40 characters or less, not empty, and cannot contain special characters (<, >, /)",
     "ExportList": "Export list",
     "Export": "Export",

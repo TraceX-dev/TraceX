@@ -1,5 +1,17 @@
 {
   "string": {
+    "Enabled": "Activado",
+    "Printing": "Impresión",
+    "Header": "Encabezado",
+    "Footer": "Pie de página",
+    "PrintLogo": "Imprimir logotipo",
+    "InsertField": "Insertar campo",
+    "InvalidPrintSettings": "No se pudo guardar la configuración de impresión. Compruebe los campos.",
+    "PrintedObject": "Objeto impreso",
+    "Title": "Título",
+    "Page": "Página ",
+    "Of": " de ",
+    "CreatedFromTemplate": "Creado desde plantilla: ",
     "PrintToPDF": "Imprimir en PDF",
     "PrintingDocumentOf": "Imprimiendo documento {current} de {total}",
     "DownloadAll": "Descargar todo",

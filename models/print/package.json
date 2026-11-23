@@ -34,6 +34,9 @@
     "eslint-config-love": "^157.0.0"
   },
   "dependencies": {
+    "@hcengineering/controlled-documents": "workspace:^0.7.0",
+    "@hcengineering/setting": "workspace:^0.7.0",
+    "@hcengineering/templates": "workspace:^0.7.0",
     "@hcengineering/export": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/model-core": "workspace:^0.7.0",

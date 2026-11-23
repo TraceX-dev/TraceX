@@ -45,6 +45,7 @@ export class TDocumentExporter extends TDoc implements DocumentExporter {
   format!: string
   label!: IntlString
   export!: Resource<DocumentExportFunction>
+  supportsHeaderFooter?: boolean
   supportsOrientation!: boolean
   preview?: Resource<DocumentExportPreviewFunction>
   isAvailable?: Resource<DocumentExportAvailabilityFunction>

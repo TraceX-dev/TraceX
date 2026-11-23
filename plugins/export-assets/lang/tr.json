@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Üst ve alt bilgileri yazdır",
     "WorkspaceNamePattern": "İsim 40 karakter veya daha kısa, boş olmamalı ve özel karakterler (<, >, /) içermemelidir",
     "ExportList": "Listeyi dışa aktar",
     "Export": "Dışa Aktar",

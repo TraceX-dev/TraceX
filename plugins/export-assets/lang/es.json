@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Imprimir encabezados y pies de página",
     "WorkspaceNamePattern": "El nombre debe tener 40 caracteres o menos, no esté vacío y no puede contener caracteres especiales (<, >, /)",
     "ExportList": "Exportar lista",
     "Export": "Exportar",

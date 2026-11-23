@@ -57,6 +57,19 @@ describe('isolated print session', () => {
     expect(browser.close).toHaveBeenCalledTimes(1)
   })
 
+  it('omits all decorations when disabled, even if the document supplies them', async () => {
+    jest.mocked(page.evaluate!).mockResolvedValue('<div>Document decoration</div>')
+    await print(ctx, 'https://front.example/print/workspace', { printHeaderFooter: false }, 'readonly-token')
+    expect(page.pdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        displayHeaderFooter: false,
+        headerTemplate: '',
+        footerTemplate: '',
+        margin: { top: '1.5cm', right: '1cm', bottom: '1.5cm', left: '1cm' }
+      })
+    )
+  })
+
   it('does not produce a PDF of an authentication or document failure page', async () => {
     jest.mocked(page.$eval!).mockResolvedValue(true)
     await expect(print(ctx, 'https://front.example/print/workspace', {}, 'readonly-token')).rejects.toThrow(

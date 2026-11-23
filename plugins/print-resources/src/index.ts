@@ -22,13 +22,26 @@ import PrintBulkToPDF from './components/PrintBulkToPDF.svelte'
 import DOCXViewer from './components/DOCXViewer.svelte'
 import { exportPDF, previewPDF, exportBulkPDF, canExportPDF } from './export'
 
+import PrintHeader from './components/PrintHeader.svelte'
+import PrintFooter from './components/PrintFooter.svelte'
+import PrintSettings from './components/PrintSettings.svelte'
+import { printedObjectTitle } from './decorations'
+export { getPrintObject } from './print-object'
+
+import PrintConfigurationPresenter from './components/PrintConfigurationPresenter.svelte'
+
 export default async (): Promise<Resources> => ({
   component: {
+    PrintHeader,
+    PrintFooter,
+    PrintSettings,
+    PrintConfigurationPresenter,
     PrintApp,
     PrintBulkToPDF,
     DOCXViewer
   },
   function: {
+    PrintedObjectTitle: printedObjectTitle,
     ExportPDF: exportPDF,
     PreviewPDF: previewPDF,
     ExportBulkPDF: exportBulkPDF,
