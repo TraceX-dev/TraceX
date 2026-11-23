@@ -215,7 +215,13 @@ export function setupUpdateManager ({ getMainWindow, quitApplication }: UpdateMa
 
   return {
     start: ({ url, channel }) => {
-      autoUpdater.setFeedURL({ provider: 'generic', url, channel })
+      autoUpdater.setFeedURL({
+        provider: 'generic',
+        url,
+        channel,
+        // The dist storage ignores multi-range requests, which breaks differential download
+        useMultipleRangeRequest: false
+      })
       void checkForUpdates()
     }
   }
