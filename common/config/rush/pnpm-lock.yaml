@@ -30945,6 +30945,12 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/measurements':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/measurements
+      '@hcengineering/measurements-otlp':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/measurements-otlp
       '@hcengineering/server-token':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token

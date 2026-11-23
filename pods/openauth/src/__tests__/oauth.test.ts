@@ -13,6 +13,7 @@
 // limitations under the License.
 //
 
+import { MeasureMetricsContext, type MeasureContext } from '@hcengineering/measurements'
 import { createHash, randomUUID } from 'node:crypto'
 import { createOAuthApp } from '../app'
 import { OAuthStore } from '../store'
@@ -37,64 +38,68 @@ function testStore (): OAuthStore {
   const connections = new Map<string, OAuthConnection>()
   const tokens = new Map<string, { connection: string, expiresOn: number }>()
   const locks = new Map<string, Promise<unknown>>()
-  jest.spyOn(store, 'get').mockImplementation(async (key) => {
+  jest.spyOn(store, 'get').mockImplementation(async (_ctx, key) => {
     const found = values.get(JSON.stringify(key))
     return found === undefined || (found.expiry !== undefined && found.expiry <= Date.now())
       ? undefined
       : (structuredClone(found.value) as Record<string, unknown>)
   })
-  jest.spyOn(store, 'set').mockImplementation(async (key, value, expiry) => {
+  jest.spyOn(store, 'set').mockImplementation(async (_ctx, key, value, expiry) => {
     values.set(JSON.stringify(key), { value: structuredClone(value), expiry: expiry?.getTime() })
   })
-  jest.spyOn(store, 'remove').mockImplementation(async (key) => {
+  jest.spyOn(store, 'remove').mockImplementation(async (_ctx, key) => {
     values.delete(JSON.stringify(key))
   })
-  jest.spyOn(store, 'scan').mockImplementation(async function* (prefix) {
+  jest.spyOn(store, 'scan').mockImplementation(async function* (ctx, prefix) {
     for (const [encoded] of values) {
       const key = JSON.parse(encoded) as string[]
       if (prefix.every((part, index) => key[index] === part)) {
-        const value = await store.get(key)
+        const value = await store.get(ctx, key)
         if (value !== undefined) yield [key, value]
       }
     }
   })
-  jest.spyOn(store, 'withLock').mockImplementation(async <T>(key: string, action: () => Promise<T>): Promise<T> => {
-    const current = (locks.get(key) ?? Promise.resolve()).then(action)
-    locks.set(
-      key,
-      current.catch(() => {})
+  jest
+    .spyOn(store, 'withLock')
+    .mockImplementation(
+      async <T>(ctx: MeasureContext, key: string, action: (ctx: MeasureContext) => Promise<T>): Promise<T> => {
+        const current = (locks.get(key) ?? Promise.resolve()).then(async () => await action(ctx))
+        locks.set(
+          key,
+          current.catch(() => {})
+        )
+        return await current
+      }
     )
-    return await current
-  })
-  jest.spyOn(store, 'registerClient').mockImplementation(async (client) => {
+  jest.spyOn(store, 'registerClient').mockImplementation(async (_ctx, client) => {
     clients.set(client.id, client)
   })
-  jest.spyOn(store, 'getClient').mockImplementation(async (id) => clients.get(id))
-  jest.spyOn(store, 'createConnection').mockImplementation(async (connection) => {
+  jest.spyOn(store, 'getClient').mockImplementation(async (_ctx, id) => clients.get(id))
+  jest.spyOn(store, 'createConnection').mockImplementation(async (_ctx, connection) => {
     connections.set(connection.id, connection)
   })
-  jest.spyOn(store, 'getConnection').mockImplementation(async (id) => {
+  jest.spyOn(store, 'getConnection').mockImplementation(async (_ctx, id) => {
     const connection = connections.get(id)
     return connection?.revokedOn === undefined ? connection : undefined
   })
   jest
     .spyOn(store, 'listConnections')
-    .mockImplementation(async (accountId) =>
+    .mockImplementation(async (_ctx, accountId) =>
       [...connections.values()]
         .filter((connection) => connection.account === accountId && connection.revokedOn === undefined)
         .map(({ id, clientName, createdOn, workspaceId }) => ({ id, clientName, createdOn, workspaceId }))
     )
-  jest.spyOn(store, 'revokeConnection').mockImplementation(async (id, accountId) => {
+  jest.spyOn(store, 'revokeConnection').mockImplementation(async (_ctx, id, accountId) => {
     const connection = connections.get(id)
     if (connection?.account === accountId) connection.revokedOn = Date.now()
   })
-  jest.spyOn(store, 'issueAccessToken').mockImplementation(async (token, connection, expiresOn) => {
+  jest.spyOn(store, 'issueAccessToken').mockImplementation(async (_ctx, token, connection, expiresOn) => {
     tokens.set(token, { connection, expiresOn })
   })
-  jest.spyOn(store, 'resolveAccessToken').mockImplementation(async (token) => {
+  jest.spyOn(store, 'resolveAccessToken').mockImplementation(async (ctx, token) => {
     const entry = tokens.get(token)
     if (entry === undefined || entry.expiresOn <= Date.now()) return undefined
-    const connection = await store.getConnection(entry.connection)
+    const connection = await store.getConnection(ctx, entry.connection)
     return connection === undefined ? undefined : { connection, expiresOn: entry.expiresOn }
   })
   return store
@@ -117,6 +122,7 @@ describe.each([
 ])('MCP OAuth authorization at $issuerUrl', (config) => {
   let store: OAuthStore
   let app: ReturnType<typeof createOAuthApp>
+  let metrics: MeasureMetricsContext
   let sessionActive: boolean
   let workspaces: OAuthWorkspace[]
   beforeEach(() => {
@@ -126,18 +132,19 @@ describe.each([
       { id: firstWorkspace, name: 'Same name', url: 'first' },
       { id: secondWorkspace, name: 'Same name', url: 'second' }
     ]
-    app = createOAuthApp(config, store, {
-      delegate: async (token) => token,
-      authenticate: async (token) => {
+    metrics = new MeasureMetricsContext('openauth', {})
+    app = createOAuthApp(metrics, config, store, {
+      delegate: async (_ctx, token) => token,
+      authenticate: async (_ctx, token) => {
         if (!sessionActive || !['account-session', 'other-session'].includes(token)) throw new Error('Invalid session')
         return { account: token === 'other-session' ? otherAccount : account, token }
       },
-      getWorkspaces: async (token) => (token === 'other-session' ? [] : workspaces),
-      isServiceToken: (token) => token === 'internal-service'
+      getWorkspaces: async (_ctx, token) => (token === 'other-session' ? [] : workspaces),
+      isServiceToken: (_ctx, token) => token === 'internal-service'
     })
   })
   afterEach(async () => {
-    await store.close()
+    await store.close(metrics)
   })
 
   async function request (path: string, init: RequestInit = {}, cookies?: Map<string, string>): Promise<Response> {
@@ -265,6 +272,51 @@ describe.each([
     }
   })
 
+  it('nests issuer operations under HTTP and counts responses by route template', async () => {
+    const client = await register()
+    await authorize(client)
+    await expect(request('/requests/private-request-id?state=private-state')).resolves.toMatchObject({ status: 400 })
+
+    const http = metrics.metrics.measurements['openauth.http']
+    expect(http.measurements['openauth.issuer'].operations).toBeGreaterThan(0)
+    const series = Object.values(http.measurements['#openauth-http-responses'].series ?? {})
+    const prefix = new URL(config.issuerUrl).pathname.replace(/\/$/, '')
+    expect(series).toContainEqual(
+      expect.objectContaining({
+        attributes: { method: 'GET', route: `${prefix}/requests/:id`, status: 400 },
+        value: 1
+      })
+    )
+    expect(series).toContainEqual(
+      expect.objectContaining({
+        attributes: { method: 'GET', route: `${prefix}/tracex/authorize`, status: 302 },
+        value: 1
+      })
+    )
+    expect(JSON.stringify(series)).not.toMatch(/private-request-id|private-state/)
+  })
+
+  it('measures preflight, body limit and unmatched responses in the shared middleware', async () => {
+    const [preflight, oversized, unknown] = await Promise.all([
+      request('/register', {
+        method: 'OPTIONS',
+        headers: {
+          Origin: new URL(config.loginUrl).origin,
+          'Access-Control-Request-Method': 'POST'
+        }
+      }),
+      request('/register', { method: 'POST', body: 'x'.repeat(16 * 1024 + 1) }),
+      request('/unknown-private-path')
+    ])
+    expect([preflight.status, oversized.status, unknown.status]).toEqual([204, 500, 404])
+
+    const http = metrics.metrics.measurements['openauth.http']
+    const series = Object.values(http.measurements['#openauth-http-responses'].series ?? {})
+    expect(http.operations).toBe(3)
+    expect(series.map(({ attributes }) => attributes.status)).toEqual(expect.arrayContaining([204, 404, 500]))
+    expect(JSON.stringify(series)).not.toContain('unknown-private-path')
+  })
+
   it('preserves a client callback on the same origin without adding the issuer prefix', async () => {
     const callback = `${new URL(config.issuerUrl).origin}/apps/callback`
     const client = await register(callback)
@@ -303,7 +355,7 @@ describe.each([
     expect(callback.searchParams.get('state')).toBe('cancel-state')
     expect(callback.searchParams.get('iss')).toBe(config.issuerUrl)
     expect(cancelled.headers.getSetCookie().some((cookie) => cookie.includes('Max-Age=0'))).toBe(true)
-    expect(await store.get(['login', id])).toBeUndefined()
+    expect(await store.get(metrics, ['login', id])).toBeUndefined()
   })
 
   it('authorizes, refreshes, and revokes one connection without disabling another', async () => {
@@ -461,7 +513,10 @@ describe.each([
     expect((await request(`/tracex/complete?request=${id}`, {}, cookies)).status).toBe(302)
     expect((await request(`/tracex/complete?request=${id}`, {}, cookies)).status).toBe(400)
     expect(createConnection).toHaveBeenCalledTimes(1)
-    expect(createConnection).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: firstWorkspace }))
+    expect(createConnection).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ workspaceId: firstWorkspace })
+    )
   })
 
   it('keeps workspace restrictions during refresh and reports each connection scope', async () => {

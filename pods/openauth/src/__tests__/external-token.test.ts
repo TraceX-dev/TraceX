@@ -14,9 +14,11 @@
 //
 
 import { systemAccountUuid } from '@hcengineering/core'
+import { NoMetricsContext } from '@hcengineering/measurements'
 import { decodeToken } from '@hcengineering/server-token'
 import { exchangeExternalAccess } from '../external-token'
 
+const ctx = new NoMetricsContext()
 const secret = 'issuer-to-account-test-secret'
 afterEach(() => {
   jest.restoreAllMocks()
@@ -27,6 +29,7 @@ it('exchanges through the internal endpoint with short-lived issuer credentials'
     .spyOn(globalThis, 'fetch')
     .mockResolvedValue(new Response(JSON.stringify({ token: 'delegated-token' })))
   const result = await exchangeExternalAccess(
+    ctx,
     'https://accounts.example.test/',
     secret,
     'private-user-session',
@@ -54,13 +57,20 @@ it('exchanges through the internal endpoint with short-lived issuer credentials'
 it.each([{}, { token: 123 }, { token: '' }])('rejects an invalid account response %j', async (body) => {
   jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(body)))
   await expect(
-    exchangeExternalAccess('https://accounts.example.test', secret, 'private-user-session', 'api', 'connection-1')
+    exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, 'private-user-session', 'api', 'connection-1')
   ).rejects.toThrow('Invalid OAuth account token exchange response')
 })
 
 it('fails closed when the account service refuses the exchange', async () => {
   jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('internal details', { status: 403 }))
   await expect(
-    exchangeExternalAccess('https://accounts.example.test', secret, 'private-user-session', 'codex', 'connection-1')
+    exchangeExternalAccess(
+      ctx,
+      'https://accounts.example.test',
+      secret,
+      'private-user-session',
+      'codex',
+      'connection-1'
+    )
   ).rejects.toThrow('OAuth account token exchange failed')
 })

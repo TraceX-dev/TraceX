@@ -15,7 +15,7 @@
 
 import { getClient, type AccountClient, type WorkspaceLoginInfo } from '@hcengineering/account-client'
 import { createRestTxOperations, type RestTxOperations } from '@hcengineering/api-client'
-import {
+import core, {
   AccountRole,
   MeasureMetricsContext,
   type Account,
@@ -73,7 +73,11 @@ describe('print HTTP requests', () => {
     socialIds: [socialId],
     fullSocialIds: []
   }
-  const client: Partial<RestTxOperations> = { account, findOne: jest.fn(), close: jest.fn() }
+  const client: Pick<RestTxOperations, 'account' | 'findOne' | 'close'> = {
+    account,
+    findOne: jest.fn(),
+    close: jest.fn()
+  }
   let server: Server
   let origin: string
 
@@ -93,8 +97,14 @@ describe('print HTTP requests', () => {
     jest.clearAllMocks()
     jest.mocked(accounts.getLoginInfoByToken!).mockResolvedValue(login)
     jest.mocked(createRestTxOperations).mockResolvedValue(client as RestTxOperations)
-    const doc: Partial<Doc> = { _id: 'document' as Ref<Doc> }
-    jest.mocked(client.findOne!).mockResolvedValue(doc as Doc)
+    const doc: Doc = {
+      _id: 'document' as Ref<Doc>,
+      _class: core.class.Doc,
+      space: core.space.Model,
+      modifiedOn: 0,
+      modifiedBy: socialId
+    }
+    jest.mocked(client.findOne).mockResolvedValue(doc)
     jest.mocked(print).mockResolvedValue(Buffer.from('%PDF-test'))
   })
 

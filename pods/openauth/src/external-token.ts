@@ -14,35 +14,45 @@
 //
 
 import { systemAccountUuid } from '@hcengineering/core'
+import type { MeasureContext } from '@hcengineering/measurements'
 import { generateToken } from '@hcengineering/server-token'
 
 /** Exchanges a stored user session over a service-authenticated channel; never calls public account RPC. */
 export async function exchangeExternalAccess (
+  ctx: MeasureContext,
   accountsUrl: string,
   secret: string,
   accountToken: string,
   source: string,
   connectionId: string
 ): Promise<string> {
-  const serviceToken = generateToken(systemAccountUuid, undefined, { service: 'openauth' }, secret, {
-    exp: Math.floor(Date.now() / 1000) + 60
-  })
-  const response = await fetch(`${accountsUrl.replace(/\/+$/, '')}/internal/oauth/exchange`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${serviceToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accountToken, source, connectionId }),
-    signal: AbortSignal.timeout(10_000)
-  })
-  if (!response.ok) throw new Error('OAuth account token exchange failed')
-  const result: unknown = await response.json()
-  if (
-    result === null ||
-    typeof result !== 'object' ||
-    !('token' in result) ||
-    typeof result.token !== 'string' ||
-    result.token === ''
-  ) {
-    throw new Error('Invalid OAuth account token exchange response')
-  }
-  return result.token
+  return await ctx.with(
+    'openauth.accounts.exchange-external-access',
+    {},
+    async () => {
+      const serviceToken = generateToken(systemAccountUuid, undefined, { service: 'openauth' }, secret, {
+        exp: Math.floor(Date.now() / 1000) + 60
+      })
+      const response = await fetch(`${accountsUrl.replace(/\/+$/, '')}/internal/oauth/exchange`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${serviceToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountToken, source, connectionId }),
+        signal: AbortSignal.timeout(10_000)
+      })
+      if (!response.ok) throw new Error('OAuth account token exchange failed')
+      const result: unknown = await response.json()
+      if (
+        result === null ||
+        typeof result !== 'object' ||
+        !('token' in result) ||
+        typeof result.token !== 'string' ||
+        result.token === ''
+      ) {
+        throw new Error('Invalid OAuth account token exchange response')
+      }
+      return result.token
+    },
+    undefined,
+    { suspendErrors: true }
+  )
 }
