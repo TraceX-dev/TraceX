@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Editar rótulos dos campos",
+    "NoEditableFields": "Este pacote não tem campos editáveis.",
+    "CreateVersionDraft": "Criar rascunho da versão",
+    "ReopenLatestPublication": "Abra a versão mais recente em Minhas publicações para editar os rótulos dos campos.",
+    "ReloadPackageDraft": "Reabra o rascunho do pacote para carregar as alterações mais recentes.",
+    "PrivateDraftSpaceRequired": "Entre no espaço de trabalho para inicializar seu espaço privado para rascunhos.",
     "Origin": "Origem",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Remover o vínculo de dependência mantém o pacote instalado, incluindo a configuração dos processos e as execuções ativas.",
     "PackageDependencies": "Dependências do pacote",

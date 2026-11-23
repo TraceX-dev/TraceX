@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "フィールドラベルを編集",
+    "NoEditableFields": "このパッケージには編集できるフィールドがありません。",
+    "CreateVersionDraft": "バージョンの下書きを作成",
+    "ReopenLatestPublication": "フィールドラベルを編集するには、マイ公開パッケージで最新バージョンを開いてください。",
+    "ReloadPackageDraft": "パッケージの下書きを開き直して、最新の変更を読み込んでください。",
+    "PrivateDraftSpaceRequired": "ワークスペースにサインインして、下書き用のプライベートスペースを初期化してください。",
     "Origin": "公開元",
     "RemovingDependencyLinksKeepsPackagesInstalled": "依存関係のリンクを削除しても、パッケージ、プロセス設定、実行中の処理は保持されます。",
     "PackageDependencies": "パッケージの依存関係",

@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Alan etiketlerini düzenle",
+    "NoEditableFields": "Bu pakette düzenlenebilir alan yok.",
+    "CreateVersionDraft": "Sürüm taslağı oluştur",
+    "ReopenLatestPublication": "Alan etiketlerini düzenlemek için Yayınlarım bölümünde en son sürümü açın.",
+    "ReloadPackageDraft": "Son değişiklikleri yüklemek için paket taslağını yeniden açın.",
+    "PrivateDraftSpaceRequired": "Taslaklara ayrılan özel alanı oluşturmak için çalışma alanınızda oturum açın.",
     "Origin": "Kaynak",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Bağımlılık bağlantısını kaldırmak, süreç yapılandırması ve etkin yürütmeler dahil paketi yüklü tutar.",
     "PackageDependencies": "Paket bağımlılıkları",

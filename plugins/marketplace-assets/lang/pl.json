@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Edytuj etykiety pól",
+    "NoEditableFields": "Ten pakiet nie zawiera pól możliwych do edycji.",
+    "CreateVersionDraft": "Utwórz wersję roboczą",
+    "ReopenLatestPublication": "Aby edytować etykiety pól, otwórz najnowszą wersję w sekcji Moje publikacje.",
+    "ReloadPackageDraft": "Otwórz ponownie wersję roboczą pakietu, aby wczytać najnowsze zmiany.",
+    "PrivateDraftSpaceRequired": "Zaloguj się do obszaru roboczego, aby utworzyć prywatną przestrzeń na wersje robocze.",
     "Origin": "Pochodzenie",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Usunięcie powiązania zależności zachowuje zainstalowany pakiet, konfigurację procesów i aktywne wykonania.",
     "PackageDependencies": "Zależności pakietu",
