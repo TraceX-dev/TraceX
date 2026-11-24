@@ -76,13 +76,13 @@
 <span class="label">
   <Label label={core.string.Id} />
 </span>
-<div class="flex-row-center" style="gap: .5rem">
+<div class="flex-row-center w-full min-w-0" style="gap: .5rem">
   <EditBox
     bind:value={identifier}
     disabled={!editable}
     placeholder={core.string.Id}
     uppercase
-    maxWidth={'50%'}
+    fullSize
     on:change={change}
   />
   {#if editable && currentSequence?.sequence && currentSequence.sequence > 0}
