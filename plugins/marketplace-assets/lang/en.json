@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Edit field labels",
+    "NoEditableFields": "This package has no editable fields.",
+    "CreateVersionDraft": "Create version draft",
+    "ReopenLatestPublication": "Open the latest version in My publications to edit its field labels.",
+    "ReloadPackageDraft": "Reopen the package draft to load the latest changes.",
+    "PrivateDraftSpaceRequired": "Sign in to your workspace to initialize your private space for drafts.",
     "Origin": "Origin",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Removing a dependency link keeps the package installed, including its process configuration and active executions.",
     "PackageDependencies": "Package dependencies",

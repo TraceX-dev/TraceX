@@ -13,7 +13,7 @@
 -->
 <script lang="ts">
   import card from '@hcengineering/card'
-  import core, { isOwnerOrMaintainer } from '@hcengineering/core'
+  import core, { getCurrentAccount, isOwnerOrMaintainer, type Ref } from '@hcengineering/core'
   import marketplace, {
     parseDefinitionPackageRelease,
     type DefinitionPackageDraft,
@@ -21,7 +21,7 @@
     type ResolvedDefinitionPackage
   } from '@hcengineering/marketplace'
   import { getEmbeddedLabel, type IntlString } from '@hcengineering/platform'
-  import { MessageViewer } from '@hcengineering/presentation'
+  import { getClient, MessageViewer } from '@hcengineering/presentation'
   import process from '@hcengineering/process'
   import { jsonToMarkup } from '@hcengineering/text-core'
   import { markdownToMarkup } from '@hcengineering/text-markdown'
@@ -47,6 +47,7 @@
   import PackageDraftProcessPreview from './PackageDraftProcessPreview.svelte'
   import PackageDraftType from './PackageDraftType.svelte'
   import PackageDependencies from './PackageDependencies.svelte'
+  import PackageFieldLabelsPopup from './PackageFieldLabelsPopup.svelte'
   import { resolvePackageInstallation } from '../installations'
 
   interface ReviewTab {
@@ -69,24 +70,33 @@
   let scrollArea: HTMLElement | undefined | null
   const canInstall = isOwnerOrMaintainer()
 
-  onMount(() => {
-    void parseDefinitionPackageRelease(draft.release)
+  function loadDraft (current: DefinitionPackageDraft): void {
+    error = ''
+    dependencyError = ''
+    resolved = undefined
+    void parseDefinitionPackageRelease(current.release)
       .then(async (value) => {
+        if (current !== draft) return
         preview = createPackageDraftPreview(value)
-        reviewMarkup = jsonToMarkup(markdownToMarkup(draft.review))
-        sourceMarkup = draftCodeMarkup(draft.release, 'yaml')
+        reviewMarkup = jsonToMarkup(markdownToMarkup(current.review))
+        sourceMarkup = draftCodeMarkup(current.release, 'yaml')
         release = value
         if (Object.keys(value.dependencies ?? {}).length > 0) {
           try {
-            resolved = await resolvePackageInstallation(value)
+            const tree = await resolvePackageInstallation(value)
+            if (current === draft) resolved = tree
           } catch (cause) {
-            dependencyError = cause instanceof Error ? cause.message : String(cause)
+            if (current === draft) dependencyError = cause instanceof Error ? cause.message : String(cause)
           }
         }
       })
       .catch((cause: unknown) => {
-        error = cause instanceof Error ? cause.message : String(cause)
+        if (current === draft) error = cause instanceof Error ? cause.message : String(cause)
       })
+  }
+
+  onMount(() => {
+    loadDraft(draft)
   })
 
   function reviewTabs (value: PackageDraftPreview, artifact: DefinitionPackageRelease | undefined): ReviewTab[] {
@@ -151,6 +161,21 @@
   function publish (): void {
     if (release === undefined) return
     showPopup(PublishPackagePopup, { source: draft.release }, 'centered')
+  }
+
+  function editFieldLabels (): void {
+    showPopup(PackageFieldLabelsPopup, { base: { draft } }, 'centered', async (id?: Ref<DefinitionPackageDraft>) => {
+      if (id === undefined) return
+      try {
+        const updated = await getClient().findOne(marketplace.class.DefinitionPackageDraft, { _id: id })
+        if (updated !== undefined) {
+          draft = updated
+          loadDraft(updated)
+        }
+      } catch (cause) {
+        error = cause instanceof Error ? cause.message : String(cause)
+      }
+    })
   }
 
   function close (): void {
@@ -266,12 +291,18 @@
           </div>
         </Scroller>
       {/key}
-    {:else if error}
-      <div class="p-5" data-id="package-draft-error"><Notice label={getEmbeddedLabel(error)} kind="error" /></div>
-    {:else}
+    {:else if !error}
       <div class="flex-center flex-grow p-5"><Spinner /></div>
     {/if}
+    {#if error}
+      <div class="p-5" data-id="package-draft-error"><Notice label={getEmbeddedLabel(error)} kind="error" /></div>
+    {/if}
   </div>
+  <svelte:fragment slot="footerLeft">
+    {#if fieldsCount > 0 && draft.author === getCurrentAccount().uuid}
+      <Button label={marketplace.string.EditFieldLabels} on:click={editFieldLabels} />
+    {/if}
+  </svelte:fragment>
   <svelte:fragment slot="footerRight">
     <Button label={marketplace.string.Export} disabled={release === undefined} on:click={download} />
     {#if hasMarketplace()}<Button

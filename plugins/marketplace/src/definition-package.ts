@@ -10,7 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { AccountUuid } from '@hcengineering/core'
+import core, { type AccountUuid } from '@hcengineering/core'
+import { getEmbeddedLabel } from '@hcengineering/platform'
 import { hash } from 'fast-sha256'
 import { dump, JSON_SCHEMA, load, YAMLException } from 'js-yaml'
 import { compileProcessYaml } from '@hcengineering/process'
@@ -196,6 +197,53 @@ function releaseHash (manifest: DefinitionPackageManifest, source: string): stri
 
 function yaml (value: unknown): string {
   return dump(value, { noRefs: true, noCompatMode: true, lineWidth: 120, schema: JSON_SCHEMA })
+}
+
+/** Rewrites only field labels in the original authoring blocks and recalculates the release digest. */
+export async function updateDefinitionPackageFieldLabels (
+  release: DefinitionPackageRelease,
+  labels: ReadonlyMap<string, string>,
+  manifest: DefinitionPackageManifest = release.package
+): Promise<DefinitionPackageRelease> {
+  if (release.definition.kind !== 'card') {
+    throw new DefinitionPackageError('kind', 'Only card modules contain editable field labels')
+  }
+  const source = object(load(release.source, { schema: JSON_SCHEMA }), 'source')
+  const fields = new Map<string, Record<string, unknown>>()
+  const attributes = new Set(
+    release.definition.docs.filter((doc) => doc._class === core.class.Attribute).map((doc) => doc._id)
+  )
+  for (const [id, field] of Object.entries(object(source.fields ?? {}, 'fields'))) {
+    fields.set(id, object(field, `fields.${id}`))
+  }
+  for (const section of ['cardTypes', 'tags']) {
+    for (const [ownerId, value] of Object.entries(object(source[section] ?? {}, section))) {
+      const path = `${section}.${ownerId}`
+      const owner = object(value, path)
+      for (const [id, field] of Object.entries(object(owner.fields ?? {}, `${path}.fields`))) {
+        fields.set(id, object(field, `${path}.fields.${id}`))
+      }
+    }
+  }
+  for (const [id, label] of labels) {
+    const field = fields.get(id)
+    if (field === undefined || !attributes.has(id)) {
+      throw new DefinitionPackageError(`fields.${id}`, 'Unknown package field')
+    }
+    const value = label.trim()
+    if (value.length === 0) throw new DefinitionPackageError(`fields.${id}.label`, 'Enter a field label')
+    if (field.native !== undefined) {
+      const native = object(field.native, `fields.${id}.native`)
+      delete native.label
+      if (Object.keys(native).length === 0) delete field.native
+    }
+    field.label = getEmbeddedLabel(value)
+  }
+  const updated = await createDefinitionPackageRelease({ package: manifest, source: yaml(source) })
+  if (new TextEncoder().encode(serializeDefinitionPackageRelease(updated)).byteLength > 3 * 1024 * 1024) {
+    throw new DefinitionPackageError('$', 'Release artifact exceeds 3 MiB')
+  }
+  return updated
 }
 
 /** Detects package manifests at existing file import entry points. Invalid YAML is reported to the caller. */

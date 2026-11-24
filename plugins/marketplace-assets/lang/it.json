@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Modifica le etichette dei campi",
+    "NoEditableFields": "Questo pacchetto non contiene campi modificabili.",
+    "CreateVersionDraft": "Crea bozza della versione",
+    "ReopenLatestPublication": "Apri la versione più recente in Le mie pubblicazioni per modificare le etichette dei campi.",
+    "ReloadPackageDraft": "Riapri la bozza del pacchetto per caricare le ultime modifiche.",
+    "PrivateDraftSpaceRequired": "Accedi all’area di lavoro per inizializzare il tuo spazio privato per le bozze.",
     "Origin": "Origine",
     "RemovingDependencyLinksKeepsPackagesInstalled": "La rimozione del collegamento alla dipendenza mantiene il pacchetto installato, incluse la configurazione dei processi e le esecuzioni attive.",
     "PackageDependencies": "Dipendenze del pacchetto",

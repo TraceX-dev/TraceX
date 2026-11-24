@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Feldbezeichnungen bearbeiten",
+    "NoEditableFields": "Dieses Paket enthält keine bearbeitbaren Felder.",
+    "CreateVersionDraft": "Versionsentwurf erstellen",
+    "ReopenLatestPublication": "Öffnen Sie die neueste Version unter „Meine Veröffentlichungen“, um die Feldbezeichnungen zu bearbeiten.",
+    "ReloadPackageDraft": "Öffnen Sie den Paketentwurf erneut, um die neuesten Änderungen zu laden.",
+    "PrivateDraftSpaceRequired": "Melden Sie sich im Arbeitsbereich an, um Ihren privaten Bereich für Entwürfe einzurichten.",
     "Origin": "Herkunft",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Beim Entfernen einer Abhängigkeit bleibt das Paket einschließlich seiner Prozesskonfiguration und aktiven Ausführungen installiert.",
     "PackageDependencies": "Paketabhängigkeiten",

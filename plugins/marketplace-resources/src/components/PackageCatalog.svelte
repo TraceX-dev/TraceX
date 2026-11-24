@@ -14,8 +14,12 @@
 <script lang="ts">
   import type { MasterTag } from '@hcengineering/card'
   import type { Ref } from '@hcengineering/core'
-  import marketplace, { type CatalogPackage, type DefinitionPackageInstallation } from '@hcengineering/marketplace'
-  import { createQuery, MessageBox } from '@hcengineering/presentation'
+  import marketplace, {
+    type CatalogPackage,
+    type DefinitionPackageDraft,
+    type DefinitionPackageInstallation
+  } from '@hcengineering/marketplace'
+  import { createQuery, getClient, MessageBox } from '@hcengineering/presentation'
   import ui, {
     Button,
     IconAdd,
@@ -38,6 +42,8 @@
   import PackageCard from './PackageCard.svelte'
   import PackageOrigin from './PackageOrigin.svelte'
   import PackageAccessPopup from './PackageAccessPopup.svelte'
+  import PackageDraftReviewPopup from './PackageDraftReviewPopup.svelte'
+  import PackageFieldLabelsPopup from './PackageFieldLabelsPopup.svelte'
 
   export let kind: CatalogPackage['kind'] | undefined = undefined
   export let masterTag: Ref<MasterTag> | undefined = undefined
@@ -146,6 +152,24 @@
     }
   }
 
+  function editFieldLabels (entry: CatalogPackage): void {
+    error = ''
+    showPopup(
+      PackageFieldLabelsPopup,
+      { base: { publication: entry } },
+      'centered',
+      async (id?: Ref<DefinitionPackageDraft>) => {
+        if (id === undefined || destroyed) return
+        try {
+          const draft = await getClient().findOne(marketplace.class.DefinitionPackageDraft, { _id: id })
+          if (draft !== undefined && !destroyed) showPopup(PackageDraftReviewPopup, { draft }, 'centered')
+        } catch (cause) {
+          if (!destroyed) error = cause instanceof Error ? cause.message : String(cause)
+        }
+      }
+    )
+  }
+
   function deletePackage (entry: CatalogPackage): void {
     if (busy || destroyed) return
     showPopup(
@@ -218,6 +242,14 @@
                   }}
                 />
                 {#if mine}
+                  {#if entry.kind === 'card'}
+                    <Button
+                      label={marketplace.string.EditFieldLabels}
+                      kind="ghost"
+                      disabled={busy}
+                      on:click={() => editFieldLabels(entry)}
+                    />
+                  {/if}
                   <div data-id="package-manage-access">
                     <Button
                       label={marketplace.string.ManagePackageAccess}
