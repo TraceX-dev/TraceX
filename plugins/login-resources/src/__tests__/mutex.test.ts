@@ -21,8 +21,17 @@ describe('mutex', () => {
   })
 
   it('expect parallel execution', async () => {
-    const myUpdate = waitAndPushResult
-    await Promise.all([myUpdate(50), myUpdate(30), myUpdate(40), myUpdate(10), myUpdate(20)])
-    expect(results).toEqual([10, 20, 30, 40, 50])
+    // Fake timers make the firing order deterministic: with real timers a >10ms
+    // event-loop stall between setTimeout calls (GC, busy CI) reorders the results.
+    jest.useFakeTimers()
+    try {
+      const myUpdate = waitAndPushResult
+      const all = Promise.all([myUpdate(50), myUpdate(30), myUpdate(40), myUpdate(10), myUpdate(20)])
+      await jest.advanceTimersByTimeAsync(50)
+      await all
+      expect(results).toEqual([10, 20, 30, 40, 50])
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })
