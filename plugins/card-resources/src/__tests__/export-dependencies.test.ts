@@ -80,6 +80,8 @@ cardTypes:
   association_base: {extends: card:class:Card}
   association_dependency: {extends: association_base}
   association_child: {extends: association_dependency}
+  association_related: {extends: card:class:Card}
+  tag_dependency: {extends: card:class:Card}
   process_dependency: {extends: card:class:Card}
   process_child: {extends: process_dependency}
   child_dependency: {extends: card:class:Card}
@@ -93,13 +95,19 @@ tags:
     extends: child
     fields:
       tag_note: {name: note, type: string}
+  association_tag:
+    extends: association_child
+    fields:
+      related_tag_note: {name: note, type: string}
 enums:
   dependency_enum: {name: Status, enumValues: [Open, Closed]}
 relations:
   root_relation: {classA: root, classB: association_dependency, nameA: Roots, nameB: Dependencies, type: N:N}
   inbound_relation: {classA: reference_dependency, classB: root, nameA: References, nameB: Roots, type: N:N}
   child_relation: {classA: child, classB: child_dependency, nameA: Children, nameB: Dependencies, type: N:N}
-  dependency_relation: {classA: association_dependency, classB: unrelated, nameA: Dependencies, nameB: Other, type: N:N}
+  dependency_relation: {classA: association_dependency, classB: association_related, nameA: Dependencies, nameB: Other, type: N:N}
+  tag_relation: {classA: tag_dependency, classB: association_tag, nameA: Targets, nameB: Tagged, type: N:N}
+  cycle_relation: {classA: association_related, classB: root, nameA: Targets, nameB: Roots, type: N:N}
   parent_relation: {classA: base, classB: unrelated, nameA: Bases, nameB: Other, type: N:N}
 processes:
   root_workflow:
@@ -238,7 +246,7 @@ describe('card module export dependencies', () => {
   })
 
   it.each(['json', 'yaml'] as const)(
-    'exports the selected subtree and required definitions without expanding dependency modules in %s',
+    'exports related subtypes, tags and their associations along with the selected subtree in %s',
     async (format) => {
       const docs = setup()
       const before = JSON.stringify(docs)
@@ -254,9 +262,14 @@ describe('card module export dependencies', () => {
           'other_branch',
           'child_tag',
           'reference_dependency',
+          'reference_child',
           'array_dependency',
           'association_base',
           'association_dependency',
+          'association_child',
+          'association_related',
+          'association_tag',
+          'tag_dependency',
           'process_dependency',
           'child_dependency',
           'transitive_dependency'
@@ -267,7 +280,14 @@ describe('card module export dependencies', () => {
           .filter((doc) => doc._class === core.class.Association)
           .map((doc) => doc._id)
           .sort()
-      ).toEqual(['child_relation', 'inbound_relation', 'root_relation'])
+      ).toEqual([
+        'child_relation',
+        'cycle_relation',
+        'dependency_relation',
+        'inbound_relation',
+        'root_relation',
+        'tag_relation'
+      ])
       expect(exported.map((doc) => doc._id)).toEqual(
         expect.arrayContaining([
           'root_ref',
@@ -277,6 +297,7 @@ describe('card module export dependencies', () => {
           'dependency_enum',
           'dependency_status',
           'tag_note',
+          'related_tag_note',
           'root_workflow',
           'root_done',
           'dependency_workflow',
@@ -310,17 +331,56 @@ describe('card module export dependencies', () => {
     ])
   })
 
+  it.each([false, true])('stops traversal at the platform Card class: explicitly selected=%p', async (explicit) => {
+    const docs = setup()
+    const platformCard: AuthoringNativeDocument = {
+      _id: card.class.Card,
+      _class: core.class.Class,
+      space: core.space.Model,
+      extends: core.class.Doc
+    }
+    const rootToCard: AuthoringNativeDocument = {
+      _id: 'root_to_platform_card',
+      _class: core.class.Association,
+      space: core.space.Model,
+      classA: 'root',
+      classB: card.class.Card,
+      nameA: 'Roots',
+      nameB: 'Cards',
+      type: 'N:N'
+    }
+    const cardToUnrelated: AuthoringNativeDocument = {
+      ...rootToCard,
+      _id: 'platform_card_to_unrelated',
+      classA: card.class.Card,
+      classB: 'unrelated'
+    }
+    docs.push(platformCard, rootToCard, cardToUnrelated)
+
+    const exportedSource = explicit
+      ? await exportModulePackageSource([typeRef('root'), card.class.Card])
+      : await exportModule(typeRef('root'), 'yaml')
+    const exported = compileProcessYaml(exportedSource).docs
+    const exportedIds = exported.map((doc) => doc._id)
+    expect(exportedIds).toContain(rootToCard._id)
+    expect(exportedIds).not.toContain(cardToUnrelated._id)
+    expect(exportedIds).not.toContain('unrelated')
+  })
+
   it.each([false, true])(
     'fully exports explicit package members regardless of dependency order: reverse=%p',
     async (reverse) => {
       setup()
-      const ids = ['root', 'association_dependency']
+      const ids = ['root', 'array_dependency']
       if (reverse) ids.reverse()
       const exported = compileProcessYaml(await exportModulePackageSource(ids.map(typeRef))).docs
+      expect(typeIds(exported)).toContain('array_child')
       expect(typeIds(exported)).toContain('association_child')
       expect(typeIds(exported)).toContain('grandchild')
-      expect(typeIds(exported)).toContain('unrelated')
+      expect(typeIds(exported)).toContain('association_tag')
+      expect(typeIds(exported)).toContain('tag_dependency')
       expect(exported.map((doc) => doc._id)).toContain('dependency_relation')
+      expect(exported.map((doc) => doc._id)).toContain('tag_relation')
       expect(exported.map((doc) => doc._id)).not.toContain('parent_relation')
       expect(new Set(exported.map((doc) => doc._id)).size).toBe(exported.length)
     }
