@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Tisknout záhlaví a zápatí",
     "WorkspaceNamePattern": "Název musí být 40 znaků nebo méně, není prázdný a nesmí obsahovat speciální znaky (<, >, /)",
     "ExportList": "Exportovat seznam",
     "Export": "Export",

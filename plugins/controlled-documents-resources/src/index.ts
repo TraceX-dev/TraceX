@@ -360,6 +360,8 @@ async function editDocSpace (docSpace: DocumentSpace | undefined): Promise<void>
   }
 }
 
+import { getPrintData } from './print-data'
+
 export default async (): Promise<Resources> => ({
   component: {
     CreateDocument,
@@ -411,6 +413,7 @@ export default async (): Promise<Resources> => ({
     ) => await queryDocumentMeta(documents.class.DocumentMeta, client, query, filter)
   },
   function: {
+    PrintData: getPrintData,
     // CheckIsDocumentCreationDisabled: getDisablingChecker(document.functionalityItem.CreateDraftQmsDocuments),
     // CheckAreTemplatesDisabled: getDisablingChecker(document.functionalityItem.Templates),
     // CheckAreDomainsDisabled: getDisablingChecker(document.functionalityItem.Domains),

@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "打印页眉和页脚",
     "WorkspaceNamePattern": "名称必须为 40 个字符或更少，不能为空，不能包含特殊字符（<、>、/）",
     "ExportList": "导出列表",
     "Export": "导出",

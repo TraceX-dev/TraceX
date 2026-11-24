@@ -1,5 +1,6 @@
 {
   "string": {
+    "PrintHeaderFooter": "Drukuj nagłówki i stopki",
     "WorkspaceNamePattern": "Nazwa musi mieć co najwyżej 40 znaków, nie może być pusta i nie może zawierać znaków specjalnych (<, >, /)",
     "ExportList": "Eksportuj listę",
     "Export": "Eksportuj",

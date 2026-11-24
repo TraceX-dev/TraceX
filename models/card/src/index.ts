@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import print, { defaultPrintConfiguration } from '@hcengineering/print'
 import activity from '@hcengineering/activity'
 import {
   type CanCreateCardResource,
@@ -470,6 +471,11 @@ export function createModel (builder: Builder): void {
     TExportExtension,
     TDuplicateSetting
   )
+
+  builder.mixin(card.class.Card, core.class.Class, print.mixin.PrintConfig, {
+    provider: card.function.PrintData,
+    defaultConfiguration: { ...defaultPrintConfiguration, footer: '' }
+  })
 
   builder.createDoc(
     core.class.SpaceType,

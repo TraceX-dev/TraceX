@@ -1,5 +1,17 @@
 {
   "string": {
+    "Enabled": "Etkin",
+    "Printing": "Yazdırma",
+    "Header": "Üst bilgi",
+    "Footer": "Alt bilgi",
+    "PrintLogo": "Logoyu yazdır",
+    "InsertField": "Alan ekle",
+    "InvalidPrintSettings": "Yazdırma ayarları kaydedilemedi. Alanları kontrol edin.",
+    "PrintedObject": "Yazdırılan nesne",
+    "Title": "Başlık",
+    "Page": "Sayfa ",
+    "Of": " / ",
+    "CreatedFromTemplate": "Şablondan oluşturuldu: ",
     "PrintToPDF": "PDF'e yazdır",
     "PrintingDocumentOf": "Belge yazdırılıyor {current} / {total}",
     "DownloadAll": "Tümünü indir",

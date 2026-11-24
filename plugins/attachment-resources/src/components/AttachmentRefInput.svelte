@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022, 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -24,6 +25,7 @@
     PersonId,
     RateLimiter,
     Ref,
+    SortingOrder,
     Space,
     generateId,
     toIdMap
@@ -39,8 +41,7 @@
     getClient,
     isLinkPreviewEnabled,
     uploadFile,
-    LinkPreviewAttachmentMetadata,
-    generateFileId
+    LinkPreviewAttachmentMetadata
   } from '@hcengineering/presentation'
   import { EmptyMarkup, isEmptyMarkup } from '@hcengineering/text'
   import textEditor, { type RefAction } from '@hcengineering/text-editor'
@@ -54,6 +55,7 @@
   import { createEventDispatcher, onDestroy, tick } from 'svelte'
   import attachment from '../plugin'
   import AttachmentPresenter from './AttachmentPresenter.svelte'
+  import { getLinkPreviewDetails } from '../link-preview'
 
   export let objectId: Ref<Doc>
   export let space: Ref<Space>
@@ -100,6 +102,7 @@
 
   let progress = false
   let loadingLinks = false
+  let loadingAttachments = !skipAttachmentsPreload
 
   let refContainer: HTMLElement
 
@@ -116,12 +119,7 @@
         _id: { $in: Array.from(attachments.keys()) }
       },
       (res) => {
-        existingAttachments = res.map((p) => {
-          if (p.type === 'application/link-preview') {
-            urlSet.add(getUrlKey(p.name))
-          }
-          return p._id
-        })
+        existingAttachments = res.map((p) => p._id)
       }
     )
   } else {
@@ -146,6 +144,8 @@
   $: objectId && updateAttachments(objectId)
 
   async function updateAttachments (objectId: Ref<Doc>): Promise<void> {
+    loadingAttachments = true
+    urlSet.clear()
     draftAttachments = $draftsStore[draftKey]
     if (draftAttachments && shouldSaveDraft) {
       attachments = new Map()
@@ -160,6 +160,7 @@
       removedAttachments.clear()
       urlSet.clear()
       query.unsubscribe()
+      await registerLinkPreviews(Array.from(attachments.values()))
     } else if (!skipAttachmentsPreload) {
       query.query(
         attachment.class.Attachment,
@@ -169,7 +170,9 @@
         (res) => {
           originalAttachments = new Set(res.map((p) => p._id))
           attachments = toIdMap(res)
-        }
+          void registerLinkPreviews(res)
+        },
+        { sort: { createdOn: SortingOrder.Ascending, _id: SortingOrder.Ascending } }
       )
     } else {
       attachments = new Map()
@@ -178,7 +181,29 @@
       removedAttachments.clear()
       urlSet.clear()
       query.unsubscribe()
+      loadingAttachments = false
     }
+  }
+
+  async function registerLinkPreviews (values: Attachment[]): Promise<void> {
+    loadingAttachments = true
+    const currentObjectId = objectId
+    try {
+      const previews = values.filter((value) => value.type === 'application/link-preview')
+      const details = await Promise.all(previews.map((value) => getLinkPreviewDetails(value)))
+      if (currentObjectId !== objectId) return
+      for (const preview of details) {
+        if (preview.url !== undefined) urlSet.add(getUrlKey(preview.url))
+      }
+    } catch (err) {
+      void setPlatformStatus(unknownError(err))
+    } finally {
+      if (currentObjectId === objectId) loadingAttachments = false
+    }
+  }
+
+  $: if (refContainer !== undefined && !loadingAttachments && !loading && isLinkPreviewEnabled()) {
+    updateLinkPreview()
   }
 
   function saveDraft (): void {
@@ -239,37 +264,58 @@
     }
   }
 
+  /**
+   * Uploads files in parallel, but adds them to the input in the order they were selected,
+   * so the attachment order does not depend on which upload finishes first.
+   */
+  async function createAttachmentsInOrder (list: FileList): Promise<void> {
+    const files: File[] = []
+    for (let index = 0; index < list.length; index++) {
+      const file = list.item(index)
+      if (file !== null) files.push(file)
+    }
+    const limiter = new RateLimiter(10)
+    const uploads = files.map(async (file) => {
+      try {
+        return await limiter.exec(async () => await uploadFile(file))
+      } catch (err: any) {
+        void setPlatformStatus(unknownError(err))
+        return undefined
+      }
+    })
+    for (let index = 0; index < files.length; index++) {
+      const uploaded = await uploads[index]
+      if (uploaded !== undefined) {
+        await _createAttachment(uploaded.uuid, files[index].name, files[index], uploaded.metadata)
+      }
+    }
+  }
+
   async function fileSelected (): Promise<void> {
     progress = true
     await tick()
     const list = inputFile.files
-    if (list === null || list.length === 0) return
-    const limiter = new RateLimiter(10)
-    for (let index = 0; index < list.length; index++) {
-      const file = list.item(index)
-      if (file !== null) {
-        await limiter.add(() => createAttachment(file))
-      }
+    if (list === null || list.length === 0) {
+      progress = false
+      return
     }
-    await limiter.waitProcessing()
-    inputFile.value = ''
-    progress = false
+    try {
+      await createAttachmentsInOrder(list)
+    } finally {
+      inputFile.value = ''
+      progress = false
+    }
   }
 
   async function fileDrop (e: DragEvent): Promise<void> {
     const list = e.dataTransfer?.files
-    const limiter = new RateLimiter(10)
-
     if (list === undefined || list.length === 0) return
     progress = true
-    for (let index = 0; index < list.length; index++) {
-      const file = list.item(index)
-      if (file !== null) {
-        await limiter.add(() => createAttachment(file))
-      }
+    try {
+      await createAttachmentsInOrder(list)
+    } finally {
+      progress = false
     }
-    await limiter.waitProcessing()
-    progress = false
   }
 
   async function removeAttachment (attachment: Attachment): Promise<void> {
@@ -330,19 +376,23 @@
       return
     }
     saved = true
-    const limiter = new RateLimiter(10)
-    newAttachments.forEach((p) => {
-      const attachment = attachments.get(p)
-      if (attachment !== undefined) {
-        void limiter.add(() => saveAttachment(attachment))
+    // Save new attachments one by one in input order: the server assigns createdOn on arrival,
+    // and attachments are displayed sorted by createdOn.
+    for (const [id, attachment] of attachments) {
+      if (newAttachments.has(id)) {
+        try {
+          await saveAttachment(attachment)
+        } catch (err: any) {
+          void setPlatformStatus(unknownError(err))
+        }
       }
-    })
+    }
+    const limiter = new RateLimiter(10)
     removedAttachments.forEach((p) => {
       void limiter.add(() => deleteAttachment(p))
     })
     await limiter.waitProcessing()
     newAttachments.clear()
-    urlSet.clear()
     removedAttachments.clear()
     saveDraft()
   }
@@ -355,9 +405,11 @@
   }
 
   function updateLinkPreview (): void {
+    if (loadingAttachments) return
     const hrefs = refContainer.getElementsByTagName('a')
     const newUrls: string[] = []
     for (let i = 0; i < hrefs.length; i++) {
+      if (urlSet.size >= maxLinkPreviewCount) break
       if (hrefs[i].target !== '_blank' || !isValidUrl(hrefs[i].href) || hrefs[i].rel === '') {
         continue
       }
@@ -374,7 +426,7 @@
   }
 
   function onUpdate (event: CustomEvent): void {
-    if (isLinkPreviewEnabled() && !loading && urlSet.size < maxLinkPreviewCount) {
+    if (isLinkPreviewEnabled() && !loading && !loadingAttachments && urlSet.size < maxLinkPreviewCount) {
       updateLinkPreview()
     }
     dispatch('update', { message: event.detail, attachments: attachments.size })
@@ -386,10 +438,13 @@
       try {
         const meta = await fetchLinkPreviewDetails(url)
         if (canDisplayLinkPreview(meta)) {
-          const uuid = generateFileId()
           const blob = new Blob([JSON.stringify(meta)])
-          const file = new File([blob], uuid, { type: 'application/link-preview' })
+          const file = new File([blob], url, { type: 'application/link-preview' })
           const metadata: LinkPreviewAttachmentMetadata = {
+            url,
+            icon: meta.icon,
+            host: meta.host,
+            hostname: meta.hostname,
             title: meta.title,
             image: meta.image,
             description: meta.description,
@@ -493,7 +548,7 @@
       {showSend}
       {showActions}
       autofocus={autofocus ? 'end' : false}
-      loading={loading || progress || loadingLinks}
+      loading={loading || progress || loadingLinks || loadingAttachments}
       {boundary}
       {docClass}
       extraActions={[

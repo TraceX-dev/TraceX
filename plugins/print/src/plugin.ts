@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { Ref } from '@hcengineering/core'
+import type { Class, Mixin, Ref } from '@hcengineering/core'
+import type { TemplateField, TemplateFieldCategory } from '@hcengineering/templates'
 import type {
   DocumentExporter,
   DocumentExportFunction,
@@ -25,12 +26,25 @@ import type {
 import { type IntlString, type Metadata, type Plugin, plugin, type Asset, type Resource } from '@hcengineering/platform'
 import { type AnyComponent } from '@hcengineering/ui/src/types'
 
-import type { PrintExportParams } from './types'
+import type { PrintConfiguration, PrintConfig, PrintExportParams } from './types'
 
 export const printId = 'print' as Plugin
 
 export const print = plugin(printId, {
   string: {
+    Enabled: '' as IntlString,
+    Printing: '' as IntlString,
+    Header: '' as IntlString,
+    Footer: '' as IntlString,
+    PrintLogo: '' as IntlString,
+    InsertField: '' as IntlString,
+    InvalidPrintSettings: '' as IntlString,
+    PrintedObject: '' as IntlString,
+    Title: '' as IntlString,
+    Page: '' as IntlString,
+    Of: '' as IntlString,
+    CreatedFromTemplate: '' as IntlString,
+
     PrintToPDF: '' as IntlString,
     PrintingDocumentOf: '' as IntlString,
     DownloadAll: '' as IntlString,
@@ -38,6 +52,8 @@ export const print = plugin(printId, {
     PrintSettings: '' as IntlString
   },
   component: {
+    PrintHeader: '' as AnyComponent,
+    PrintFooter: '' as AnyComponent,
     PrintApp: '' as AnyComponent,
     PrintBulkToPDF: '' as AnyComponent,
     DOCXViewer: '' as AnyComponent
@@ -50,6 +66,21 @@ export const print = plugin(printId, {
   },
   exporter: {
     PDF: '' as Ref<DocumentExporter>
+  },
+  class: {
+    PrintConfiguration: '' as Ref<Class<PrintConfiguration>>
+  },
+  mixin: {
+    PrintConfig: '' as Ref<Mixin<PrintConfig>>
+  },
+  ids: {
+    PrintConfiguration: '' as Ref<PrintConfiguration>
+  },
+  templateFieldCategory: {
+    PrintedObject: '' as Ref<TemplateFieldCategory>
+  },
+  templateField: {
+    Title: '' as Ref<TemplateField>
   },
   function: {
     ExportPDF: '' as Resource<DocumentExportFunction<PrintExportParams>>,

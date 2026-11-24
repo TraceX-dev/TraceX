@@ -1,5 +1,17 @@
 {
   "string": {
+    "Enabled": "Включено",
+    "Printing": "Печать",
+    "Header": "Верхний колонтитул",
+    "Footer": "Нижний колонтитул",
+    "PrintLogo": "Печатать логотип",
+    "InsertField": "Вставить поле",
+    "InvalidPrintSettings": "Не удалось сохранить настройки печати. Проверьте поля и повторите попытку.",
+    "PrintedObject": "Печатаемый объект",
+    "Title": "Заголовок",
+    "Page": "Страница ",
+    "Of": " из ",
+    "CreatedFromTemplate": "Создан из шаблона: ",
     "PrintToPDF": "Печать в PDF",
     "PrintingDocumentOf": "Печать документа {current} из {total}",
     "DownloadAll": "Скачать все",

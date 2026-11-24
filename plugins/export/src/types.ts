@@ -28,6 +28,7 @@ export interface DocumentExportResult {
 export interface DocumentExporterOptions {
   format: string
   orientation?: DocumentExportOrientation
+  printHeaderFooter?: boolean
 }
 
 /** Additional action parameters are forwarded unchanged to the implementation. */
@@ -50,6 +51,7 @@ export interface DocumentExporter extends Doc {
   label: IntlString
   export: Resource<DocumentExportFunction>
   supportsOrientation: boolean
+  supportsHeaderFooter?: boolean
   preview?: Resource<DocumentExportPreviewFunction>
   isAvailable?: Resource<DocumentExportAvailabilityFunction>
   bulkExport?: Resource<DocumentBulkExportFunction>
@@ -60,6 +62,7 @@ export interface DocumentExportSettingsValues {
   exporter: Ref<DocumentExporter>
   orientation: DocumentExportOrientation
   preview: boolean
+  printHeaderFooter?: boolean
 }
 
 export type DocumentExportFormat = 'docx' | 'md'
