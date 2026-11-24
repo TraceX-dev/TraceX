@@ -85,6 +85,8 @@ export interface ActivityInfoMessage extends ActivityMessage {
   props?: Record<string, any>
   icon?: Asset
   iconProps?: Record<string, any>
+  // Shown inline before the message text, like the icon of a doc update message; `icon` replaces the avatar.
+  contentIcon?: Asset
   editedOn?: Timestamp
 
   // A possible set of links to some platform resources.

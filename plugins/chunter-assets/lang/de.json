@@ -166,6 +166,8 @@
     "MarkAsResolved": "Als gelöst markieren",
     "ReopenDiscussion": "Diskussion wieder öffnen",
     "HideResolvedDiscussions": "Gelöste ausblenden",
+    "DiscussionResolvedMessage": "Diskussion als gelöst markiert",
+    "DiscussionReopenedMessage": "Diskussion wieder geöffnet",
     "ParticipantsCount": "{count, plural, one {# Teilnehmer} other {# Teilnehmer}}",
     "AddAllCollaborators": "Alle Mitwirkenden der Karte hinzufügen ({count})",
     "Discussion": "Diskussion",

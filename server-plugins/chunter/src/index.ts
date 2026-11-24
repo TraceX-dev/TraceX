@@ -37,6 +37,7 @@ export default plugin(serverChunterId, {
     OnDiscussionOwnerCreated: '' as Resource<TriggerFunc>,
     OnDefaultDiscussionUpdated: '' as Resource<TriggerFunc>,
     OnDefaultDiscussionRenamed: '' as Resource<TriggerFunc>,
+    OnDiscussionResolvedChanged: '' as Resource<TriggerFunc>,
     OnDiscussionOwnerClassChanged: '' as Resource<TriggerFunc>
   },
   function: {

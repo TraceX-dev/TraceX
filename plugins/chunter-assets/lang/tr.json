@@ -166,6 +166,8 @@
     "MarkAsResolved": "Çözüldü olarak işaretle",
     "ReopenDiscussion": "Tartışmayı yeniden aç",
     "HideResolvedDiscussions": "Çözülenleri gizle",
+    "DiscussionResolvedMessage": "Tartışma çözüldü olarak işaretlendi",
+    "DiscussionReopenedMessage": "Tartışma yeniden açıldı",
     "ParticipantsCount": "{count, plural, one {# katılımcı} other {# katılımcı}}",
     "AddAllCollaborators": "Kartın tüm ortak çalışanlarını ekle ({count})",
     "Discussion": "Tartışma",
