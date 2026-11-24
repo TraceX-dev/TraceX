@@ -94,8 +94,8 @@ const withWorkspace =
       const token = getBearerToken(req)
       if (decodeToken(token).workspace !== workspaceId) throw new Error('Invalid workspace')
       const accountClient = getAccountClient(accountsUrl, token)
-      const login = await accountClient.getLoginWithWorkspaceInfo()
-      if (login.socialId === undefined || login.primarySocialId === undefined) {
+      const login = await accountClient.getLoginInfoByToken()
+      if (login === null || 'request' in login || login.socialId === undefined || login.primarySocialId === undefined) {
         throw new Error('The API key user has no confirmed social identity')
       }
       const account: Pick<Account, 'primarySocialId' | 'socialId'> = {

@@ -22,11 +22,9 @@
 
   const dispatch = createEventDispatcher()
   let title = ''
-  let source = 'api'
-  $: validSource = /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(source.trim().replace(/\s+/g, '-'))
 
   function create (): void {
-    dispatch('close', { title: title.trim(), source: source.trim() })
+    dispatch('close', title.trim())
   }
 </script>
 
@@ -37,7 +35,7 @@
   okAction={create}
   on:close
   onCancel={() => dispatch('close', undefined)}
-  canSave={title.trim().length > 0 && title.trim().length <= 128 && validSource}
+  canSave={title.trim().length > 0 && title.trim().length <= 128}
 >
   <div class="antiGrid">
     <div class="antiGrid-row">
@@ -46,13 +44,6 @@
       </div>
       <div class="padding">
         <EditBox bind:value={title} placeholder={settings.string.ApiKeyTitle} autoFocus />
-      </div>
-    </div>
-    <div class="antiGrid-row">
-      <div class="antiGrid-row__header withDesciption"><Label label={settings.string.ApplicationOrService} /></div>
-      <div class="padding">
-        <EditBox bind:value={source} placeholder={settings.string.ApplicationOrService} />
-        <div class="text-sm content-dark-color mt-2"><Label label={settings.string.ApplicationOrServiceHint} /></div>
       </div>
     </div>
   </div>

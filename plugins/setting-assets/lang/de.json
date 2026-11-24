@@ -305,8 +305,6 @@
     "DangerZone": "Gefahrenzone",
     "ApiAccess": "API-Zugriff",
     "ApiToken": "API-Schlüssel",
-    "ApplicationOrService": "Anwendung oder Dienst",
-    "ApplicationOrServiceHint": "Zum Beispiel api, codex oder claude. Dieser Name erscheint im Aktivitätsverlauf.",
     "ApiKeyTitle": "Name des API-Schlüssels",
     "ApiKeyShownOnce": "Kopieren Sie diesen API-Schlüssel jetzt. Aus Sicherheitsgründen wird er nicht erneut angezeigt.",
     "WorkspaceId": "Workspace-ID",

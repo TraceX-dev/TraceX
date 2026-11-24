@@ -296,8 +296,6 @@
     "DangerZone": "Zona de perigo",
     "ApiAccess": "Acesso à API",
     "ApiToken": "Chave de API",
-    "ApplicationOrService": "Aplicativo ou serviço",
-    "ApplicationOrServiceHint": "Por exemplo, api, codex ou claude. Este nome aparecerá no histórico de atividades.",
     "ApiKeyTitle": "Título da chave de API",
     "ApiKeyShownOnce": "Copie esta chave de API agora. Por segurança, ela não será exibida novamente.",
     "WorkspaceId": "ID do espaço de trabalho",

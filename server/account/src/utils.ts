@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { ensureExternalIdentity } from './external-identity'
 import {
   AccountRole,
   type AccountUuid,
@@ -865,9 +864,6 @@ export async function selectWorkspace (
     if (apiKey == null) {
       throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
     }
-    const source = apiKey.source ?? 'api'
-    const identity = await ensureExternalIdentity(db, accountUuid, source)
-    extra = { ...extra, externalSource: source, externalSocialId: identity._id }
   }
 
   const getKind = (region: string | undefined): EndpointKind => {
@@ -919,7 +915,7 @@ export async function selectWorkspace (
   }
 
   let role = await db.getWorkspaceRole(accountUuid, workspace.uuid)
-  if (role == null && extra?.admin === 'true' && extra?.externalSocialId == null && extra?.apiKey == null) {
+  if (role == null && extra?.admin === 'true' && (extra?.externalSocialId == null || apiKeyId != null)) {
     role = AccountRole.Admin
   }
   let account = await db.account.findOne({ uuid: accountUuid })
@@ -967,7 +963,7 @@ export async function selectWorkspace (
 
   return {
     account: accountUuid,
-    socialId: extra?.externalSocialId,
+    socialId: apiKeyId == null ? extra?.externalSocialId : undefined,
     token: generateToken(accountUuid, workspace.uuid, extra, undefined, {
       grant,
       sub,

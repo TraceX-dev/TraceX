@@ -88,7 +88,6 @@ export async function exchangeOAuthToken (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   }
   const issued = await issueExternalAccess(db, account, params.source, {
-    kind: 'oauth',
     connectionId,
     session: { extra, exp: decoded.exp, nbf: decoded.nbf }
   })

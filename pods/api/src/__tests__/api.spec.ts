@@ -59,7 +59,7 @@ const mockCollaborator = {
 
 jest.mock('@hcengineering/account-client', () => ({
   getClient: jest.fn(() => ({
-    getLoginWithWorkspaceInfo: jest.fn(async () => ({ primarySocialId: 'person-1', socialId: mockActingSocialId }))
+    getLoginInfoByToken: jest.fn(async () => ({ primarySocialId: 'person-1', socialId: mockActingSocialId }))
   })),
   isNetworkError: jest.fn(() => false)
 }))

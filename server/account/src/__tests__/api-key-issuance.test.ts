@@ -31,8 +31,8 @@ beforeEach(() => {
   setMetadata(serverToken.metadata.Service, undefined)
 })
 
-it('issues a workspace-settings key as external access with source api by default', async () => {
-  const { db } = identityDatabase()
+it('issues a workspace-settings key without creating an external identity', async () => {
+  const { db, identities } = identityDatabase()
   db.getWorkspaceRole = jest.fn().mockResolvedValue(AccountRole.User)
   const apiKeyCollection: Partial<AccountDB['apiKey']> = { insertOne: jest.fn() }
   db.apiKey = apiKeyCollection as AccountDB['apiKey']
@@ -47,12 +47,12 @@ it('issues a workspace-settings key as external access with source api by defaul
   )
   expect(response.error).toBeUndefined()
   const issued = decodeToken(response.result.key)
-  expect(issued).toMatchObject({ account, workspace, extra: { externalSource: 'api', externalSocialId: 'external-1' } })
-  expect(issued.extra?.externalConnectionId).toBeUndefined()
+  expect(issued).toMatchObject({ account, workspace })
+  expect(issued.extra).toEqual({ apiKey: expect.any(String) })
+  expect(identities.size).toBe(0)
   expect(apiKeyCollection.insertOne).toHaveBeenCalledWith(
     expect.objectContaining({
       id: issued.extra?.apiKey,
-      source: 'api',
       accountUuid: account,
       workspaceUuid: workspace
     })

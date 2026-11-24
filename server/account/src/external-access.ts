@@ -13,16 +13,10 @@
 // limitations under the License.
 //
 
-import { normalizeExternalSource, type AccountUuid, type WorkspaceUuid } from '@hcengineering/core'
+import { normalizeExternalSource, type AccountUuid } from '@hcengineering/core'
 import { generateToken } from '@hcengineering/server-token'
 import { ensureExternalIdentity } from './external-identity'
 import type { AccountDB } from './types'
-
-interface ApiKeyAccess {
-  kind: 'api-key'
-  workspace: WorkspaceUuid
-  keyId: string
-}
 
 interface UserSession {
   extra?: Record<string, string>
@@ -31,13 +25,7 @@ interface UserSession {
 }
 
 interface OAuthAccess {
-  kind: 'oauth'
   connectionId: string
-  session: UserSession
-}
-
-interface IntegrationAccess {
-  kind: 'integration'
   session: UserSession
 }
 
@@ -46,26 +34,19 @@ export async function issueExternalAccess (
   db: AccountDB,
   account: AccountUuid,
   requestedSource: string,
-  access: ApiKeyAccess | OAuthAccess | IntegrationAccess
+  access: OAuthAccess
 ): Promise<{ token: string, source: string }> {
   const source = normalizeExternalSource(requestedSource)
   const identity = await ensureExternalIdentity(db, account, source)
-  const session = access.kind === 'api-key' ? undefined : access.session
+  const session = access.session
   const extra: Record<string, string> = {
-    ...session?.extra,
+    ...session.extra,
     externalSource: source,
     externalSocialId: identity._id,
-    ...(access.kind === 'api-key' ? { apiKey: access.keyId } : {}),
-    ...(access.kind === 'oauth' ? { externalConnectionId: access.connectionId } : {})
+    externalConnectionId: access.connectionId
   }
   return {
     source,
-    token: generateToken(
-      account,
-      access.kind === 'api-key' ? access.workspace : undefined,
-      extra,
-      undefined,
-      session === undefined ? undefined : { exp: session.exp, nbf: session.nbf }
-    )
+    token: generateToken(account, undefined, extra, undefined, { exp: session.exp, nbf: session.nbf })
   }
 }

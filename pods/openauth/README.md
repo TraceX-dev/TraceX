@@ -102,12 +102,12 @@ Run `rushx test` for in-process OAuth tests. To exercise PostgreSQL persistence,
 
 ## External author identity
 
-API keys created in workspace settings and OAuth connections use the same internal token issuer.
-Workspace keys default to source `api` and retain their key ID and independent revocation. OAuth
-connections retain their connection ID and workspace consent; they do not create API key rows.
+OAuth connections use an external identity bound to the user and the confirmed source. They retain
+their connection ID and workspace consent and do not create API key rows. Workspace API keys keep
+their existing issuance, author selection and revocation behavior without external identities.
 
 The OAuth issuer exchanges its stored user session through the account service's
 `POST /internal/oauth/exchange` endpoint. This endpoint requires a signed system token with
 `extra.service = 'openauth'` and an expiration no more than 60 seconds away, as well as a complete
-ordinary user session. It is not part of the public account RPC or user SDK. Both paths bind
-the issued token to the same stable user/source social identity.
+ordinary user session. It is not part of the public account RPC or user SDK. Issued external tokens
+are bound to a stable user/source social identity.

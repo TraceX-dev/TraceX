@@ -14,14 +14,7 @@
 // limitations under the License.
 //
 
-import core, {
-  Client,
-  PersonId,
-  pickPrimarySocialId,
-  systemAccountUuid,
-  TxOperations,
-  WorkspaceUuid
-} from '@hcengineering/core'
+import core, { Client, PersonId, systemAccountUuid, TxOperations, WorkspaceUuid } from '@hcengineering/core'
 import { createClient, getTransactorEndpoint } from '@hcengineering/server-client'
 import { Token, generateToken } from '@hcengineering/server-token'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
@@ -44,8 +37,11 @@ async function getTxOperations (
   if (token.account === systemAccountUuid) {
     socialId = core.account.System
   } else {
-    const info = await getAccountClient(config.AccountsUrl, rawToken).getLoginWithWorkspaceInfo()
-    socialId = info.socialId ?? pickPrimarySocialId(info.socialIds)._id
+    const info = await getAccountClient(config.AccountsUrl, rawToken).getLoginInfoByToken()
+    if (info === null || 'request' in info || info.socialId === undefined) {
+      throw new Error('Account has no acting social identity')
+    }
+    socialId = info.socialId
   }
 
   return new TxOperations(client, socialId, isDerived)

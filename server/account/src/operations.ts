@@ -14,9 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import { externalIdentityValue } from '@hcengineering/core'
-import { issueExternalAccess } from './external-access'
-import { ensureExternalIdentity } from './external-identity'
+import { resolveExternalSocialId } from './external-identity'
 import { Analytics } from '@hcengineering/analytics'
 import {
   type AccountInfo,
@@ -2542,20 +2540,18 @@ export async function getLoginInfoByToken (
     }
   }
 
-  let socialId: SocialId | null = null
-
+  const externalSocialId = apiKeyId == null ? await resolveExternalSocialId(db, accountUuid, extra) : undefined
+  let socialIds: SocialId[] = []
   if (isSystem) {
-    socialId = getSystemSocialId()
+    socialIds = [getSystemSocialId()]
   } else if (!isDocGuest) {
-    // Any confirmed social ID will do
-    socialId = (await getSocialIds(ctx, db, branding, token, { confirmed: true, includeDeleted: false }))[0]
-    if (socialId == null) {
+    socialIds = await getSocialIds(ctx, db, branding, token, { confirmed: true, includeDeleted: false })
+    if (socialIds.length === 0) {
       // Confirmation needed
-      return {
-        account: accountUuid
-      }
+      return { account: accountUuid }
     }
   }
+  const primarySocialId = socialIds.length === 0 ? undefined : pickPrimarySocialId(socialIds)._id
 
   let person: Person | null
   if (isDocGuest) {
@@ -2578,10 +2574,11 @@ export async function getLoginInfoByToken (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
 
-  const loginInfo = {
+  const loginInfo: LoginInfo = {
     account: accountUuid,
     name: getPersonName(person),
-    socialId: socialId?._id,
+    primarySocialId,
+    socialId: externalSocialId ?? socialIds.find((identity) => identity.type !== SocialIdType.EXTERNAL)?._id,
     token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub })
   }
 
@@ -2659,7 +2656,6 @@ export async function getLoginWithWorkspaceInfo (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.AccountNotFound, { account: accountUuid }))
   }
 
-  let externalSocialId: PersonId | undefined
   const apiKeyId = extra?.apiKey
   if (apiKeyId != null) {
     if (typeof apiKeyId !== 'string' || workspace == null) {
@@ -2675,19 +2671,8 @@ export async function getLoginWithWorkspaceInfo (
     if (apiKey == null) {
       throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
     }
-    externalSocialId = (await ensureExternalIdentity(db, accountUuid, apiKey.source ?? 'api'))._id
-  } else if (extra?.externalSocialId != null) {
-    const identity = await db.socialId.findOne({
-      _id: extra.externalSocialId,
-      personUuid: accountUuid,
-      type: SocialIdType.EXTERNAL,
-      value: externalIdentityValue(accountUuid, extra.externalSource),
-      isDeleted: { $ne: true },
-      verifiedOn: { $gt: 0 }
-    })
-    if (identity == null) throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
-    externalSocialId = identity._id
   }
+  const externalSocialId = apiKeyId == null ? await resolveExternalSocialId(db, accountUuid, extra) : undefined
 
   const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
@@ -2739,7 +2724,7 @@ export async function getLoginWithWorkspaceInfo (
     account: accountUuid,
     name: getPersonName(person),
     primarySocialId,
-    socialId: externalSocialId ?? primarySocialId,
+    socialId: externalSocialId ?? socialIds.find((identity) => identity.type !== SocialIdType.EXTERNAL)?._id,
     token,
     workspaces: Object.fromEntries(
       isSystem || isDocGuest
@@ -3055,7 +3040,7 @@ async function createApiKey (
   db: AccountDB,
   branding: Branding | null,
   token: string,
-  params: { name?: string, source?: string }
+  params: { name?: string }
 ): Promise<{ apiKey: Omit<ApiKey, 'accountUuid' | 'revokedOn'>, key: string }> {
   const { account, workspace } = await getApiKeyOwner(ctx, db, token)
   const name = params.name?.trim() ?? 'API key'
@@ -3064,16 +3049,11 @@ async function createApiKey (
   }
 
   const id = generateId()
-  const { source, token: key } = await issueExternalAccess(db, account, params.source ?? 'api', {
-    kind: 'api-key',
-    workspace,
-    keyId: id
-  })
+  const key = generateToken(account, workspace, { apiKey: id })
   const apiKey: ApiKey = {
     id,
     name,
     keySuffix: key.slice(-6),
-    source,
     accountUuid: account,
     workspaceUuid: workspace,
     createdOn: Date.now()
@@ -3085,7 +3065,6 @@ async function createApiKey (
     apiKey: {
       id: apiKey.id,
       name: apiKey.name,
-      source: apiKey.source ?? 'api',
       keySuffix: apiKey.keySuffix,
       workspaceUuid: apiKey.workspaceUuid,
       createdOn: apiKey.createdOn
@@ -3106,10 +3085,9 @@ async function getApiKeys (
     { createdOn: 'descending' }
   )
 
-  return apiKeys.map(({ id, name, source, keySuffix, workspaceUuid, createdOn }) => ({
+  return apiKeys.map(({ id, name, keySuffix, workspaceUuid, createdOn }) => ({
     id,
     name,
-    source: source ?? 'api',
     keySuffix,
     workspaceUuid,
     createdOn

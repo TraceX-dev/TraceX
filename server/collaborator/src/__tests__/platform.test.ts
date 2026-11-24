@@ -45,7 +45,7 @@ it.each(['human-author', 'external-author'])('uses the selected %s from one acco
   jest.mocked(createClient).mockResolvedValue(client as Client)
   jest.mocked(getTransactorEndpoint).mockResolvedValue('http://transactor.test')
   const accountClient: Partial<AccountClient> = {
-    getLoginWithWorkspaceInfo: jest.fn().mockResolvedValue({ socialId: selected, socialIds: [] })
+    getLoginInfoByToken: jest.fn().mockResolvedValue({ socialId: selected, socialIds: [] })
   }
   jest.mocked(getClient).mockReturnValue(accountClient as AccountClient)
   const token: Token = {
@@ -54,7 +54,7 @@ it.each(['human-author', 'external-author'])('uses the selected %s from one acco
   }
   const operations = await userClientFactory('workspace-token', token)()
   expect(operations.user).toBe(selected as PersonId)
-  expect(accountClient.getLoginWithWorkspaceInfo).toHaveBeenCalledTimes(1)
+  expect(accountClient.getLoginInfoByToken).toHaveBeenCalledTimes(1)
   expect(getClient).toHaveBeenCalledWith('http://accounts.test', 'workspace-token')
   expect(generateToken).not.toHaveBeenCalled()
   await operations.close()
@@ -65,7 +65,7 @@ it.each(['simple', 'reusable'])('uses the original credential for account lookup
   jest.mocked(createClient).mockResolvedValue(client as Client)
   jest.mocked(getTransactorEndpoint).mockResolvedValue('http://transactor.test')
   const accountClient: Partial<AccountClient> = {
-    getLoginWithWorkspaceInfo: jest.fn().mockResolvedValue({ socialId: 'external-author', socialIds: [] })
+    getLoginInfoByToken: jest.fn().mockResolvedValue({ socialId: 'external-author', socialIds: [] })
   }
   jest.mocked(getClient).mockReturnValue(accountClient as AccountClient)
   const token: Token = {

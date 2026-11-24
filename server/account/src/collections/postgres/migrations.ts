@@ -69,11 +69,16 @@ export function getMigrations (ns: string): [string, string][] {
     getV33Migration(ns),
     getV34Migration(ns),
     getV35Migration(ns),
-    getV36Migration(ns)
+    getV36Migration(ns),
+    getV37Migration(ns)
   ]
 }
 
 // NOTE: NEVER MODIFY EXISTING MIGRATIONS. IF YOU NEED TO ADJUST THE SCHEMA, ADD A NEW MIGRATION.
+function getV37Migration (ns: string): [string, string] {
+  return ['account_db_v37_remove_api_key_source', `ALTER TABLE ${ns}.api_key DROP COLUMN IF EXISTS source;`]
+}
+
 function getV36Migration (ns: string): [string, string] {
   return [
     'account_db_v36_external_identity',

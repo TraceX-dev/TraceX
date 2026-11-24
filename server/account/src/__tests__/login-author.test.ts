@@ -13,13 +13,14 @@
 // limitations under the License.
 //
 
-import { NoMetricsContext, SocialIdType, type PersonId, type WorkspaceUuid } from '@hcengineering/core'
+import { AccountRole, NoMetricsContext, SocialIdType, type PersonId, type WorkspaceUuid } from '@hcengineering/core'
 import { setMetadata } from '@hcengineering/platform'
-import serverToken, { generateToken } from '@hcengineering/server-token'
-import { getLoginWithWorkspaceInfo } from '../operations'
+import serverToken, { decodeToken, generateToken } from '@hcengineering/server-token'
+import { getLoginInfoByToken, getLoginWithWorkspaceInfo } from '../operations'
 import { accountPlugin } from '../plugin'
 import type { AccountDB, ApiKey, SocialId } from '../types'
 import { account, identityDatabase } from './external-access-fixture'
+import { selectWorkspace } from '../utils'
 
 const workspace = 'a8a3cc87-17ad-4f38-9008-6388ab1d36ee' as WorkspaceUuid
 const emailId = 'email-author' as PersonId
@@ -63,10 +64,18 @@ function fixture (): AccountDB {
   db.person = personCollection as AccountDB['person']
   db.getAccountWorkspaces = jest.fn().mockResolvedValue([])
   db.getWorkspaceRoles = jest.fn().mockResolvedValue(new Map())
+  db.getWorkspaceRole = jest.fn().mockResolvedValue(AccountRole.User)
+  const workspaceCollection: Partial<AccountDB['workspace']> = {
+    findOne: jest.fn().mockResolvedValue({ uuid: workspace, url: 'ws1', name: 'Workspace 1' })
+  }
+  db.workspace = workspaceCollection as AccountDB['workspace']
+  const accountCollection: Partial<AccountDB['account']> = { findOne: jest.fn().mockResolvedValue({ uuid: account }) }
+  db.account = accountCollection as AccountDB['account']
+  const statusCollection: Partial<AccountDB['workspaceStatus']> = { findOne: jest.fn().mockResolvedValue(null) }
+  db.workspaceStatus = statusCollection as AccountDB['workspaceStatus']
   const apiKey: ApiKey = {
     id: 'key-1',
     name: 'Codex',
-    source: 'codex',
     accountUuid: account,
     workspaceUuid: workspace,
     createdOn: 1
@@ -82,9 +91,9 @@ beforeEach(() => {
   setMetadata(accountPlugin.metadata.Transactors, 'http://transactor.test;http://transactor.test;')
 })
 
-it('chooses the normal primary identity rather than the first returned identity', async () => {
+it('preserves the first ordinary social identity while selecting the primary identity separately', async () => {
   const login = await getLoginWithWorkspaceInfo(ctx, fixture(), null, generateToken(account, workspace))
-  expect(login.socialId).toBe(humanId)
+  expect(login.socialId).toBe(emailId)
   expect(login.primarySocialId).toBe(humanId)
 })
 
@@ -102,10 +111,10 @@ it('returns the credential-bound external identity even when the user has a norm
   expect(login.primarySocialId).toBe(humanId)
 })
 
-it('uses one validated API key lookup to resolve the author', async () => {
+it('preserves the ordinary API key author', async () => {
   const db = fixture()
   const login = await getLoginWithWorkspaceInfo(ctx, db, null, generateToken(account, workspace, { apiKey: 'key-1' }))
-  expect(login.socialId).toBe(externalId)
+  expect(login.socialId).toBe(emailId)
   expect(login.primarySocialId).toBe(humanId)
   expect(db.apiKey.findOne).toHaveBeenCalledTimes(1)
 })
@@ -117,4 +126,106 @@ it('rejects a revoked API key before selecting an author', async () => {
     getLoginWithWorkspaceInfo(ctx, db, null, generateToken(account, workspace, { apiKey: 'key-1' }))
   ).rejects.toThrow()
   expect(db.socialId.find).not.toHaveBeenCalled()
+})
+
+it.each([false, true])('returns personal and acting identities (API key: %s)', async (apiKey) => {
+  const db = fixture()
+  const token = generateToken(account, workspace, apiKey ? { apiKey: 'key-1' } : undefined)
+  const login = await getLoginInfoByToken(ctx, db, null, token)
+  expect(login).toMatchObject({ primarySocialId: humanId, socialId: emailId })
+  if (apiKey) expect(db.apiKey.findOne).toHaveBeenCalledTimes(1)
+})
+
+it('validates an external OAuth author in the lightweight login response', async () => {
+  const db = fixture()
+  const login = await getLoginInfoByToken(
+    ctx,
+    db,
+    null,
+    generateToken(account, workspace, {
+      externalSocialId: externalId,
+      externalSource: 'codex'
+    })
+  )
+  expect(login).toMatchObject({ primarySocialId: humanId, socialId: externalId })
+})
+
+it.each([getLoginInfoByToken, getLoginWithWorkspaceInfo])(
+  'ignores external fields on previously issued API keys (%p)',
+  async (method) => {
+    const db = fixture()
+    const login = await method(
+      ctx,
+      db,
+      null,
+      generateToken(account, workspace, {
+        apiKey: 'key-1',
+        externalSocialId: externalId,
+        externalSource: 'codex'
+      })
+    )
+    expect(login).toMatchObject({ primarySocialId: humanId, socialId: emailId })
+  }
+)
+
+it.each([false, true])(
+  'selects a workspace for an API key without creating an external author (external fields: %s)',
+  async (hasExternalFields) => {
+    const db = fixture()
+    const extra: Record<string, string> = {
+      apiKey: 'key-1',
+      ...(hasExternalFields ? { externalSocialId: externalId, externalSource: 'codex' } : {})
+    }
+    const login = await selectWorkspace(ctx, db, null, generateToken(account, workspace, extra), {
+      workspaceUrl: 'ws1',
+      kind: 'external'
+    })
+    if (login.token === undefined) throw new Error('Missing workspace token')
+    expect(login.socialId).toBeUndefined()
+    expect(decodeToken(login.token).extra?.apiKey).toBe('key-1')
+    expect(db.socialId.insertOne).not.toHaveBeenCalled()
+  }
+)
+
+it.each([getLoginInfoByToken, getLoginWithWorkspaceInfo])(
+  'does not select an external identity for ordinary access (%p)',
+  async (method) => {
+    const db = fixture()
+    const identities = await db.socialId.find({ personUuid: account })
+    jest
+      .mocked(db.socialId.find)
+      .mockResolvedValue([
+        ...identities.filter((identity) => identity.type === SocialIdType.EXTERNAL),
+        ...identities.filter((identity) => identity.type !== SocialIdType.EXTERNAL)
+      ])
+    const login = await method(ctx, db, null, generateToken(account, workspace))
+    expect(login).toMatchObject({ primarySocialId: humanId, socialId: emailId })
+  }
+)
+
+it('rejects an external identity that is not present for the claimed source', async () => {
+  await expect(
+    getLoginInfoByToken(
+      ctx,
+      fixture(),
+      null,
+      generateToken(account, workspace, {
+        externalSocialId: externalId,
+        externalSource: 'claude'
+      })
+    )
+  ).rejects.toThrow()
+})
+
+it('continues to reject revoked keys and removed workspace memberships', async () => {
+  const revoked = fixture()
+  jest.mocked(revoked.apiKey.findOne).mockResolvedValue(null)
+  await expect(
+    getLoginInfoByToken(ctx, revoked, null, generateToken(account, workspace, { apiKey: 'key-1' }))
+  ).rejects.toThrow()
+  const removed = fixture()
+  jest.mocked(removed.getWorkspaceRole).mockResolvedValue(null)
+  await expect(
+    getLoginInfoByToken(ctx, removed, null, generateToken(account, workspace, { apiKey: 'key-1' }))
+  ).rejects.toThrow()
 })

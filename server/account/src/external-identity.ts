@@ -13,8 +13,32 @@
 // limitations under the License.
 //
 
-import { externalIdentityValue, SocialIdType, type AccountUuid } from '@hcengineering/core'
+import { externalIdentityValue, SocialIdType, type AccountUuid, type PersonId } from '@hcengineering/core'
+import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
 import type { AccountDB, SocialId } from './types'
+
+/** Validates the external identity bound to an issued credential. */
+export async function resolveExternalSocialId (
+  db: AccountDB,
+  account: AccountUuid,
+  extra: Record<string, unknown> | undefined
+): Promise<PersonId | undefined> {
+  if (extra?.externalSocialId == null) return undefined
+  if (typeof extra.externalSocialId !== 'string' || typeof extra.externalSource !== 'string') {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  }
+  const socialId = extra.externalSocialId as PersonId
+  const identity = await db.socialId.findOne({
+    _id: socialId,
+    personUuid: account,
+    type: SocialIdType.EXTERNAL,
+    value: externalIdentityValue(account, extra.externalSource),
+    isDeleted: { $ne: true },
+    verifiedOn: { $gt: 0 }
+  })
+  if (identity === null) throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+  return identity._id
+}
 
 /** Resolves one immutable author per user and source, including concurrent first connections. */
 export async function ensureExternalIdentity (db: AccountDB, account: AccountUuid, source: string): Promise<SocialId> {
