@@ -29,7 +29,6 @@ import { type StorageAdapter } from '@hcengineering/server-core'
 import { decodeToken, type Token } from '@hcengineering/server-token'
 
 import type { McpConfig } from './config'
-import { meWorkspacesToolId } from './tools/me/tool-ids'
 
 export interface WorkspaceConnection {
   token: Token
@@ -46,6 +45,7 @@ export interface WorkspaceConnection {
 
 interface CachedConnection {
   connection: Promise<WorkspaceConnection>
+  rawToken: string
   expiresAt: number
 }
 
@@ -61,51 +61,52 @@ export class WorkspaceManager {
   async getWorkspaces (
     accountToken: string,
     workspaceId: string | null = null
-  ): Promise<Array<{ id: string, name: string, url: string }>> {
+  ): Promise<Array<{ name: string, url: string }>> {
     const workspaces = await getAccountClient(this.config.AccountsURL, accountToken).getUserWorkspaces()
     return workspaces
       .filter((workspace) => workspaceId === null || workspace.uuid === workspaceId)
-      .map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
+      .map((workspace) => ({ name: workspace.name, url: workspace.url }))
   }
 
   async getConnection (
     accountToken: string,
-    workspaceId: string,
+    workspaceUrl: string,
     allowedWorkspaceId: string | null = null
   ): Promise<WorkspaceConnection> {
-    if (allowedWorkspaceId !== null && workspaceId !== allowedWorkspaceId) {
-      throw new Error('Workspace is not authorized by this MCP connection.')
-    }
-    // Check current membership before using cached clients; selectWorkspace also supports guest/admin fallbacks.
-    const workspace = (await this.getWorkspaces(accountToken)).find((entry) => entry.id === workspaceId)
-    if (workspace === undefined) {
-      throw new Error(`Workspace is not accessible. Use ${meWorkspacesToolId} to choose an available workspace ID.`)
-    }
+    // Check current membership before using a cached workspace client.
     const login = await getAccountClient(this.config.AccountsURL, accountToken).selectWorkspace(
-      workspace.url,
+      workspaceUrl,
       'byregion',
       process.env.EXTERNAL_REGIONS?.split(';') ?? []
     )
-    if (login.token === undefined || login.workspace !== workspaceId) throw new Error('Workspace token exchange failed')
+    if (typeof login.token !== 'string' || typeof login.workspace !== 'string' || login.workspaceUrl !== workspaceUrl) {
+      throw new Error('Workspace token exchange failed')
+    }
+    if (allowedWorkspaceId !== null && login.workspace !== allowedWorkspaceId) {
+      throw new Error('Workspace is not authorized by this MCP connection.')
+    }
     const rawToken = login.token
     const accountClaims = decodeToken(accountToken, true, this.config.ServerSecret)
     const token = decodeToken(rawToken, true, this.config.ServerSecret)
     if (
       token.account !== accountClaims.account ||
-      token.workspace !== workspaceId ||
+      token.workspace !== login.workspace ||
       token.extra?.externalSocialId !== accountClaims.extra?.externalSocialId ||
       token.extra?.externalConnectionId !== accountClaims.extra?.externalConnectionId
     ) {
       throw new Error('Workspace token exchange returned a different account or workspace')
     }
+    if (login.workspaceAvailable !== true) throw new Error('Workspace is not available')
+    if (typeof login.workspaceName !== 'string') throw new Error('Workspace token exchange returned no workspace name')
+    const workspace = { name: login.workspaceName, url: login.workspaceUrl }
     if (this.config.WorkspaceClientCacheMs <= 0) {
       return await this.createConnection(token, rawToken, login.endpoint, workspace, login.workspaceDataId)
     }
 
-    const key = `${token.workspace}:${token.account}:${rawToken}`
+    const key = `${token.workspace}:${token.account}:${token.extra?.externalConnectionId ?? ''}`
     const now = Date.now()
     const cached = this.clients.get(key)
-    if (cached !== undefined && cached.expiresAt > now) {
+    if (cached !== undefined && cached.rawToken === rawToken && cached.expiresAt > now) {
       return await cached.connection
     }
 
@@ -121,6 +122,7 @@ export class WorkspaceManager {
     const connection = this.createConnection(token, rawToken, login.endpoint, workspace, login.workspaceDataId)
     this.clients.set(key, {
       connection,
+      rawToken,
       expiresAt: now + this.config.WorkspaceClientCacheMs
     })
     return await connection

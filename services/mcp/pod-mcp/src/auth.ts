@@ -15,7 +15,7 @@
 
 import { systemAccountUuid } from '@hcengineering/core'
 import { getClient, OpenAuthError, type ResolvedAccessToken } from '@hcengineering/openauth-client'
-import { generateToken } from '@hcengineering/server-token'
+import { decodeToken, generateToken } from '@hcengineering/server-token'
 import { OAuthError, OAuthErrorCode, type AuthInfo, type OAuthTokenVerifier } from '@modelcontextprotocol/server'
 import type { McpConfig } from './config'
 
@@ -45,8 +45,25 @@ export function createMcpTokenVerifier (config: McpConfig): OAuthTokenVerifier {
         }
         throw new Error('OAuth authorization service is unavailable', { cause: error })
       }
-      if (resolved.resource !== config.OAuthResourceURL || resolved.workspaceId === undefined) {
+      if (
+        resolved.resource !== config.OAuthResourceURL ||
+        typeof resolved.connectionId !== 'string' ||
+        (resolved.workspaceId !== null && typeof resolved.workspaceId !== 'string')
+      ) {
         throw new Error('Invalid response from OAuth authorization service')
+      }
+      try {
+        const claims = decodeToken(resolved.accountToken, true, config.ServerSecret)
+        if (
+          claims.account !== resolved.account ||
+          claims.workspace !== undefined ||
+          claims.extra?.externalConnectionId !== resolved.connectionId ||
+          typeof claims.extra?.externalSocialId !== 'string'
+        ) {
+          throw new Error('Invalid OAuth account delegation')
+        }
+      } catch (error: unknown) {
+        throw new Error('Invalid response from OAuth authorization service', { cause: error })
       }
       return {
         token,

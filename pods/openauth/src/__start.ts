@@ -14,13 +14,13 @@
 //
 
 import { getClient } from '@hcengineering/account-client'
-import { readOnlyGuestAccountUuid, systemAccountUuid } from '@hcengineering/core'
+import { systemAccountUuid } from '@hcengineering/core'
 import type { MeasureContext } from '@hcengineering/measurements'
 import { createOpenTelemetryMetricsContext, initOpenTelemetrySDK } from '@hcengineering/measurements-otlp'
-import { decodeToken, generateToken } from '@hcengineering/server-token'
+import { decodeToken } from '@hcengineering/server-token'
 import { serve } from '@hono/node-server'
 import { createOAuthApp } from './app'
-import { exchangeExternalAccess } from './external-token'
+import { authenticateOAuthSession, exchangeExternalAccess } from './external-token'
 import { OAuthStore } from './store'
 
 function requiredEnv (name: string): string {
@@ -62,8 +62,8 @@ async function initialize (
   const store = new OAuthStore(requiredEnv('OPENAUTH_DATABASE_URL'), config.serverSecret)
   await store.init(startupCtx)
   const app = createOAuthApp(ctx, config, store, {
-    delegate: async (ctx, token, source, connectionId) =>
-      await exchangeExternalAccess(ctx, accountsUrl, config.serverSecret, token, source, connectionId),
+    delegate: async (ctx, connection, expiresAt) =>
+      await exchangeExternalAccess(ctx, accountsUrl, config.serverSecret, connection, expiresAt),
     getWorkspaces: async (ctx, token) =>
       await ctx.with(
         'openauth.accounts.get-workspaces',
@@ -76,55 +76,7 @@ async function initialize (
         { suspendErrors: true }
       ),
     authenticate: async (ctx, token, requireAccountToken) =>
-      await ctx.with(
-        'openauth.accounts.authenticate',
-        {},
-        async (authCtx) => {
-          const decoded = authCtx.withSync(
-            'openauth.accounts.verify-session',
-            {},
-            () => decodeToken(token, true, config.serverSecret),
-            undefined,
-            { suspendErrors: true }
-          )
-          if (
-            decoded.account === systemAccountUuid ||
-            decoded.account === readOnlyGuestAccountUuid ||
-            decoded.grant !== undefined ||
-            decoded.sub !== undefined ||
-            decoded.extra?.externalSocialId !== undefined ||
-            decoded.extra?.apiKey !== undefined ||
-            decoded.extra?.service !== undefined ||
-            decoded.extra?.restoreEmail !== undefined ||
-            decoded.extra?.confirmEmail !== undefined ||
-            decoded.extra?.tfaAccount !== undefined ||
-            decoded.extra?.guest !== undefined
-          ) {
-            throw new Error('An authenticated TraceX account session is required')
-          }
-          const login = await authCtx.with(
-            'openauth.accounts.get-login-info',
-            {},
-            async () => await getClient(accountsUrl, token).getLoginInfoByToken(),
-            undefined,
-            { suspendErrors: true }
-          )
-          if (login === null || 'request' in login || login.account !== decoded.account || login.tfaRequired === true) {
-            throw new Error('TraceX account authentication is incomplete')
-          }
-          // Same normalization as accounts PUT /cookie: ordinary session tokens can be used without a workspace.
-          const accountToken =
-            requireAccountToken && decoded.workspace !== undefined
-              ? generateToken(decoded.account, undefined, decoded.extra, config.serverSecret, {
-                  exp: decoded.exp,
-                  nbf: decoded.nbf
-                })
-              : token
-          return { account: decoded.account, token: accountToken }
-        },
-        undefined,
-        { suspendErrors: true }
-      ),
+      await authenticateOAuthSession(ctx, accountsUrl, config.serverSecret, token, requireAccountToken),
     isServiceToken: (ctx, token) =>
       ctx.withSync(
         'openauth.accounts.verify-service-token',
@@ -171,7 +123,9 @@ async function main (ctx: MeasureContext): Promise<() => Promise<void>> {
         {},
         async (shutdownCtx) => {
           await new Promise<void>((resolve) => {
-            server.close(() => { resolve(); })
+            server.close(() => {
+              resolve()
+            })
           })
           await store.close(shutdownCtx)
         },
@@ -202,7 +156,9 @@ const startup = async (): Promise<(() => Promise<void>) | undefined> => {
 }
 
 let draining: Promise<void> | undefined
-const drain = async (): Promise<void> => { await (draining ??= ready.then(async (close) => await close?.())); }
+const drain = async (): Promise<void> => {
+  await (draining ??= ready.then(async (close) => await close?.()))
+}
 const tracingEnabled = initOpenTelemetrySDK('openauth', version, drain)
 const ready = startup()
 if (!tracingEnabled) {

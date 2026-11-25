@@ -54,6 +54,7 @@ const config: McpConfig = {
 describe('MCP workspace exchange', () => {
   const getWorkspaces = jest.fn()
   const selectWorkspace = jest.fn()
+  let members: Set<string>
   let manager: WorkspaceManager
 
   beforeEach(() => {
@@ -62,11 +63,19 @@ describe('MCP workspace exchange', () => {
       { uuid: FIRST, name: 'Same name', url: 'first' },
       { uuid: SECOND, name: 'Same name', url: 'second' }
     ])
-    selectWorkspace.mockImplementation(async (url: string) => ({
-      token: JSON.stringify({ account: ACCOUNT, workspace: url === 'first' ? FIRST : SECOND }),
-      workspace: url === 'first' ? FIRST : SECOND,
-      endpoint: `http://${url}.test`
-    }))
+    members = new Set([FIRST, SECOND])
+    selectWorkspace.mockImplementation(async (url: string) => {
+      const workspaceId = url === 'first' ? FIRST : url === 'second' ? SECOND : ''
+      if (!members.has(workspaceId)) throw new Error('Workspace is not accessible')
+      return {
+        token: JSON.stringify({ account: ACCOUNT, workspace: workspaceId }),
+        workspace: workspaceId,
+        workspaceName: 'Same name',
+        workspaceAvailable: true,
+        workspaceUrl: url,
+        endpoint: `http://${url}.test`
+      }
+    })
     const accountClient: Partial<AccountClient> = {
       getUserWorkspaces: getWorkspaces,
       selectWorkspace,
@@ -95,57 +104,85 @@ describe('MCP workspace exchange', () => {
     await manager.close()
   })
 
-  it('exchanges the account token for each explicit workspace and uses the returned endpoint', async () => {
-    const first = await manager.getConnection(ACCOUNT_TOKEN, FIRST)
-    const second = await manager.getConnection(ACCOUNT_TOKEN, SECOND)
+  it('exchanges the account token for the exact workspace URL and uses the returned endpoint', async () => {
+    const first = await manager.getConnection(ACCOUNT_TOKEN, 'first')
+    const second = await manager.getConnection(ACCOUNT_TOKEN, 'second')
     expect(first.workspace).toBe(FIRST)
     expect(second.workspace).toBe(SECOND)
     expect(first).not.toBe(second)
     expect(selectWorkspace).toHaveBeenNthCalledWith(1, 'first', 'byregion', [])
     expect(selectWorkspace).toHaveBeenNthCalledWith(2, 'second', 'byregion', [])
+    expect(getWorkspaces).not.toHaveBeenCalled()
     expect(createRestTxOperations).toHaveBeenCalledWith('http://first.test', FIRST, first.rawToken, true)
     expect(getClient).toHaveBeenCalledWith(config.AccountsURL, ACCOUNT_TOKEN)
   })
 
-  it('does not resolve duplicate names or an absent workspace implicitly', async () => {
+  it('requires a workspace URL rather than the display name or UUID', async () => {
     await expect(manager.getConnection(ACCOUNT_TOKEN, 'Same name')).rejects.toThrow('not accessible')
+    await expect(manager.getConnection(ACCOUNT_TOKEN, FIRST)).rejects.toThrow('not accessible')
     await expect(manager.getConnection(ACCOUNT_TOKEN, '')).rejects.toThrow('not accessible')
-    expect(selectWorkspace).not.toHaveBeenCalled()
+    expect(getWorkspaces).not.toHaveBeenCalled()
     expect(createRestTxOperations).not.toHaveBeenCalled()
   })
 
-  it('limits discovery to the granted workspace and rejects another workspace before exchange or cache use', async () => {
-    expect(await manager.getWorkspaces(ACCOUNT_TOKEN, FIRST)).toEqual([{ id: FIRST, name: 'Same name', url: 'first' }])
-    await manager.getConnection(ACCOUNT_TOKEN, SECOND)
-    const exchanged = selectWorkspace.mock.calls.length
-    await expect(manager.getConnection(ACCOUNT_TOKEN, SECOND, FIRST)).rejects.toThrow('not authorized')
-    expect(selectWorkspace).toHaveBeenCalledTimes(exchanged)
-    const allowed = await manager.getConnection(ACCOUNT_TOKEN, FIRST, FIRST)
+  it('limits discovery to the granted workspace and applies the grant before cache use', async () => {
+    expect(await manager.getWorkspaces(ACCOUNT_TOKEN, FIRST)).toEqual([{ name: 'Same name', url: 'first' }])
+    await manager.getConnection(ACCOUNT_TOKEN, 'second')
+    await expect(manager.getConnection(ACCOUNT_TOKEN, 'second', FIRST)).rejects.toThrow('not authorized')
+    expect(selectWorkspace).toHaveBeenLastCalledWith('second', 'byregion', [])
+    const allowed = await manager.getConnection(ACCOUNT_TOKEN, 'first', FIRST)
     expect(allowed.workspace).toBe(FIRST)
     getWorkspaces.mockResolvedValue([{ uuid: SECOND, name: 'Same name', url: 'second' }])
+    members.delete(FIRST)
     expect(await manager.getWorkspaces(ACCOUNT_TOKEN, FIRST)).toEqual([])
-    await expect(manager.getConnection(ACCOUNT_TOKEN, FIRST, FIRST)).rejects.toThrow('not accessible')
+    await expect(manager.getConnection(ACCOUNT_TOKEN, 'first', FIRST)).rejects.toThrow('not accessible')
   })
 
   it('checks membership again even when a workspace connection is cached', async () => {
-    await manager.getConnection(ACCOUNT_TOKEN, FIRST)
-    getWorkspaces.mockResolvedValue([{ uuid: SECOND, name: 'Same name', url: 'second' }])
-    await expect(manager.getConnection(ACCOUNT_TOKEN, FIRST)).rejects.toThrow('not accessible')
-    expect(selectWorkspace).toHaveBeenCalledTimes(1)
+    await manager.getConnection(ACCOUNT_TOKEN, 'first')
+    members.delete(FIRST)
+    await expect(manager.getConnection(ACCOUNT_TOKEN, 'first')).rejects.toThrow('not accessible')
+    expect(selectWorkspace).toHaveBeenCalledTimes(2)
+    expect(getWorkspaces).not.toHaveBeenCalled()
     expect(createRestTxOperations).toHaveBeenCalledTimes(1)
   })
 
   it('rejects an exchange returning a different workspace or account', async () => {
     selectWorkspace.mockResolvedValue({
       workspace: SECOND,
+      workspaceUrl: 'second',
       token: JSON.stringify({ account: ACCOUNT, workspace: SECOND })
     })
-    await expect(manager.getConnection(ACCOUNT_TOKEN, FIRST)).rejects.toThrow('exchange failed')
+    await expect(manager.getConnection(ACCOUNT_TOKEN, 'first')).rejects.toThrow('exchange failed')
     selectWorkspace.mockResolvedValue({
       workspace: FIRST,
+      workspaceUrl: 'first',
       token: JSON.stringify({ account: 'another-account', workspace: FIRST })
     })
-    await expect(manager.getConnection(ACCOUNT_TOKEN, FIRST)).rejects.toThrow('different account or workspace')
+    await expect(manager.getConnection(ACCOUNT_TOKEN, 'first')).rejects.toThrow('different account or workspace')
     expect(createRestTxOperations).not.toHaveBeenCalled()
+  })
+
+  it('rejects a returned workspace UUID outside the OAuth grant', async () => {
+    selectWorkspace.mockResolvedValue({
+      workspace: SECOND,
+      workspaceUrl: 'second',
+      token: JSON.stringify({ account: ACCOUNT, workspace: SECOND })
+    })
+    await expect(manager.getConnection(ACCOUNT_TOKEN, 'second', FIRST)).rejects.toThrow('not authorized')
+    expect(createRestTxOperations).not.toHaveBeenCalled()
+  })
+
+  it('rejects a workspace marked unavailable even when its client is cached', async () => {
+    const connection = await manager.getConnection(ACCOUNT_TOKEN, 'first')
+    selectWorkspace.mockResolvedValue({
+      workspace: FIRST,
+      workspaceUrl: 'first',
+      workspaceName: 'Same name',
+      workspaceAvailable: false,
+      token: connection.rawToken
+    })
+    await expect(manager.getConnection(ACCOUNT_TOKEN, 'first')).rejects.toThrow('Workspace is not available')
+    expect(createRestTxOperations).toHaveBeenCalledTimes(1)
   })
 })

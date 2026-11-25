@@ -26,8 +26,6 @@ import {
   generateId,
   concatLink,
   isActiveMode,
-  isDeletingMode,
-  isWorkspaceCreating,
   loginSocialTypes,
   type MeasureContext,
   type Person,
@@ -124,6 +122,7 @@ import {
   verifyOtpAttempt,
   normalizeValue,
   doReleaseSocialId,
+  isWorkspaceAvailable,
   selectWorkspace,
   sendEmail,
   sendEmailConfirmation,
@@ -2253,9 +2252,7 @@ export async function getUserWorkspaces (
   const { account } = decodeTokenVerbose(ctx, token)
 
   return (await db.getAccountWorkspaces(account)).filter(
-    (ws) =>
-      (account !== readOnlyGuestAccountUuid || ws.allowReadOnlyGuest) &&
-      (isWorkspaceCreating(ws.status.mode) || !(isDeletingMode(ws.status.mode) || ws.status.isDisabled))
+    (ws) => (account !== readOnlyGuestAccountUuid || ws.allowReadOnlyGuest) && isWorkspaceAvailable(ws.status)
   )
 }
 
@@ -2409,6 +2406,7 @@ export async function getWorkspaceInfo (
 
 /**
  * Validates the token and returns the decoded account information.
+ * Internal callers can omit token issuance when they only need to validate the session.
  */
 export async function getLoginInfoByToken (
   ctx: MeasureContext,
@@ -2416,7 +2414,8 @@ export async function getLoginInfoByToken (
   branding: Branding | null,
   token: string,
   params?: LoginInfoRequestData,
-  meta?: Meta
+  meta?: Meta,
+  issueToken: boolean = true
 ): Promise<LoginInfo | WorkspaceLoginInfo | LoginInfoRequest | null> {
   let accountUuid: AccountUuid
   let workspaceUuid: WorkspaceUuid
@@ -2579,7 +2578,9 @@ export async function getLoginInfoByToken (
     name: getPersonName(person),
     primarySocialId,
     socialId: externalSocialId ?? socialIds.find((identity) => identity.type !== SocialIdType.EXTERNAL)?._id,
-    token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub })
+    ...(issueToken
+      ? { token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub }) }
+      : {})
   }
 
   if (!isSystem) {

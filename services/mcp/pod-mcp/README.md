@@ -13,9 +13,9 @@ Health: http://localhost:4020/health
 
 MCP uses OAuth authorization code with PKCE. Add the server URL in your client and sign in through TraceX in the browser. No manual API-key creation or copying is required.
 
-One connection can work with every workspace the authenticated account can currently access. Call `my_workspaces` first, then pass an exact returned workspace ID in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
+One connection can work with every workspace the authenticated account can currently access. Call `my_workspaces` first, then pass the exact short URL from the returned `url` field in the `workspace` argument of every other tool. There is no implicit current workspace. Ask the user when the target is ambiguous. Results identify the target workspace and installation.
 
-OAuth access tokens are opaque, short-lived, and bound to this MCP resource. TraceX account tokens stay on the issuer. Workspace tokens are obtained through the existing accounts `selectWorkspace` exchange when a tool runs. Membership is checked even when a workspace client is cached. Before tools run, the workspace client synchronizes the account’s person and social identities using the same contact initialization as browser login. This makes external author IDs resolve to the user in workspace messages and card history.
+OAuth access tokens are opaque, short-lived, and bound to this MCP resource. The original TraceX session stays on the issuer. MCP verifies the short-lived delegation returned by OpenAuth and requests a workspace token by URL through `selectWorkspace` in Accounts. Accounts verifies current membership, and MCP checks the returned UUID against the OAuth grant before using the workspace client, including cached clients. Before tools run, the workspace client synchronizes the account’s person and social identities using the same contact initialization as browser login. This makes external author IDs resolve to the user in workspace messages and card history.
 
 Consent grants access to one explicitly selected workspace or all currently accessible workspaces, including future memberships. `my_workspaces` only lists workspaces allowed by that connection. Calls for a different workspace are rejected before token exchange or cache access. Refresh preserves the original restriction; changing it requires a new authorization.
 
@@ -160,7 +160,7 @@ rtk proxy docker compose -f dev/docker-compose.yaml up -d --no-deps --force-recr
 
 These are operator actions, not commands an authoring agent should run automatically. If compiler/model code also changed, refresh its normal build artifacts first. A documentation-only update does not change operation contracts or require changing workspace data.
 
-After recreation, reconnect the MCP client if it caches server startup instructions. Call `my_workspaces`, then `package_authoring_guide` with the returned workspace ID. Confirm that the short entry point lists `Manager-facing authoring`, `Design preferences`, `Value is set`, `Worked risk management example` and `example:risk-management-reactive.card.yaml`; fetch both the section and the complete example. Call `package_validate` on the returned example and expect three processes. This confirms delivery and compilation, not execution in a deployed workspace. The documentation tests also exercise the registered MCP tool and the packaged-docs read path with repository fallback denied; the native-operation regression tests exercise the 25-cell policy and reactive event behavior without installing anything.
+After recreation, reconnect the MCP client if it caches server startup instructions. Call `my_workspaces`, then `package_authoring_guide` with the returned workspace URL. Confirm that the short entry point lists `Manager-facing authoring`, `Design preferences`, `Value is set`, `Worked risk management example` and `example:risk-management-reactive.card.yaml`; fetch both the section and the complete example. Call `package_validate` on the returned example and expect three processes. This confirms delivery and compilation, not execution in a deployed workspace. The documentation tests also exercise the registered MCP tool and the packaged-docs read path with repository fallback denied; the native-operation regression tests exercise the 25-cell policy and reactive event behavior without installing anything.
 
 Manual acceptance:
 
@@ -281,7 +281,7 @@ For example, read unread replies under a root message:
 {
   "name": "chat_unread_messages",
   "arguments": {
-    "workspace": "<workspace-id-from-my_workspaces>",
+    "workspace": "<workspace-url-from-my_workspaces>",
     "target": {
       "class": "chunter:class:ChatMessage",
       "id": "<root-message-id>"
@@ -310,7 +310,7 @@ Use `fulltext_search` to search indexed workspace objects and return compact obj
 {
   "name": "fulltext_search",
   "arguments": {
-    "workspace": "<workspace-id-from-my_workspaces>",
+    "workspace": "<workspace-url-from-my_workspaces>",
     "query": "risk",
     "classes": ["card:class:Card"],
     "limit": 20
@@ -328,7 +328,7 @@ Use `object_lookup` to list recent objects by class or mixin and return compact 
 {
   "name": "object_lookup",
   "arguments": {
-    "workspace": "<workspace-id-from-my_workspaces>",
+    "workspace": "<workspace-url-from-my_workspaces>",
     "classId": "contact:mixin:Employee",
     "limit": 50
   }

@@ -120,10 +120,14 @@ function fixture (): {
 } {
   const identities = new Map<PersonId, SocialIdentity>([[humanId, humanIdentity]])
   const accountClient: Partial<AccountClient> = {
-    getUserWorkspaces: jest.fn().mockResolvedValue([{ uuid: workspaceId, name: 'ws1', url: 'ws1' }]),
-    selectWorkspace: jest
-      .fn()
-      .mockResolvedValue({ workspace: workspaceId, token: workspaceToken, endpoint: 'http://transactor.test' }),
+    selectWorkspace: jest.fn().mockResolvedValue({
+      workspace: workspaceId,
+      workspaceName: 'ws1',
+      workspaceAvailable: true,
+      workspaceUrl: 'ws1',
+      token: workspaceToken,
+      endpoint: 'http://transactor.test'
+    }),
     getPerson: jest.fn().mockResolvedValue({ uuid: accountId, firstName: 'Ben', lastName: 'Liden' })
   }
   const workspaceClient: Partial<Client> = {
@@ -172,7 +176,7 @@ beforeEach(() => {
 it('materializes the external author on the existing person before exposing an MCP connection', async () => {
   const { manager, identities, operations } = fixture()
   expect(identities.has(externalId)).toBe(false)
-  const connection = await manager.getConnection(accountToken, workspaceId)
+  const connection = await manager.getConnection(accountToken, 'ws1')
   expect(identities.get(externalId)).toMatchObject({
     attachedTo: personRef,
     type: SocialIdType.EXTERNAL,
@@ -185,9 +189,9 @@ it('materializes the external author on the existing person before exposing an M
 
 it('does not duplicate the author identity on subsequent MCP requests', async () => {
   const { manager, identities, operations } = fixture()
-  const first = await manager.getConnection(accountToken, workspaceId)
+  const first = await manager.getConnection(accountToken, 'ws1')
   await first.close()
-  const second = await manager.getConnection(accountToken, workspaceId)
+  const second = await manager.getConnection(accountToken, 'ws1')
   expect(identities.size).toBe(2)
   expect(operations.client.tx).toHaveBeenCalledTimes(1)
   await second.close()
@@ -196,6 +200,6 @@ it('does not duplicate the author identity on subsequent MCP requests', async ()
 it('closes the client and refuses the connection if author synchronization fails', async () => {
   const { manager, operations, accountClient } = fixture()
   jest.mocked(accountClient.getPerson!).mockRejectedValue(new Error('Account lookup failed'))
-  await expect(manager.getConnection(accountToken, workspaceId)).rejects.toThrow('Account lookup failed')
+  await expect(manager.getConnection(accountToken, 'ws1')).rejects.toThrow('Account lookup failed')
   expect(operations.client.close).toHaveBeenCalledTimes(1)
 })

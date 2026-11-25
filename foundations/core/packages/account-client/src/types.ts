@@ -80,6 +80,8 @@ export interface WorkspaceLoginInfo extends LoginInfo {
   workspace: WorkspaceUuid // worspace uuid
   workspaceDataId?: WorkspaceDataId
   workspaceUrl: string
+  workspaceName?: string
+  workspaceAvailable?: boolean
   endpoint: string
   token: string
   role: AccountRole

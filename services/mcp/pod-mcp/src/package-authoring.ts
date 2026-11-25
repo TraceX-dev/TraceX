@@ -443,7 +443,11 @@ export function registerPackageAuthoringTools (
       }
     })
   registerPackageDiscoveryTools(server, execute, auth, marketplaceUrl)
-  const workspace = { type: 'string', minLength: 1, description: `Exact workspace ID from ${meWorkspacesToolId}.` }
+  const workspace = {
+    type: 'string',
+    minLength: 1,
+    description: `Exact value of url returned by ${meWorkspacesToolId}.`
+  }
   server.registerTool(
     packageAuthoringGuideToolId,
     {

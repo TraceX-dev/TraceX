@@ -13,64 +13,187 @@
 // limitations under the License.
 //
 
-import { systemAccountUuid } from '@hcengineering/core'
+import { getClient, type AccountClient, type LoginInfo } from '@hcengineering/account-client'
+import {
+  AccountRole,
+  docGuestAccountUuid,
+  readOnlyGuestAccountUuid,
+  systemAccountUuid,
+  type PersonId,
+  type AccountUuid,
+  type WorkspaceUuid
+} from '@hcengineering/core'
 import { NoMetricsContext } from '@hcengineering/measurements'
-import { decodeToken } from '@hcengineering/server-token'
-import { exchangeExternalAccess } from '../external-token'
+import { decodeToken, generateToken } from '@hcengineering/server-token'
+import { authenticateOAuthSession, exchangeExternalAccess, InvalidOAuthSessionError } from '../external-token'
+import type { OAuthConnection } from '../types'
+
+jest.mock('@hcengineering/account-client', () => ({ getClient: jest.fn() }))
 
 const ctx = new NoMetricsContext()
 const secret = 'issuer-to-account-test-secret'
-afterEach(() => {
-  jest.restoreAllMocks()
+const account = '00000000-0000-4000-8000-000000000001' as AccountUuid
+const expiresAt = Math.floor(Date.now() / 1000) + 120
+const notBefore = expiresAt - 130
+const sessionExtra: Record<string, string> = { authMethod: 'password', readonly: 'true' }
+const connection: Pick<OAuthConnection, 'id' | 'account' | 'accountToken' | 'source'> = {
+  id: 'connection-1',
+  account,
+  accountToken: generateToken(account, undefined, sessionExtra, secret, { exp: expiresAt, nbf: notBefore }),
+  source: 'Codex'
+}
+const login = jest.fn<
+  ReturnType<AccountClient['getLoginInfoByToken']>,
+  Parameters<AccountClient['getLoginInfoByToken']>
+>()
+const addIdentity = jest.fn<
+  ReturnType<AccountClient['addSocialIdToPerson']>,
+  Parameters<AccountClient['addSocialIdToPerson']>
+>()
+
+beforeEach(() => {
+  jest.resetAllMocks()
+  const info: LoginInfo = { account, primarySocialId: 'primary-author' as PersonId }
+  login.mockResolvedValue(info)
+  addIdentity.mockResolvedValue('external-author' as PersonId)
+  const client: Partial<AccountClient> = { getLoginInfoByToken: login, addSocialIdToPerson: addIdentity }
+  jest.mocked(getClient).mockReturnValue(client as AccountClient)
 })
 
-it('exchanges through the internal endpoint with short-lived issuer credentials', async () => {
-  const request = jest
-    .spyOn(globalThis, 'fetch')
-    .mockResolvedValue(new Response(JSON.stringify({ token: 'delegated-token' })))
-  const result = await exchangeExternalAccess(
-    ctx,
-    'https://accounts.example.test/',
-    secret,
-    'private-user-session',
-    'codex',
-    'connection-1'
-  )
-  expect(result).toBe('delegated-token')
-  expect(request).toHaveBeenCalledTimes(1)
-  const [url, init] = request.mock.calls[0]
-  expect(url).toBe('https://accounts.example.test/internal/oauth/exchange')
-  const serviceToken = new Headers(init?.headers).get('Authorization')?.slice('Bearer '.length)
-  expect(serviceToken).toBeDefined()
-  const claims = decodeToken(serviceToken ?? '', true, secret)
+it('resolves an external author using short-lived service RPC credentials and preserves session restrictions', async () => {
+  const result = await exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, connection, expiresAt + 240)
+  expect(result.expiresAt).toBe(expiresAt)
+  expect(decodeToken(result.token, true, secret)).toMatchObject({
+    account,
+    extra: {
+      ...sessionExtra,
+      externalSource: 'codex',
+      externalSocialId: 'external-author',
+      externalConnectionId: connection.id
+    },
+    exp: expiresAt,
+    nbf: notBefore
+  })
+  expect(addIdentity).toHaveBeenCalledWith(account, 'external', `${account}:codex`, true, 'codex')
+  const calls = jest.mocked(getClient).mock.calls
+  expect(calls[0][1]).toBe(connection.accountToken)
+  const claims = decodeToken(calls[1][1] ?? '', true, secret)
   expect(claims.account).toBe(systemAccountUuid)
   expect(claims.extra?.service).toBe('openauth')
   expect(claims.workspace).toBeUndefined()
   expect(claims.exp).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 60)
-  expect(JSON.parse(String(init?.body))).toEqual({
-    accountToken: 'private-user-session',
-    source: 'codex',
-    connectionId: 'connection-1'
+})
+
+it('caps delegation at the OAuth access expiration', async () => {
+  const limit = expiresAt - 60
+  const result = await exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, connection, limit)
+  expect(result.expiresAt).toBe(limit)
+  expect(decodeToken(result.token, true, secret).exp).toBe(limit)
+})
+
+it('normalizes a workspace session for consent without extending its lifetime', async () => {
+  const token = generateToken(account, '00000000-0000-4000-8000-000000000002' as WorkspaceUuid, sessionExtra, secret, {
+    exp: expiresAt,
+    nbf: notBefore
   })
+  const result = await authenticateOAuthSession(ctx, 'https://accounts.example.test', secret, token, true)
+  const claims = decodeToken(result.token, true, secret)
+  expect(claims.workspace).toBeUndefined()
+  expect(claims).toMatchObject({ account, extra: sessionExtra, exp: expiresAt, nbf: notBefore })
 })
 
-it.each([{}, { token: 123 }, { token: '' }])('rejects an invalid account response %j', async (body) => {
-  jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(body)))
+it.each([systemAccountUuid, readOnlyGuestAccountUuid, docGuestAccountUuid])(
+  'rejects special account %s',
+  async (special) => {
+    const invalid = { ...connection, accountToken: generateToken(special, undefined, undefined, secret) }
+    await expect(
+      exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, invalid, expiresAt)
+    ).rejects.toThrow(InvalidOAuthSessionError)
+    expect(addIdentity).not.toHaveBeenCalled()
+  }
+)
+
+const restricted: Array<Record<string, string>> = [
+  { apiKey: 'key' },
+  { externalSocialId: 'author' },
+  { service: 'tool' },
+  { tfaAccount: account },
+  { guest: 'true' },
+  { restoreEmail: 'mail' },
+  { confirmEmail: 'mail' }
+]
+it.each(restricted)('rejects restricted credentials %j', async (extra) => {
+  const invalid = { ...connection, accountToken: generateToken(account, undefined, extra, secret) }
   await expect(
-    exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, 'private-user-session', 'api', 'connection-1')
-  ).rejects.toThrow('Invalid OAuth account token exchange response')
+    exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, invalid, expiresAt)
+  ).rejects.toThrow(InvalidOAuthSessionError)
+  expect(addIdentity).not.toHaveBeenCalled()
 })
 
-it('fails closed when the account service refuses the exchange', async () => {
-  jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('internal details', { status: 403 }))
+it.each(['expired', 'not-active', 'bad-signature', 'subject', 'grant'])('rejects a %s session', async (kind) => {
+  const now = Math.floor(Date.now() / 1000)
+  const token =
+    kind === 'subject'
+      ? generateToken(account, undefined, undefined, secret, { sub: account })
+      : kind === 'grant'
+        ? generateToken(account, undefined, undefined, secret, {
+            exp: expiresAt,
+            nbf: notBefore,
+            grant: { workspace: '00000000-0000-4000-8000-000000000002' as WorkspaceUuid, role: AccountRole.User }
+          })
+        : generateToken(account, undefined, undefined, kind === 'bad-signature' ? 'wrong-secret' : secret, {
+            exp: kind === 'expired' ? now - 60 : now + 60,
+            nbf: kind === 'not-active' ? now + 30 : undefined
+          })
+  const invalid = { ...connection, accountToken: token }
+  await expect(
+    exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, invalid, expiresAt)
+  ).rejects.toThrow(InvalidOAuthSessionError)
+  expect(addIdentity).not.toHaveBeenCalled()
+})
+
+const incomplete: Array<LoginInfo | null> = [
+  null,
+  { account },
+  { account, tfaRequired: true },
+  { account: systemAccountUuid, primarySocialId: 'primary' as PersonId }
+]
+it.each(incomplete)('rejects an incomplete or mismatched login %j', async (info) => {
+  login.mockResolvedValue(info)
+  await expect(
+    exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, connection, expiresAt)
+  ).rejects.toThrow(InvalidOAuthSessionError)
+  expect(addIdentity).not.toHaveBeenCalled()
+})
+
+it('rejects a connection belonging to a different account', async () => {
   await expect(
     exchangeExternalAccess(
       ctx,
       'https://accounts.example.test',
       secret,
-      'private-user-session',
-      'codex',
-      'connection-1'
+      { ...connection, account: systemAccountUuid },
+      expiresAt
     )
-  ).rejects.toThrow('OAuth account token exchange failed')
+  ).rejects.toThrow(InvalidOAuthSessionError)
+  expect(addIdentity).not.toHaveBeenCalled()
 })
+
+it('rejects an empty identity response', async () => {
+  addIdentity.mockResolvedValue('' as PersonId)
+  await expect(
+    exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, connection, expiresAt)
+  ).rejects.toThrow('Invalid OAuth external identity response')
+})
+
+it.each(['login', 'identity'])(
+  'preserves a temporary %s failure for retry without revoking the session',
+  async (step) => {
+    const error = new Error('Account service unavailable')
+    if (step === 'login') login.mockRejectedValue(error)
+    else addIdentity.mockRejectedValue(error)
+    await expect(
+      exchangeExternalAccess(ctx, 'https://accounts.example.test', secret, connection, expiresAt)
+    ).rejects.toBe(error)
+  }
+)

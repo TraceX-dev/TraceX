@@ -23,6 +23,8 @@ import {
   generateId,
   groupByArray,
   isActiveMode,
+  isDeletingMode,
+  isWorkspaceCreating,
   type MeasureContext,
   type Person,
   type PersonId,
@@ -48,6 +50,7 @@ import { Analytics } from '@hcengineering/analytics'
 import { decodeTokenVerbose, generateToken, type PermissionsGrant, TokenError } from '@hcengineering/server-token'
 import { PostgresAccountDB } from './collections/postgres/postgres'
 import { getEmailAppName, renderAccountEmail } from './emails'
+import { resolveExternalSocialId } from './external-identity'
 import { guardGuestMethod, type GuestAccessPolicy } from './guestAccess'
 import { accountPlugin } from './plugin'
 import {
@@ -792,6 +795,11 @@ export async function signUpByGrant (
   return { account: accountUuid, socialId }
 }
 
+/** Checks the workspace statuses supported for user discovery and explicit selection. */
+export function isWorkspaceAvailable (status: WorkspaceStatus): boolean {
+  return isWorkspaceCreating(status.mode) || (!isDeletingMode(status.mode) && !status.isDisabled)
+}
+
 export async function selectWorkspace (
   ctx: MeasureContext,
   db: AccountDB,
@@ -822,7 +830,7 @@ export async function selectWorkspace (
     const decodedToken = decodeTokenVerbose(ctx, token ?? '')
     accountUuid = decodedToken.account
     tokenWorkspace = decodedToken.workspace
-    if (workspace == null) {
+    if (workspace == null && tokenWorkspace != null) {
       workspace = await getWorkspaceById(db, decodedToken.workspace)
     }
     extra = decodedToken.extra
@@ -948,12 +956,9 @@ export async function selectWorkspace (
 
   const wsStatus = await db.workspaceStatus.findOne({ workspaceUuid: workspace.uuid })
 
-  if (wsStatus != null) {
-    if (wsStatus.isDisabled && isActiveMode(wsStatus.mode)) {
-      ctx.error('Selecting a disabled workspace', { workspaceUrl, accountUuid })
-
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
-    }
+  if (wsStatus?.isDisabled === true && isActiveMode(wsStatus.mode)) {
+    ctx.error('Selecting a disabled workspace', { workspaceUrl, accountUuid })
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
   }
 
   const person = await db.person.findOne({ uuid: accountUuid })
@@ -961,9 +966,13 @@ export async function selectWorkspace (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
 
+  const socialId =
+    apiKeyId == null && accountUuid !== readOnlyGuestAccountUuid
+      ? await resolveExternalSocialId(db, accountUuid, extra)
+      : undefined
   return {
     account: accountUuid,
-    socialId: apiKeyId == null ? extra?.externalSocialId : undefined,
+    socialId,
     token: generateToken(accountUuid, workspace.uuid, extra, undefined, {
       grant,
       sub,
@@ -973,6 +982,8 @@ export async function selectWorkspace (
     endpoint: getEndpoint(workspace.uuid, workspace.region, getKind(workspace.region)),
     workspace: workspace.uuid,
     workspaceUrl: workspace.url,
+    workspaceName: workspace.name,
+    workspaceAvailable: wsStatus != null && isWorkspaceAvailable(wsStatus),
     workspaceDataId: workspace.dataId,
     allowGuestSignUp: workspace.allowReadOnlyGuest && workspace.allowGuestSignUp,
     role

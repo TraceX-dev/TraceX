@@ -150,6 +150,13 @@ it('validates an external OAuth author in the lightweight login response', async
   expect(login).toMatchObject({ primarySocialId: humanId, socialId: externalId })
 })
 
+it('can validate a session without issuing a new login token', async () => {
+  const token = generateToken(account)
+  const login = await getLoginInfoByToken(ctx, fixture(), null, token, undefined, undefined, false)
+  expect(login).toMatchObject({ account, primarySocialId: humanId })
+  expect(login).not.toHaveProperty('token')
+})
+
 it.each([getLoginInfoByToken, getLoginWithWorkspaceInfo])(
   'ignores external fields on previously issued API keys (%p)',
   async (method) => {

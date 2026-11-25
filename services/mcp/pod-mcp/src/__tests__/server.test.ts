@@ -61,13 +61,13 @@ describe('MCP tool naming', () => {
         const invoke = register.mock.calls.find(([name]) => name === tool.name)?.[2] as (
           args: Record<string, unknown>
         ) => Promise<CallToolResult>
-        const result = await invoke({ workspace: 'workspace-id' })
+        const result = await invoke({ workspace: 'engineering' })
         expect(result.isError).toBe(true)
         expect(JSON.stringify(result)).toContain('workspace_operation_failed')
         expect(JSON.stringify(result)).not.toContain(failure.message)
         expect(log).toHaveBeenCalledWith('MCP workspace operation failed', {
           tool: tool.name,
-          workspace: 'workspace-id',
+          workspace: 'engineering',
           error: failure.message,
           stack: failure.stack
         })

@@ -33,7 +33,7 @@ export function registerMeWorkspacesTool (
     {
       title: 'List accessible workspaces',
       description:
-        'List accessible TraceX workspaces with stable IDs, names and URL names. Use an exact returned ID in every workspace tool call.',
+        'List accessible TraceX workspaces with names and short URLs. Use the returned url value in the workspace argument.',
       inputSchema: fromJsonSchema<Record<string, unknown>>({
         type: 'object',
         properties: {},

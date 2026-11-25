@@ -21,6 +21,33 @@ import { getMigrations } from './migrations'
 import { hash } from './protocol'
 import type { OAuthConnection, PublicConnection, RegisteredClient } from './types'
 
+interface ConnectionRow {
+  id: string
+  account: string
+  client_id: string
+  client_name: string
+  source: string
+  resource: string
+  account_token: string
+  workspace_id: string | null
+  created_on: string
+}
+
+interface AccessTokenRow extends Pick<ConnectionRow, 'id' | 'account' | 'client_id' | 'resource' | 'workspace_id'> {
+  expires_on: string
+  delegated_token: string
+}
+
+interface ResolvedAccessToken {
+  connectionId: string
+  account: string
+  clientId: string
+  resource: string
+  workspaceId: string | null
+  expiresAt: number
+  accountToken: string
+}
+
 /** Persistent issuer storage. Secrets are encrypted and bearer tokens never appear in database keys. */
 export class OAuthStore {
   private readonly database: Sql
@@ -165,34 +192,21 @@ export class OAuthStore {
   }
 
   async getConnection (ctx: MeasureContext, id: string): Promise<OAuthConnection | undefined> {
-    const rows = await this.sql<
-      {
-        id: string
-        account: string
-        client_id: string
-        client_name: string
-        source: string
-        resource: string
-        account_token: string
-        workspace_id: string | null
-        created_on: string
-        revoked_on: string | null
-      }[]
-    >`SELECT * FROM openauth.connection WHERE id = ${id} AND revoked_on IS NULL`
+    const rows = await this.sql<ConnectionRow[]>`
+      SELECT * FROM openauth.connection WHERE id = ${id} AND revoked_on IS NULL`
     const row = rows[0]
-    return row === undefined
-      ? undefined
-      : {
-          id: row.id,
-          account: row.account,
-          clientId: row.client_id,
-          clientName: row.client_name,
-          source: row.source ?? 'external',
-          resource: row.resource,
-          accountToken: this.decrypt<string>(ctx, row.account_token),
-          workspaceId: row.workspace_id,
-          createdOn: Number(row.created_on)
-        }
+    if (row === undefined) return undefined
+    return {
+      id: row.id,
+      account: row.account,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      source: row.source ?? 'external',
+      resource: row.resource,
+      accountToken: this.decrypt<string>(ctx, row.account_token),
+      workspaceId: row.workspace_id,
+      createdOn: Number(row.created_on)
+    }
   }
 
   async listConnections (_ctx: MeasureContext, account: string, resource: string): Promise<PublicConnection[]> {
@@ -219,22 +233,35 @@ export class OAuthStore {
       AND resource = ${resource} AND revoked_on IS NOT NULL)`
   }
 
-  async issueAccessToken (_ctx: MeasureContext, token: string, connection: string, expiresOn: number): Promise<void> {
-    await this.sql`INSERT INTO openauth.access_token (hash, connection_id, expires_on)
-      VALUES (${hash(token)}, ${connection}, ${expiresOn})`
+  async issueAccessToken (
+    ctx: MeasureContext,
+    token: string,
+    connection: string,
+    expiresOn: number,
+    delegatedToken: string
+  ): Promise<void> {
+    const encryptedToken = this.encrypt(ctx, delegatedToken)
+    await this.sql`INSERT INTO openauth.access_token (hash, connection_id, expires_on, delegated_token)
+      VALUES (${hash(token)}, ${connection}, ${expiresOn}, ${encryptedToken})`
   }
 
-  async resolveAccessToken (
-    ctx: MeasureContext,
-    token: string
-  ): Promise<{ connection: OAuthConnection, expiresOn: number } | undefined> {
-    const rows = await this.sql<{ connection_id: string, expires_on: string }[]>`
-      SELECT connection_id, expires_on FROM openauth.access_token
-      WHERE hash = ${hash(token)} AND expires_on > ${Date.now()}`
+  async resolveAccessToken (ctx: MeasureContext, token: string): Promise<ResolvedAccessToken | undefined> {
+    const rows = await this.sql<AccessTokenRow[]>`
+      SELECT c.id, c.account, c.client_id, c.resource, c.workspace_id, t.expires_on, t.delegated_token
+      FROM openauth.access_token t JOIN openauth.connection c ON c.id = t.connection_id
+      WHERE t.hash = ${hash(token)} AND t.expires_on > ${Date.now()} AND c.revoked_on IS NULL
+      AND t.delegated_token IS NOT NULL`
     const row = rows[0]
     if (row === undefined) return undefined
-    const connection = await this.getConnection(ctx, row.connection_id)
-    return connection === undefined ? undefined : { connection, expiresOn: Number(row.expires_on) }
+    return {
+      connectionId: row.id,
+      account: row.account,
+      clientId: row.client_id,
+      resource: row.resource,
+      workspaceId: row.workspace_id,
+      expiresAt: Math.floor(Number(row.expires_on) / 1000),
+      accountToken: this.decrypt<string>(ctx, row.delegated_token)
+    }
   }
 
   async cleanup (ctx: MeasureContext): Promise<void> {
@@ -251,8 +278,16 @@ export class OAuthStore {
   }
 
   async close (ctx: MeasureContext): Promise<void> {
-    await ctx.with('openauth.storage.close', {}, async () => { await this.database.end({ timeout: 5 }); }, undefined, {
-      suspendErrors: true
-    })
+    await ctx.with(
+      'openauth.storage.close',
+      {},
+      async () => {
+        await this.database.end({ timeout: 5 })
+      },
+      undefined,
+      {
+        suspendErrors: true
+      }
+    )
   }
 }

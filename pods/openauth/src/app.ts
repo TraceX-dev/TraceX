@@ -25,9 +25,17 @@ import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { matchedRoutes } from 'hono/route'
 import { decodeJwt } from 'jose'
+import { InvalidOAuthSessionError } from './external-token'
 import { authorizationFingerprint, getTokenKey, isRecord, isRedirectUri, opaqueToken } from './protocol'
 import type { OAuthStore } from './store'
-import type { AuthorizationState, OAuthConfig, OAuthWorkspace, PendingLogin, TraceXIdentity } from './types'
+import type {
+  AuthorizationState,
+  OAuthConfig,
+  OAuthConnection,
+  OAuthWorkspace,
+  PendingLogin,
+  TraceXIdentity
+} from './types'
 
 interface SubjectProperties {
   account: string
@@ -39,7 +47,11 @@ interface OAuthEnv {
 }
 
 interface AccountAccess {
-  delegate: (ctx: MeasureContext, token: string, source: string, connectionId: string) => Promise<string>
+  delegate: (
+    ctx: MeasureContext,
+    connection: OAuthConnection,
+    expiresAt: number
+  ) => Promise<{ token: string, expiresAt: number }>
   authenticate: (ctx: MeasureContext, token: string, requireAccountToken: boolean) => Promise<TraceXIdentity>
   getWorkspaces: (ctx: MeasureContext, token: string) => Promise<OAuthWorkspace[]>
   isServiceToken: (ctx: MeasureContext, token: string) => boolean
@@ -332,30 +344,10 @@ export function createOAuthApp (
       return c.json({ error: 'invalid_token' }, 401)
     }
     const resolved = await store.resolveAccessToken(ctx, input.token)
-    if (resolved === undefined || resolved.connection.resource !== config.resourceUrl) {
+    if (resolved === undefined || resolved.resource !== config.resourceUrl) {
       return c.json({ error: 'invalid_token' }, 401)
     }
-    let accountToken: string
-    try {
-      await accounts.authenticate(ctx, resolved.connection.accountToken, true)
-      accountToken = await accounts.delegate(
-        ctx,
-        resolved.connection.accountToken,
-        resolved.connection.source ?? 'external',
-        resolved.connection.id
-      )
-    } catch {
-      return c.json({ error: 'invalid_token' }, 401)
-    }
-    return c.json({
-      connectionId: resolved.connection.id,
-      account: resolved.connection.account,
-      accountToken,
-      clientId: resolved.connection.clientId,
-      workspaceId: resolved.connection.workspaceId,
-      resource: resolved.connection.resource,
-      expiresAt: Math.floor(resolved.expiresOn / 1000)
-    })
+    return c.json(resolved)
   })
 
   const provider: Provider<SubjectProperties> = {
@@ -440,8 +432,12 @@ export function createOAuthApp (
   const openauth = issuer({
     storage: {
       get: async (key) => await store.get(issuerContext(), key),
-      set: async (key, value, expiry) => { await store.set(issuerContext(), key, value, expiry); },
-      remove: async (key) => { await store.remove(issuerContext(), key); },
+      set: async (key, value, expiry) => {
+        await store.set(issuerContext(), key, value, expiry)
+      },
+      remove: async (key) => {
+        await store.remove(issuerContext(), key)
+      },
       scan: (prefix) => store.scan(issuerContext(), prefix)
     },
     subjects,
@@ -563,12 +559,6 @@ export function createOAuthApp (
       ) {
         return c.json({ error: 'invalid_grant' }, 400)
       }
-      try {
-        await accounts.authenticate(ctx, connection.accountToken, true)
-      } catch {
-        await store.revokeConnection(ctx, connection.id, connection.account, config.resourceUrl)
-        return c.json({ error: 'invalid_grant' }, 400)
-      }
       if (typeof stored.timeUsed === 'number' && Date.now() > stored.timeUsed + 10_000) {
         await store.revokeConnection(ctx, connection.id, connection.account, config.resourceUrl)
         return c.json({ error: 'invalid_grant' }, 400)
@@ -594,12 +584,18 @@ export function createOAuthApp (
         return c.json({ error: 'server_error' }, 500)
       }
       const accessToken = opaqueToken()
-      await store.issueAccessToken(ctx, accessToken, connection.id, payload.exp * 1000)
+      const delegation = await accounts.delegate(ctx, connection, payload.exp).catch(async (error: unknown) => {
+        if (!(error instanceof InvalidOAuthSessionError)) throw error
+        await store.revokeConnection(ctx, connection.id, connection.account, config.resourceUrl)
+        return undefined
+      })
+      if (delegation === undefined) return c.json({ error: 'invalid_grant' }, 400)
+      await store.issueAccessToken(ctx, accessToken, connection.id, delegation.expiresAt * 1000, delegation.token)
       return c.json({
         access_token: accessToken,
         token_type: 'Bearer',
         refresh_token: tokens.refresh_token,
-        expires_in: Math.max(0, payload.exp - Math.floor(Date.now() / 1000)),
+        expires_in: Math.max(0, delegation.expiresAt - Math.floor(Date.now() / 1000)),
         scope: 'tracex'
       })
     })

@@ -520,6 +520,8 @@ export interface LoginInfoWithWorkspaces extends LoginInfo {
 export interface WorkspaceLoginInfo extends LoginInfo {
   workspace: WorkspaceUuid
   workspaceUrl: string
+  workspaceName?: string
+  workspaceAvailable?: boolean
   workspaceDataId?: WorkspaceDataId
   endpoint: string
   role: AccountRole

@@ -16,6 +16,7 @@
 import { MeasureMetricsContext, type MeasureContext } from '@hcengineering/measurements'
 import { createHash, randomUUID } from 'node:crypto'
 import { createOAuthApp } from '../app'
+import { InvalidOAuthSessionError } from '../external-token'
 import { OAuthStore } from '../store'
 import type { OAuthConfig, OAuthConnection, OAuthWorkspace, RegisteredClient } from '../types'
 
@@ -36,7 +37,7 @@ function testStore (): OAuthStore {
   const values = new Map<string, { value: unknown, expiry?: number }>()
   const clients = new Map<string, RegisteredClient>()
   const connections = new Map<string, OAuthConnection>()
-  const tokens = new Map<string, { connection: string, expiresOn: number }>()
+  const tokens = new Map<string, { connection: string, expiresOn: number, delegatedToken: string }>()
   const locks = new Map<string, Promise<unknown>>()
   jest.spyOn(store, 'get').mockImplementation(async (_ctx, key) => {
     const found = values.get(JSON.stringify(key))
@@ -63,7 +64,16 @@ function testStore (): OAuthStore {
     .spyOn(store, 'withLock')
     .mockImplementation(
       async <T>(ctx: MeasureContext, key: string, action: (ctx: MeasureContext) => Promise<T>): Promise<T> => {
-        const current = (locks.get(key) ?? Promise.resolve()).then(async () => await action(ctx))
+        const current = (locks.get(key) ?? Promise.resolve()).then(async () => {
+          const original = new Map(values)
+          try {
+            return await action(ctx)
+          } catch (error) {
+            values.clear()
+            for (const [key, value] of original) values.set(key, value)
+            throw error
+          }
+        })
         locks.set(
           key,
           current.catch(() => {})
@@ -93,14 +103,26 @@ function testStore (): OAuthStore {
     const connection = connections.get(id)
     if (connection?.account === accountId) connection.revokedOn = Date.now()
   })
-  jest.spyOn(store, 'issueAccessToken').mockImplementation(async (_ctx, token, connection, expiresOn) => {
-    tokens.set(token, { connection, expiresOn })
-  })
+  jest
+    .spyOn(store, 'issueAccessToken')
+    .mockImplementation(async (_ctx, token, connection, expiresOn, delegatedToken) => {
+      tokens.set(token, { connection, expiresOn, delegatedToken })
+    })
   jest.spyOn(store, 'resolveAccessToken').mockImplementation(async (ctx, token) => {
     const entry = tokens.get(token)
     if (entry === undefined || entry.expiresOn <= Date.now()) return undefined
     const connection = await store.getConnection(ctx, entry.connection)
-    return connection === undefined ? undefined : { connection, expiresOn: entry.expiresOn }
+    return connection === undefined
+      ? undefined
+      : {
+          connectionId: connection.id,
+          account: connection.account,
+          clientId: connection.clientId,
+          resource: connection.resource,
+          workspaceId: connection.workspaceId,
+          expiresAt: Math.floor(entry.expiresOn / 1000),
+          accountToken: entry.delegatedToken
+        }
   })
   return store
 }
@@ -124,17 +146,24 @@ describe.each([
   let app: ReturnType<typeof createOAuthApp>
   let metrics: MeasureMetricsContext
   let sessionActive: boolean
+  let sessionExpiresAt: number
   let workspaces: OAuthWorkspace[]
+  const delegate = jest.fn(async (_ctx: MeasureContext, connection: OAuthConnection, expiresAt: number) => {
+    if (!sessionActive) throw new InvalidOAuthSessionError()
+    return { token: `delegated-${connection.accountToken}`, expiresAt: Math.min(expiresAt, sessionExpiresAt) }
+  })
   beforeEach(() => {
     store = testStore()
     sessionActive = true
+    sessionExpiresAt = Number.POSITIVE_INFINITY
+    delegate.mockClear()
     workspaces = [
       { id: firstWorkspace, name: 'Same name', url: 'first' },
       { id: secondWorkspace, name: 'Same name', url: 'second' }
     ]
     metrics = new MeasureMetricsContext('openauth', {})
     app = createOAuthApp(metrics, config, store, {
-      delegate: async (_ctx, token) => token,
+      delegate,
       authenticate: async (_ctx, token) => {
         if (!sessionActive || !['account-session', 'other-session'].includes(token)) throw new Error('Invalid session')
         return { account: token === 'other-session' ? otherAccount : account, token }
@@ -235,7 +264,7 @@ describe.each([
   async function connect (
     clientId: string,
     workspaceId: string | null = null
-  ): Promise<{ access_token: string, refresh_token: string }> {
+  ): Promise<{ access_token: string, refresh_token: string, expires_in: number }> {
     const { code, verifier } = await authorize(clientId, 'http://127.0.0.1:7777/callback', workspaceId)
     const response = await token(clientId, {
       grant_type: 'authorization_code',
@@ -244,7 +273,7 @@ describe.each([
       redirect_uri: 'http://127.0.0.1:7777/callback'
     })
     expect(response.status).toBe(200)
-    const tokens = (await response.json()) as { access_token: string, refresh_token: string }
+    const tokens = (await response.json()) as { access_token: string, refresh_token: string, expires_in: number }
     expect(tokens.access_token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(JSON.stringify(tokens)).not.toContain('account-session')
     return tokens
@@ -366,12 +395,15 @@ describe.each([
       connectionId: string
       accountToken: string
     }
-    expect(connection.accountToken).toBe('account-session')
+    expect(connection.accountToken).toBe('delegated-account-session')
+    expect((await resolve(first.access_token)).status).toBe(200)
+    expect(delegate).toHaveBeenCalledTimes(2)
     const refresh = await token(client, { grant_type: 'refresh_token', refresh_token: first.refresh_token })
     expect(refresh.status).toBe(200)
     const renewed = (await refresh.json()) as { access_token: string, refresh_token: string }
     expect(renewed.refresh_token).not.toBe(first.refresh_token)
     expect((await resolve(renewed.access_token)).status).toBe(200)
+    expect(delegate).toHaveBeenCalledTimes(3)
     await request(`/connections/${connection.connectionId}`, {
       method: 'DELETE',
       headers: { Authorization: 'Bearer account-session', Origin: new URL(config.loginUrl).origin }
@@ -412,10 +444,37 @@ describe.each([
 
   it('rejects access and refresh after the account session expires', async () => {
     const client = await register()
+    sessionExpiresAt = Math.floor(Date.now() / 1000) + 60
     const tokens = await connect(client)
-    sessionActive = false
-    expect((await resolve(tokens.access_token)).status).toBe(401)
-    expect((await token(client, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).status).toBe(400)
+    expect(tokens.expires_in).toBeLessThanOrEqual(60)
+    expect(await (await resolve(tokens.access_token)).json()).toMatchObject({ expiresAt: sessionExpiresAt })
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(sessionExpiresAt * 1000)
+    try {
+      sessionActive = false
+      expect((await resolve(tokens.access_token)).status).toBe(401)
+      expect((await token(client, { grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).status).toBe(
+        400
+      )
+      expect(delegate).toHaveBeenCalledTimes(2)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
+  it('allows the same refresh token to be retried after a temporary Accounts failure', async () => {
+    const client = await register()
+    const tokens = await connect(client)
+    const parameters = { grant_type: 'refresh_token', refresh_token: tokens.refresh_token }
+    delegate.mockRejectedValueOnce(new Error('Temporary Accounts failure'))
+    expect((await token(client, parameters)).status).toBe(500)
+    expect((await resolve(tokens.access_token)).status).toBe(200)
+
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 11_000)
+    try {
+      expect((await token(client, parameters)).status).toBe(200)
+    } finally {
+      clock.mockRestore()
+    }
   })
 
   it('does not let another account revoke a connection or read its credentials', async () => {

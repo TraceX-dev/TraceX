@@ -18,7 +18,6 @@ import { accountPlugin } from './plugin'
 
 export * from './emails'
 export * from './operations'
-export { exchangeOAuthToken } from './oauth-exchange'
 export * from './plugin'
 export * from './utils'
 export * from './types'

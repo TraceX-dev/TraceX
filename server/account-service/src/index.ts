@@ -23,8 +23,7 @@ import account, {
   getAccountDB,
   getAllTransactors,
   getMethods,
-  cleanExpiredOtp,
-  exchangeOAuthToken
+  cleanExpiredOtp
 } from '@hcengineering/account'
 import accountCs from '@hcengineering/account/lang/cs.json'
 import accountDe from '@hcengineering/account/lang/de.json'
@@ -62,7 +61,6 @@ import Router from 'koa-router'
 import os from 'os'
 import { startAuditConsumer } from './audit'
 import { startWorkspaceMemberUnreadConsumer } from './unread'
-import { createOAuthExchangeHandler } from './oauth-exchange'
 
 const AUTH_TOKEN_COOKIE = 'account-metadata-Token'
 const DEFAULT_ACCOUNT_METRICS_INTERVAL_MS = 5 * 60 * 1000
@@ -441,14 +439,6 @@ export function serveAccount (measureCtx: MeasureContext, brandings: BrandingMap
       req.res.end()
     }
   })
-
-  router.post(
-    '/internal/oauth/exchange',
-    createOAuthExchangeHandler(async (serviceToken, input) => {
-      const [db] = await accountsDb
-      return await exchangeOAuthToken(measureCtx, db, null, serviceToken, input)
-    })
-  )
 
   router.post('rpc', '/', async (ctx) => {
     const token = extractToken(ctx.request.headers)

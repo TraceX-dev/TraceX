@@ -63,14 +63,16 @@ describeDatabase('persistent OAuth storage', () => {
       { value: 'private-signing-material' },
       new Date(Date.now() + 60_000)
     )
-    await store.issueAccessToken(ctx, 'private-access-token', connectionId, Date.now() + 60_000)
+    await store.issueAccessToken(ctx, 'private-access-token', connectionId, Date.now() + 60_000, 'private-delegation')
     await store.close(ctx)
     store = new OAuthStore(databaseUrl ?? '', 'test-only-storage-secret')
     await store.init(ctx)
-    expect((await store.getConnection(ctx, connectionId))?.workspaceId).toBe(workspaceId)
-    expect((await store.resolveAccessToken(ctx, 'private-access-token'))?.connection.accountToken).toBe(
-      'private-account-token'
-    )
+    expect(await store.getConnection(ctx, connectionId)).toMatchObject({
+      workspaceId,
+      accountToken: 'private-account-token'
+    })
+    const resolved = await store.resolveAccessToken(ctx, 'private-access-token')
+    expect(resolved).toMatchObject({ connectionId, workspaceId, accountToken: 'private-delegation' })
     expect(await store.get(ctx, ['oauth:refresh', connectionId, 'private-refresh-token'])).toEqual({
       value: 'private-signing-material'
     })
@@ -88,6 +90,7 @@ describeDatabase('persistent OAuth storage', () => {
         'private-account-token',
         'private-refresh-token',
         'private-access-token',
+        'private-delegation',
         'private-signing-material'
       ]) {
         expect(records).not.toContain(secret)
@@ -104,10 +107,9 @@ describeDatabase('persistent OAuth storage', () => {
       await sql`DELETE FROM openauth.migrations WHERE name = 'openauth_db_v1_init'`
       await store.init(ctx)
       expect(await sql`SELECT account_token FROM openauth.connection WHERE id = ${connectionId}`).toEqual(before)
-      expect((await store.resolveAccessToken(ctx, 'private-access-token'))?.connection.accountToken).toBe(
-        'private-account-token'
-      )
-      expect(await sql`SELECT name FROM openauth.migrations`).toEqual([{ name: 'openauth_db_v1_init' }])
+      expect((await store.resolveAccessToken(ctx, 'private-access-token'))?.accountToken).toBe('private-delegation')
+      const names = migrations.getMigrations().map(([name]) => ({ name }))
+      expect(await sql`SELECT name FROM openauth.migrations ORDER BY name`).toEqual(names)
     } finally {
       await sql.end()
     }
@@ -130,7 +132,11 @@ describeDatabase('persistent OAuth storage', () => {
     try {
       await Promise.all([store.init(ctx), replica.init(ctx)])
       const history = await sql`SELECT name, created_on FROM openauth.migrations ORDER BY name`
-      expect(history.map((row) => row.name)).toEqual(['openauth_db_v1_init', 'test_schema_v2', 'test_schema_v3'])
+      expect(history.map((row) => row.name)).toEqual([
+        ...initial.map(([name]) => name),
+        'test_schema_v2',
+        'test_schema_v3'
+      ])
       await store.init(ctx)
       expect(await sql`SELECT name, created_on FROM openauth.migrations ORDER BY name`).toEqual(history)
       expect(await sql`SELECT value FROM openauth.migration_probe`).toEqual([{ value: 2 }])
