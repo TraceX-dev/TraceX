@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Upravit názvy polí",
+    "NoEditableFields": "Tento balíček nemá žádná upravitelná pole.",
+    "CreateVersionDraft": "Vytvořit koncept verze",
+    "ReopenLatestPublication": "Chcete-li upravit názvy polí, otevřete nejnovější verzi v části Moje publikace.",
+    "ReloadPackageDraft": "Znovu otevřete koncept balíčku a načtěte nejnovější změny.",
+    "PrivateDraftSpaceRequired": "Přihlaste se do pracovního prostoru a vytvořte soukromý prostor pro koncepty.",
     "Origin": "Původ",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Odstranění odkazu na závislost ponechá balíček nainstalovaný, včetně nastavení procesů a aktivních běhů.",
     "PackageDependencies": "Závislosti balíčku",

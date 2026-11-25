@@ -19,7 +19,8 @@ import {
   compareDefinitionPackageVersions,
   createDefinitionPackageRelease,
   serializeDefinitionPackageRelease,
-  parseDefinitionPackageRelease
+  parseDefinitionPackageRelease,
+  updateDefinitionPackageFieldLabels
 } from '../definition-package'
 import { planDefinitionPackageUpgrade } from '../definition-package-plan'
 import type { DefinitionPackageRelease } from '../definition-package-types'
@@ -121,6 +122,45 @@ processes:
     ).rejects.toThrow('SHA-256 digest')
     const forged = { ...original, definition: { ...original.definition, docs: [] } }
     expect((await planDefinitionPackageUpgrade(original, forged)).status).toBe('unchanged')
+  })
+
+  it('renames card and tag field labels without changing definitions that use the field keys', async () => {
+    const lock = `dependencies:
+  external:
+    id: acme/external
+    author: publisher
+    version: 1.0.0
+    contentHash: sha256:${'a'.repeat(64)}
+    destinations: {}
+`
+    const source =
+      example('procurement-workspace.card.yaml').replace(
+        'label: Quote amount (USD)',
+        'native: {label: Original quote}'
+      ) +
+      '\n' +
+      lock
+    const original = await release(source)
+    const version = { ...original.package, version: '1.0.1' }
+    const labels = new Map([
+      ['pc_request_amount', 'Котировка: в: USD'],
+      ['pc_shipping_tracking', 'Shipment ID']
+    ])
+    const updated = await updateDefinitionPackageFieldLabels(original, labels, version)
+    const parsed = await parseDefinitionPackageRelease(serializeDefinitionPackageRelease(updated))
+
+    expect(parsed.package).toEqual(version)
+    expect(parsed.contentHash).not.toBe(original.contentHash)
+    expect(parsed.dependencies).toEqual(original.dependencies)
+    expect(parsed.definition.docs).toEqual(
+      original.definition.docs.map((doc) =>
+        labels.has(doc._id) ? { ...doc, label: `embedded:embedded:${labels.get(doc._id)}` } : doc
+      )
+    )
+    expect((await planDefinitionPackageUpgrade(original, parsed)).changes).toEqual([
+      expect.objectContaining({ key: 'pc_request_amount', impact: 'cosmetic' }),
+      expect.objectContaining({ key: 'pc_shipping_tracking', impact: 'cosmetic' })
+    ])
   })
 
   it('validates authored YAML content and rejects edits under an existing package hash', async () => {

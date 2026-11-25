@@ -388,7 +388,8 @@ export class ReadOnlyAccessMiddleware extends BasePresentationMiddleware impleme
           {
             onClose: () => {}
           },
-          NotificationSeverity.Info
+          NotificationSeverity.Info,
+          'permissionNotification'
         )
         return { success: false }
       } else {

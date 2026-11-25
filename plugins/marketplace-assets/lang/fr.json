@@ -1,5 +1,11 @@
 {
   "string": {
+    "EditFieldLabels": "Modifier les libellés des champs",
+    "NoEditableFields": "Ce paquet ne contient aucun champ modifiable.",
+    "CreateVersionDraft": "Créer un brouillon de version",
+    "ReopenLatestPublication": "Ouvrez la dernière version dans Mes publications pour modifier les libellés de ses champs.",
+    "ReloadPackageDraft": "Rouvrez le brouillon du paquet pour charger les dernières modifications.",
+    "PrivateDraftSpaceRequired": "Connectez-vous à votre espace de travail pour initialiser votre espace privé de brouillons.",
     "Origin": "Origine",
     "RemovingDependencyLinksKeepsPackagesInstalled": "Supprimer le lien de dépendance conserve le paquet installé, sa configuration des processus et ses exécutions actives.",
     "PackageDependencies": "Dépendances du paquet",
