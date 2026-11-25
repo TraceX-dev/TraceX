@@ -15,14 +15,20 @@
 <script lang="ts">
   import { Modal, NavItem } from '@hcengineering/ui'
   import presentation from '@hcengineering/presentation'
-  import { Room } from '@hcengineering/love'
+  import { Room, isOffice } from '@hcengineering/love'
   import { createEventDispatcher } from 'svelte'
   import { IntlString } from '@hcengineering/platform'
 
   import RoomTranscriptionSettings from './RoomTranscriptionSettings.svelte'
+  import RoomAccessSettings from './RoomAccessSettings.svelte'
   import love from '../plugin'
+  import { isAiBotEnabled } from '../utils'
+  import { rooms } from '../stores'
 
   export let room: Room
+
+  // The popup receives a snapshot, use the live room so settings reflect changes made here
+  $: liveRoom = $rooms.find((it) => it._id === room._id) ?? room
 
   const dispatch = createEventDispatcher()
 
@@ -31,7 +37,10 @@
     label: IntlString
   }
 
-  const groups: Group[] = [{ id: 'transcription', label: love.string.Transcription }]
+  const groups: Group[] = [
+    ...(isOffice(room) ? [] : [{ id: 'access', label: love.string.Access }]),
+    ...(isAiBotEnabled() ? [{ id: 'transcription', label: love.string.Transcription }] : [])
+  ]
 
   let selectedGroup = groups[0]
 
@@ -64,8 +73,10 @@
       {/each}
     </div>
     <div class="component">
-      {#if selectedGroup.id === 'transcription'}
-        <RoomTranscriptionSettings {room} />
+      {#if selectedGroup?.id === 'access'}
+        <RoomAccessSettings room={liveRoom} />
+      {:else if selectedGroup?.id === 'transcription'}
+        <RoomTranscriptionSettings room={liveRoom} />
       {/if}
     </div>
   </div>

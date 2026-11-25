@@ -49,6 +49,108 @@ export function isOffice (room: Data<Room>): room is Office {
   return (room as Office).person !== undefined
 }
 
+type RoomAccessFields = Pick<Data<Room>, 'access' | 'owners' | 'defaultAccess'> & Partial<Pick<Office, 'person'>>
+
+function isOfficeLike (room: RoomAccessFields): boolean {
+  return room.person !== undefined
+}
+
+/**
+ * Access levels that require someone to admit or invite a person into a shared room.
+ */
+export function isApprovalAccess (access: RoomAccess | undefined): boolean {
+  return access === RoomAccess.Knock || access === RoomAccess.InviteOnly
+}
+
+/**
+ * Owners of a room: the assigned person for an office, the owners list for a shared room.
+ */
+export function getRoomOwners (room: RoomAccessFields): Array<Ref<Person>> {
+  if (isOfficeLike(room)) {
+    return room.person != null ? [room.person] : []
+  }
+  return room.owners ?? []
+}
+
+export function isRoomOwner (room: RoomAccessFields, person: Ref<Person> | undefined): boolean {
+  if (person === undefined) return false
+  return getRoomOwners(room).includes(person)
+}
+
+/**
+ * Access the room returns to when everybody leaves it.
+ */
+export function getDefaultRoomAccess (room: RoomAccessFields): RoomAccess {
+  if (isOfficeLike(room)) return RoomAccess.Knock
+  return room.defaultAccess ?? RoomAccess.Open
+}
+
+/**
+ * Whether entering a shared room requires an approval or an invitation.
+ * A room without owners is public: nobody could admit people into it.
+ */
+export function requiresApproval (room: RoomAccessFields): boolean {
+  return !isOfficeLike(room) && isApprovalAccess(room.access) && getRoomOwners(room).length > 0
+}
+
+/**
+ * Access levels that can be selected for a room. Approval levels need at least one owner.
+ */
+export function getAvailableRoomAccess (room: RoomAccessFields): RoomAccess[] {
+  if (isOfficeLike(room)) return [RoomAccess.Knock, RoomAccess.DND]
+  if (getRoomOwners(room).length === 0) return [RoomAccess.Open, RoomAccess.DND]
+  return [RoomAccess.Open, RoomAccess.Knock, RoomAccess.InviteOnly, RoomAccess.DND]
+}
+
+/**
+ * Whether the person can change the current and default access of the room.
+ * Offices are managed by their person, public rooms by anyone, rooms with owners by owners and maintainers.
+ */
+export function canManageRoomAccess (
+  room: RoomAccessFields,
+  person: Ref<Person> | undefined,
+  isMaintainer: boolean
+): boolean {
+  if (isOfficeLike(room)) return person !== undefined && room.person === person
+  if (getRoomOwners(room).length === 0) return true
+  return isMaintainer || isRoomOwner(room, person)
+}
+
+/**
+ * Whether the person can change the default access of a shared room. The default access persists,
+ * so for a public room it is managed by maintainers, otherwise anyone could lock the room permanently.
+ */
+export function canManageRoomDefaultAccess (
+  room: RoomAccessFields,
+  person: Ref<Person> | undefined,
+  isMaintainer: boolean
+): boolean {
+  if (isOfficeLike(room)) return false
+  if (getRoomOwners(room).length === 0) return isMaintainer
+  return isMaintainer || isRoomOwner(room, person)
+}
+
+/**
+ * Whether the person can change owners of a shared room. Owners of a public room are assigned by maintainers.
+ */
+export function canManageRoomOwners (
+  room: RoomAccessFields,
+  person: Ref<Person> | undefined,
+  isMaintainer: boolean
+): boolean {
+  if (isOfficeLike(room)) return false
+  return isMaintainer || isRoomOwner(room, person)
+}
+
+/**
+ * A shared room with an approval access, current or default, must have at least one owner.
+ */
+export function isValidRoomOwnership (room: RoomAccessFields): boolean {
+  if (isOfficeLike(room)) return true
+  if (!isApprovalAccess(room.access) && !isApprovalAccess(room.defaultAccess)) return true
+  return getRoomOwners(room).length > 0
+}
+
 export function createDefaultRooms (
   employees: Ref<Employee>[],
   defaultTranscription: boolean = false,

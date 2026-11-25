@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getCurrentEmployee } from '@hcengineering/contact'
   import core, { Class, Data, generateId, type Doc, Ref } from '@hcengineering/core'
   import { Floor, getFreePosition, Office, Room, RoomAccess, RoomType } from '@hcengineering/love'
   import { translate } from '@hcengineering/platform'
@@ -80,6 +81,9 @@
     }
     if (val._class === love.class.Office) {
       ;(data as Data<Office>).person = null
+    } else {
+      // The creator of a shared room becomes its owner
+      data.owners = [getCurrentEmployee()]
     }
     await client.createDoc(val._class, core.space.Workspace, data, _id)
     dispatch('close')

@@ -68,7 +68,8 @@ import {
   TypeTimestamp,
   UX,
   TypeBoolean,
-  Hidden
+  Hidden,
+  ArrOf
 } from '@hcengineering/model'
 import calendar, { TEvent, TSchedule } from '@hcengineering/model-calendar'
 import core, { TAttachedDoc, TDoc } from '@hcengineering/model-core'
@@ -136,6 +137,12 @@ export class TRoom extends TDoc implements Room {
 
   @Prop(PropCollection(chunter.class.ChatMessage), activity.string.Messages)
     messages?: number
+
+  @Prop(ArrOf(TypeRef(contact.mixin.Employee)), core.string.Owners)
+  @Hidden()
+    owners?: Array<Ref<Person>>
+
+  defaultAccess?: RoomAccess
 }
 
 @Model(love.class.Office, love.class.Room)

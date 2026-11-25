@@ -190,6 +190,18 @@ export const loveOperation: MigrateOperation = {
             { type: RoomType.Video }
           )
         }
+      },
+      {
+        state: 'shared-rooms-knock-to-open-v1',
+        mode: 'upgrade',
+        func: async (client: MigrationClient) => {
+          // Knock in a shared room now requires owners, rooms created before owners existed become public
+          await client.update(
+            DOMAIN_LOVE,
+            { _class: love.class.Room, access: RoomAccess.Knock, owners: { $exists: false } },
+            { access: RoomAccess.Open }
+          )
+        }
       }
     ])
   },

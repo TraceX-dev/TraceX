@@ -33,6 +33,7 @@ import core, {
   TxUpdateDoc
 } from '@hcengineering/core'
 import love, {
+  getDefaultRoomAccess,
   isOffice,
   loveId,
   MeetingMinutes,
@@ -239,15 +240,19 @@ async function setDefaultRoomAccess (info: ParticipantInfo, control: TriggerCont
     if (oldRoomInfo.persons.length === 1 && oldRoomInfo.persons[0] === info.person) {
       res.push(control.txFactory.createTxRemoveDoc(oldRoomInfo._class, oldRoomInfo.space, oldRoomInfo._id))
 
-      const resetAccessTx = control.txFactory.createTxUpdateDoc(
-        oldRoomInfo.isOffice ? love.class.Office : love.class.Room,
-        core.space.Workspace,
-        oldRoomInfo.room,
-        {
-          access: oldRoomInfo.isOffice ? RoomAccess.Knock : RoomAccess.Open
-        }
-      )
-      res.push(resetAccessTx)
+      // The room is empty now, return it to its default access
+      const room = (await control.findAll(control.ctx, love.class.Room, { _id: oldRoomInfo.room }, { limit: 1 }))[0]
+      const access =
+        room !== undefined ? getDefaultRoomAccess(room) : oldRoomInfo.isOffice ? RoomAccess.Knock : RoomAccess.Open
+      if (room === undefined || room.access !== access) {
+        const resetAccessTx = control.txFactory.createTxUpdateDoc(
+          oldRoomInfo.isOffice ? love.class.Office : love.class.Room,
+          core.space.Workspace,
+          oldRoomInfo.room,
+          { access }
+        )
+        res.push(resetAccessTx)
+      }
     } else {
       res.push(
         control.txFactory.createTxUpdateDoc(love.class.RoomInfo, core.space.Workspace, oldRoomInfo._id, {

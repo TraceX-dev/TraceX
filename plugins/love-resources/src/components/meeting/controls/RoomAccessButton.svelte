@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { isOffice, Room, RoomAccess, roomAccessIcon } from '@hcengineering/love'
+  import { canManageRoomAccess, Room, RoomAccess, roomAccessIcon } from '@hcengineering/love'
+  import { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
   import love from '../../../plugin'
   import { ButtonBaseSize, eventToHTMLElement, ModernButton, showPopup } from '@hcengineering/ui'
   import RoomAccessPopup from '../../RoomAccessPopup.svelte'
@@ -10,9 +11,12 @@
   export let kind: 'primary' | 'secondary' | 'tertiary' | 'negative' = 'secondary'
 
   const me = getCurrentEmployee()
+  const isMaintainer = hasAccountRole(getCurrentAccount(), AccountRole.Maintainer)
+
+  $: canManage = canManageRoomAccess(room, me, isMaintainer)
 
   function setAccess (e: MouseEvent): void {
-    if (isOffice(room) && room.person !== me) return
+    if (!canManage) return
     showPopup(RoomAccessPopup, { room }, eventToHTMLElement(e))
   }
 </script>
@@ -30,6 +34,6 @@
   tooltip={{ label: love.string.ChangeAccess }}
   {kind}
   {size}
-  disabled={isOffice(room) && room.person !== me}
+  disabled={!canManage}
   on:click={setAccess}
 />

@@ -521,6 +521,10 @@ export async function stopTranscription (mm: MeetingMinutes): Promise<void> {
   await disconnectMeeting(mm._id)
 }
 
+export function isAiBotEnabled (): boolean {
+  return (getMetadata(aiBot.metadata.EndpointURL) ?? '') !== ''
+}
+
 export async function showRoomSettings (room?: Room): Promise<void> {
   if (room === undefined) return
 
