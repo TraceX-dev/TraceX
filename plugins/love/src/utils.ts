@@ -82,7 +82,18 @@ export function isRoomOwner (room: RoomAccessFields, person: Ref<Person> | undef
  */
 export function getDefaultRoomAccess (room: RoomAccessFields): RoomAccess {
   if (isOfficeLike(room)) return RoomAccess.Knock
-  return room.defaultAccess ?? RoomAccess.Open
+  // Do not disturb blocks everyone, including owners, so it is never a persistent default
+  if (room.defaultAccess === undefined || room.defaultAccess === RoomAccess.DND) return RoomAccess.Open
+  return room.defaultAccess
+}
+
+/**
+ * Access levels that can be chosen as the default access of a shared room.
+ * Do not disturb is temporary only. Approval levels need owners, they are assigned when such a level is chosen.
+ */
+export function getAvailableDefaultRoomAccess (room: RoomAccessFields): RoomAccess[] {
+  if (isOfficeLike(room)) return [RoomAccess.Knock]
+  return [RoomAccess.Open, RoomAccess.Knock, RoomAccess.InviteOnly]
 }
 
 /**

@@ -14,15 +14,13 @@
     dispatch('close', access)
   }
 
-  $: items = getAvailableRoomAccess(room).map(
-    (access): RadioItem => ({
-      value: access,
-      labelIntl: roomAccessLabel[access],
-      action: async () => {
-        await setAccess(access)
-      }
-    })
-  )
+  $: items = getAvailableRoomAccess(room).map((access): RadioItem => ({
+    value: access,
+    labelIntl: roomAccessLabel[access],
+    action: async () => {
+      await setAccess(access)
+    }
+  }))
 </script>
 
 <div class="antiPopup p-4">

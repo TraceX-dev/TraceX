@@ -40,7 +40,8 @@
   let connecting = false
 
   onMount(() => {
-    dispatch('open', { ignoreKeys: ['name'] })
+    // Offices are managed by their person, owners and default access apply to shared rooms only
+    dispatch('open', { ignoreKeys: isOffice(object) ? ['name', 'owners', 'defaultAccess'] : ['name'] })
   })
 
   async function connect (): Promise<void> {

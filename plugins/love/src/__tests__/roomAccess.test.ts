@@ -20,6 +20,7 @@ import {
   canManageRoomAccess,
   canManageRoomDefaultAccess,
   canManageRoomOwners,
+  getAvailableDefaultRoomAccess,
   getAvailableRoomAccess,
   getDefaultRoomAccess,
   getRoomOwners,
@@ -67,6 +68,13 @@ describe('room access helpers', () => {
       RoomAccess.InviteOnly
     )
     expect(getDefaultRoomAccess(office(alice))).toBe(RoomAccess.Knock)
+    expect(getDefaultRoomAccess(room({ defaultAccess: RoomAccess.DND }))).toBe(RoomAccess.Open)
+  })
+
+  it('offers default access without do not disturb', () => {
+    const expected = [RoomAccess.Open, RoomAccess.Knock, RoomAccess.InviteOnly]
+    expect(getAvailableDefaultRoomAccess(room())).toEqual(expected)
+    expect(getAvailableDefaultRoomAccess(room({ owners: [alice] }))).toEqual(expected)
   })
 
   it('requires approval for knock and invite only shared rooms', () => {

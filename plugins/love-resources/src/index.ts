@@ -1,6 +1,6 @@
-import { type Resources } from '@hcengineering/platform'
+import { getMetadata, type Resources } from '@hcengineering/platform'
+import aiBot from '@hcengineering/ai-bot'
 import { AccountRole, getCurrentAccount, hasAccountRole } from '@hcengineering/core'
-import { isOffice, type Room } from '@hcengineering/love'
 
 import ControlExt from './components/meeting/ControlExt.svelte'
 import InvitesExt from './components/meeting/invites/InvitesExt.svelte'
@@ -26,6 +26,8 @@ import MeetingMinutesStatusPresenter from './components/MeetingMinutesStatusPres
 import MeetingMinutesTranscriptionStatePresenter from './components/MeetingMinutesTranscriptionStatePresenter.svelte'
 import MeetingMinutesRecordingStatePresenter from './components/MeetingMinutesRecordingStatePresenter.svelte'
 import RoomLanguageEditor from './components/RoomLanguageEditor.svelte'
+import RoomOwnersEditor from './components/RoomOwnersEditor.svelte'
+import RoomDefaultAccessEditor from './components/RoomDefaultAccessEditor.svelte'
 import MediaPopupItemExt from './components/MediaPopupItemExt.svelte'
 import SharingStateIndicator from './components/SharingStateIndicator.svelte'
 import SpeakingWhileMutedIndicator from './components/meeting/SpeakingWhileMutedIndicator.svelte'
@@ -44,19 +46,17 @@ import {
   stopTranscription,
   getMeetingMinutesTitle,
   queryMeetingMinutes,
-  getUserMeetingInviteTitle,
-  isAiBotEnabled
+  getUserMeetingInviteTitle
 } from './utils'
 import { toggleMicState, toggleCamState } from '@hcengineering/media-resources'
 
-function canShowRoomSettings (doc?: Room | Room[]): boolean | undefined {
+function canShowRoomSettings (): boolean | undefined {
   if (!hasAccountRole(getCurrentAccount(), AccountRole.User)) {
     return undefined
   }
-  const room = Array.isArray(doc) ? doc[0] : doc
-  // Shared rooms always have access settings, transcription settings require the AI bot
-  if (room !== undefined && !isOffice(room)) return true
-  return isAiBotEnabled()
+  // For now settings is available only when AI bot is enabled
+  const url = getMetadata(aiBot.metadata.EndpointURL) ?? ''
+  return url !== ''
 }
 
 function canCopyGuestLink (): boolean {
@@ -91,6 +91,8 @@ export default async (): Promise<Resources> => ({
     MeetingMinutesTranscriptionStatePresenter,
     MeetingMinutesRecordingStatePresenter,
     RoomLanguageEditor,
+    RoomOwnersEditor,
+    RoomDefaultAccessEditor,
     MediaPopupItemExt,
     SharingStateIndicator,
     SpeakingWhileMutedIndicator,

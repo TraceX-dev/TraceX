@@ -15,14 +15,12 @@
 <script lang="ts">
   import { Modal, NavItem } from '@hcengineering/ui'
   import presentation from '@hcengineering/presentation'
-  import { Room, isOffice } from '@hcengineering/love'
+  import { Room } from '@hcengineering/love'
   import { createEventDispatcher } from 'svelte'
   import { IntlString } from '@hcengineering/platform'
 
   import RoomTranscriptionSettings from './RoomTranscriptionSettings.svelte'
-  import RoomAccessSettings from './RoomAccessSettings.svelte'
   import love from '../plugin'
-  import { isAiBotEnabled } from '../utils'
   import { rooms } from '../stores'
 
   export let room: Room
@@ -37,10 +35,7 @@
     label: IntlString
   }
 
-  const groups: Group[] = [
-    ...(isOffice(room) ? [] : [{ id: 'access', label: love.string.Access }]),
-    ...(isAiBotEnabled() ? [{ id: 'transcription', label: love.string.Transcription }] : [])
-  ]
+  const groups: Group[] = [{ id: 'transcription', label: love.string.Transcription }]
 
   let selectedGroup = groups[0]
 
@@ -73,9 +68,7 @@
       {/each}
     </div>
     <div class="component">
-      {#if selectedGroup?.id === 'access'}
-        <RoomAccessSettings room={liveRoom} />
-      {:else if selectedGroup?.id === 'transcription'}
+      {#if selectedGroup.id === 'transcription'}
         <RoomTranscriptionSettings room={liveRoom} />
       {/if}
     </div>

@@ -69,7 +69,8 @@ import {
   UX,
   TypeBoolean,
   Hidden,
-  ArrOf
+  ArrOf,
+  TypeNumber
 } from '@hcengineering/model'
 import calendar, { TEvent, TSchedule } from '@hcengineering/model-calendar'
 import core, { TAttachedDoc, TDoc } from '@hcengineering/model-core'
@@ -109,7 +110,8 @@ export class TRoom extends TDoc implements Room {
 
   access!: RoomAccess
 
-  @Prop(TypeRef(love.class.Floor), love.string.Floor)
+  // Explicit ranks keep the side panel order Floor, Owners, Default access; other attributes sort by id after them
+  @Prop(TypeRef(love.class.Floor), love.string.Floor, { rank: '0|a' })
   @ReadOnly()
   // @Index(IndexKind.Indexed)
     floor!: Ref<Floor>
@@ -138,11 +140,17 @@ export class TRoom extends TDoc implements Room {
   @Prop(PropCollection(chunter.class.ChatMessage), activity.string.Messages)
     messages?: number
 
-  @Prop(ArrOf(TypeRef(contact.mixin.Employee)), core.string.Owners)
-  @Hidden()
+  @Prop(ArrOf(TypeRef(contact.mixin.Employee)), core.string.Owners, {
+    editor: love.component.RoomOwnersEditor,
+    rank: '0|b'
+  })
     owners?: Array<Ref<Person>>
 
-  defaultAccess?: RoomAccess
+  @Prop(TypeNumber(), love.string.DefaultAccess, {
+    editor: love.component.RoomDefaultAccessEditor,
+    rank: '0|c'
+  })
+    defaultAccess?: RoomAccess
 }
 
 @Model(love.class.Office, love.class.Room)

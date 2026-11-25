@@ -14,7 +14,15 @@
 //
 
 import { type Person } from '@hcengineering/contact'
-import core, { type Class, type Doc, generateId, type Ref, type Tx, TxFactory, type TxUpdateDoc } from '@hcengineering/core'
+import core, {
+  type Class,
+  type Doc,
+  generateId,
+  type Ref,
+  type Tx,
+  TxFactory,
+  type TxUpdateDoc
+} from '@hcengineering/core'
 import love, { type ParticipantInfo, type Room, RoomAccess, type RoomInfo } from '@hcengineering/love'
 import { type TriggerControl } from '@hcengineering/server-core'
 
