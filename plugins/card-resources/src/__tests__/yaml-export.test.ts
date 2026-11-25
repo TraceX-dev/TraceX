@@ -14,12 +14,13 @@
 //
 
 import card from '@hcengineering/card'
+import chunter from '@hcengineering/chunter'
 import core, { type Class, type Doc, type Ref } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
 import { compileProcessYaml, type AuthoringNativeDocument } from '@hcengineering/process'
 import view from '@hcengineering/view'
-import { exportModule } from '../exporter'
+import { exportModule, exportModulePackageSource } from '../exporter'
 
 jest.mock('@hcengineering/presentation', () => ({ getClient: jest.fn() }))
 jest.mock('@hcengineering/platform', () => ({
@@ -135,5 +136,27 @@ describe('card module export formats', () => {
     const yaml = await exportModule(id, 'yaml')
     expect(compileProcessYaml(yaml).version).toBe(2)
     expectEquivalentModel(compileProcessYaml(yaml).docs, JSON.parse(await exportModule(id)))
+  })
+
+  it('exports default discussions for the selected type in JSON, YAML and package sources', async () => {
+    const { id, docs } = setup()
+    const discussion: AuthoringNativeDocument = {
+      _id: 'general-discussion',
+      _class: chunter.class.DefaultDiscussion,
+      space: core.space.Model,
+      ofClass: id,
+      name: 'General',
+      visibility: 'participants'
+    }
+    docs.push(discussion, { ...discussion, _id: 'unrelated-discussion', ofClass: 'another-type' })
+    docs.push({ _id: 'live-thread', _class: chunter.class.Discussion, ofClass: id, name: 'General' })
+
+    const json: AuthoringNativeDocument[] = JSON.parse(await exportModule(id))
+    const yaml = compileProcessYaml(await exportModule(id, 'yaml')).docs
+    const packaged = compileProcessYaml(await exportModulePackageSource([id])).docs
+    for (const exported of [json, yaml, packaged]) {
+      expect(exported.filter((doc) => doc._class === chunter.class.DefaultDiscussion)).toEqual([discussion])
+      expect(exported.some((doc) => doc._class === chunter.class.Discussion)).toBe(false)
+    }
   })
 })

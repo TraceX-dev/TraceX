@@ -52,6 +52,16 @@ sequences:
     prefix: PO
     sequence: 0
 `
+const discussionModule = `version: 2
+kind: card
+cardTypes:
+  purchase:
+    label: Purchase
+    extends: card:class:Card
+documents:
+  chunter:class:DefaultDiscussion:
+    public: {ofClass: purchase, name: General, visibility: public}
+`
 const destinations: Record<string, DefinitionPackageDestination> = {
   review: { masterTag: 'destination' as DefinitionPackageDestination['masterTag'], bindings: {} }
 }
@@ -103,6 +113,53 @@ async function release (value = source, version = '1.0.0'): ReturnType<typeof cr
 }
 
 describe('package workspace writes', () => {
+  it('installs a default discussion on the new type and applies changes through package updates', async () => {
+    const ws = workspace()
+    await installDefinitionPackage(await release(discussionModule), {})
+    for (const [clazz, space, data, id] of ws.createDoc.mock.calls) {
+      const doc: Doc = { ...data, _id: id, _class: clazz, space, modifiedOn: 1, modifiedBy: core.account.System }
+      ws.docs.push(doc)
+    }
+    const installation = ws.docs.find(
+      (doc) => doc._class === marketplace.class.DefinitionPackageInstallation
+    ) as DefinitionPackageInstallation
+    const discussion = ws.docs.find((doc) => doc._id === installation.identities.public)
+    if (discussion === undefined) throw new Error('Default discussion was not installed')
+    expect(discussion).toMatchObject({
+      _class: 'chunter:class:DefaultDiscussion',
+      space: core.space.Model,
+      ofClass: installation.identities.purchase,
+      name: 'General',
+      visibility: 'public'
+    })
+    const local: Doc = {
+      ...discussion,
+      _id: 'local-discussion' as Ref<Doc>
+    }
+    Object.assign(local, { name: 'Local discussion' })
+    ws.docs.push(local)
+    ws.findOne.mockResolvedValue(installation)
+
+    const renamed = await release(discussionModule.replace('name: General', 'name: Review'), '1.0.1')
+    const renamePreview = await reviewDefinitionPackageUpdate(installation, renamed, {}, {})
+    expect(renamePreview.documents).toContainEqual(local)
+    await updateDefinitionPackage(installation, renamed, {}, {}, renamePreview.fingerprint)
+    expect(ws.updateDoc).toHaveBeenCalledWith(discussion._class, core.space.Model, discussion._id, {
+      ofClass: installation.identities.purchase,
+      name: 'Review',
+      visibility: 'public',
+      $unset: {}
+    })
+
+    Object.assign(discussion, { name: 'Review' })
+    const updatedRecord = ws.updateDoc.mock.calls.find((call) => call[2] === installation._id)
+    Object.assign(installation, updatedRecord?.[3])
+    const removed = await release(discussionModule.split('documents:')[0], '1.0.2')
+    const removalPreview = await reviewDefinitionPackageUpdate(installation, removed, {}, {})
+    await updateDefinitionPackage(installation, removed, {}, {}, removalPreview.fingerprint)
+    expect(ws.removeDoc.mock.calls).toEqual([[discussion._class, core.space.Model, discussion._id]])
+  })
+
   it('creates identifier counters in Workspace and retains issued numbers on package updates', async () => {
     const ws = workspace()
     await installDefinitionPackage(await release(identifierModule), {})
