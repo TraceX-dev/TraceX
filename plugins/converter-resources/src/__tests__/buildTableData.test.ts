@@ -16,6 +16,7 @@
 import core, { type Class, type Doc, type Ref } from '@hcengineering/core'
 import { type IntlString } from '@hcengineering/platform'
 import { type AnyComponent } from '@hcengineering/ui'
+import type { AttributeModel } from '@hcengineering/view'
 import { getClient } from '@hcengineering/presentation'
 import { getCurrentLanguage } from '@hcengineering/theme'
 import { buildModel, getObjectLinkFragment } from '@hcengineering/view-resources'
@@ -113,6 +114,33 @@ describe('buildTableData', () => {
     const config = [{ key: '', presenter: 'tracker:component:TitlePresenter' as AnyComponent }, 'note']
     const data = await buildTableData([doc], { cardClass: CARD_CLASS, config }, mockClient)
     // A refresh rebuilds the columns from this config, so it must not lose what selects the presenter.
+    expect(data.config).toEqual(config)
+  })
+
+  it('resolves lookup columns when an explicit config is copied without a viewlet', async () => {
+    const config = ['$lookup.category.title']
+    interface CategoryDocument extends Doc {
+      $lookup: { category: { title: string } }
+    }
+    const categoryDoc: Partial<Doc> & Pick<CategoryDocument, '$lookup'> = {
+      ...doc,
+      $lookup: { category: { title: 'Quality Manual' } }
+    }
+    jest.mocked(buildModel).mockImplementation(async ({ lookup }) => {
+      // Like the real model builder, lookup columns cannot be resolved without lookup metadata.
+      const column: Partial<AttributeModel> =
+        lookup === undefined
+          ? { key: '', label: 'Category' as IntlString, props: { error: new Error('Missing lookup') } }
+          : { key: '$lookup.category.title', label: 'Category' as IntlString }
+      return [column as AttributeModel]
+    })
+
+    const data = await buildTableData(
+      [categoryDoc as Doc],
+      { cardClass: CARD_CLASS, config, strictColumns: true },
+      mockClient
+    )
+    expect(data.rows).toEqual([['Quality Manual']])
     expect(data.config).toEqual(config)
   })
 

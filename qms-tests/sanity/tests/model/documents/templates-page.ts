@@ -64,6 +64,10 @@ export class TemplatesPage extends CalendarPage {
     await this.inputNewTemplateTitle.fill(data.title)
     await this.inputNewTemplateDescription.fill(data.description)
 
+    if (data.docPrefix != null) {
+      await this.page.getByPlaceholder('DOC', { exact: true }).fill(data.docPrefix)
+    }
+
     if (data.code != null) {
       await this.inputNewTemplateCode.fill(data.code)
     }
