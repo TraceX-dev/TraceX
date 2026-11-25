@@ -14,11 +14,11 @@
 // limitations under the License.
 //
 
-import { concatLink, type Ref } from '@hcengineering/core'
-import { getMetadata } from '@hcengineering/platform'
-import { getCurrentLocation, locationToUrl, type Location } from '@hcengineering/ui'
+import { type Ref } from '@hcengineering/core'
+import { getResource } from '@hcengineering/platform'
 import drive, { type File } from '@hcengineering/drive'
-import presentation, { FilePreview, getClient } from '@hcengineering/presentation'
+import { FilePreview, getClient } from '@hcengineering/presentation'
+import view from '@hcengineering/view'
 import { type Editor } from '@tiptap/core'
 import { SvelteRenderer } from '../../../node-view'
 import { parseReferenceUrl } from '../../reference'
@@ -39,13 +39,8 @@ export const DriveEmbedProvider = (): EmbedNodeProvider => ({
     const version = await client.findOne(drive.class.FileVersion, { attachedTo: file._id, version: file.version })
     if (version === undefined) return
 
-    const location: Location = {
-      path: ['workbench', getCurrentLocation().path[1], 'drive', 'file', file._id]
-    }
-    const sourceLink = concatLink(
-      getMetadata(presentation.metadata.FrontUrl) ?? window.location.origin,
-      locationToUrl(location)
-    )
+    const getLink = await getResource(view.function.GetLink)
+    const sourceLink = await getLink(file)
 
     return (editor: Editor, root: HTMLDivElement, getPos: () => number | undefined, context: Map<unknown, unknown>) => {
       const setLoading = (loading: boolean): void => {

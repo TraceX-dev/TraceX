@@ -1,4 +1,5 @@
 //
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -43,6 +44,12 @@ export interface TemplateData {
 /**
  * @public
  */
+export interface TemplateDataProviderOptions {
+  /** Whether values may fall back to context belonging to another provider. */
+  inheritContext?: boolean
+}
+
+/** Context and resolution lifecycle for registered template fields. @public */
 export interface TemplateDataProvider {
   set: (key: Ref<Class<Doc>>, value: any) => void
   get: (key: Ref<Class<Doc>>) => any | undefined
@@ -86,6 +93,7 @@ export default plugin(templatesId, {
     TemplateFieldCategory: '' as Ref<Class<TemplateFieldCategory>>
   },
   component: {
+    FieldPopup: '' as AnyComponent,
     TemplatePopup: '' as AnyComponent
   },
   string: {
@@ -100,6 +108,6 @@ export default plugin(templatesId, {
     Copy: '' as Asset
   },
   function: {
-    GetTemplateDataProvider: '' as Resource<() => TemplateDataProvider>
+    GetTemplateDataProvider: '' as Resource<(options?: TemplateDataProviderOptions) => TemplateDataProvider>
   }
 })

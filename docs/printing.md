@@ -114,6 +114,22 @@ Authenticated document export does not use a separate Mermaid DOM poll. The lega
 
 ## Service API and configuration
 
+### Workspace printing settings
+
+**Workspace settings → Printing** uses the standard Table viewlet to list configurations with class, enabled, header, footer, and logo columns. Click the class to edit a record in the dialog. Each record selects a document class and has **Enabled**, a plain single-line header and footer, and **Print logo**. Create or edit a record in the dialog; only one record is allowed per class. The class picker includes printable classes (all Card types and ControlledDocument initially). Descendants inherit the nearest configured ancestor. A disabled record stops resolution and suppresses all decorations for that class, without falling back to its parent. Empty header/footer strings hide only their central text; date, page numbering, references, and workspace label remain in the common layout.
+
+Workspace upgrade creates two enabled defaults declared by the domain mixins: ControlledDocument uses `${print:templateField:Title}` and `Uncontrolled copy - Confidential`; Card uses the same title field and an empty footer. Date and page numbers still appear for Card. Existing singleton settings are migrated to ControlledDocument without changing their text or logo choice. Initialization is idempotent and preserves administrator edits and disabled records.
+
+Records are stored as `print:class:PrintConfiguration` documents in `DOMAIN_CONFIGURATION`, each with `targetClass` and `enabled`. Existing server configuration authorization permits writes only by workspace owners or server administrators. The settings screen validates registered field IDs and rejects line breaks. No `MessageTemplate` documents or template categories are created for printing.
+
+Fields use the existing shared `${field-id}` registry (`TemplateField`, `TemplateFieldCategory`, `TemplateFieldFunc`). Modules can contribute further fields and their resolvers. Registered fields without a value resolve to empty text; unknown fields prevent saving and fail automated export if a saved configuration becomes invalid. Replacement values are treated as literal text, never recursively evaluated as further fields, and Svelte escapes the rendered strings.
+
+Classes opt in through `print:mixin:PrintConfig`, inherited by their descendants. Its resource provider binds domain template context and returns the raw title and optional document/template references. Card and ControlledDocument are registered initially. The print application owns the shared `PrintHeader`/`PrintFooter` rendering and starts with the requested object. Domain panels can publish their resolved object through its local Svelte context, so printing a ProjectDocument uses the same resolved ControlledDocument version as its panel. New classes with the mixin use the common rendering automatically. The common title field reads that context without the additional formatting used by object title presenters. Classes without the mixin export without decorations.
+
+The PDF export dialog enables **Print headers and footers** by default. Its value applies only to the current single, bulk, or signed export. Turning it off omits the entire header/footer, including logo, date, and page numbering, while preserving normal page margins. The option is not offered for other exporters. The service accepts `printHeaderFooter=true|false`; omission preserves the enabled default. **Print logo** affects only the image when decorations are enabled.
+
+The print context waits for data, field resolution, and logo loading before capture. Keep text short enough to fit the existing PDF margins. For manual verification, edit both strings, insert a title field, test empty and unknown fields, toggle the logo, and compare single, mixed bulk, and signed PDFs with decorations enabled/disabled.
+
 The frontend `/print/{workspaceUrl}` route and the print service HTTP API are separate entry points:
 
 | Print service request | Result |

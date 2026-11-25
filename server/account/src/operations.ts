@@ -1402,13 +1402,26 @@ export async function checkAutoJoin (
   ctx: MeasureContext,
   db: AccountDB,
   branding: Branding | null,
-  token: string,
+  token: string | undefined,
   params: { inviteId: string, firstName?: string, lastName?: string }
 ): Promise<WorkspaceLoginInfo | WorkspaceInviteInfo> {
   const { inviteId, firstName, lastName } = params
 
   if (inviteId == null || inviteId === '') {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
+  }
+
+  // This is a public endpoint (noAuth): a token that doesn't verify (e.g. a leftover cookie signed by
+  // another environment or before a secret rotation) is treated as "no token", so the existing user is
+  // asked to log in instead of getting Unauthorized.
+  if (token != null && token !== '') {
+    try {
+      decodeToken(token)
+    } catch (err: any) {
+      if (!(err instanceof TokenError)) throw err
+      ctx.warn('Ignoring invalid token in checkAutoJoin', { inviteId })
+      token = undefined
+    }
   }
 
   const invite = await getWorkspaceInvite(db, inviteId)
@@ -4082,12 +4095,12 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     sendInvite: wrap(sendInvite),
     resendInvite: wrap(resendInvite),
     selectWorkspace: wrap(selectWorkspace, { allowApiKey: true, guest: 'bypass' }),
-    join: wrap(join, { guest: 'bypass' }),
+    join: wrap(join, { noAuth: true, guest: 'bypass' }),
     joinByToken: wrap(joinByToken, { guest: 'joinWorkspace' }),
     checkJoin: wrap(checkJoin, { guest: 'joinWorkspace' }),
-    checkAutoJoin: wrap(checkAutoJoin, { guest: 'bypass' }),
-    getInviteInfo: wrap(getInviteInfo, { guest: 'bypass' }),
-    signUpJoin: wrap(signUpJoin, { guest: 'bypass' }),
+    checkAutoJoin: wrap(checkAutoJoin, { noAuth: true, guest: 'bypass' }),
+    getInviteInfo: wrap(getInviteInfo, { noAuth: true, guest: 'bypass' }),
+    signUpJoin: wrap(signUpJoin, { noAuth: true, guest: 'bypass' }),
     confirm: wrap(confirm, { guest: 'bypass' }),
     checkHasPassword: wrap(checkHasPassword, { guest: 'personalGuest' }),
     changePassword: wrap(changePassword, { guest: 'personalGuest' }),

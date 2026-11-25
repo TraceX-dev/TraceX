@@ -165,6 +165,8 @@
     "MarkAsResolved": "Označit jako vyřešené",
     "ReopenDiscussion": "Znovu otevřít diskuzi",
     "HideResolvedDiscussions": "Skrýt vyřešené",
+    "DiscussionResolvedMessage": "Diskuse vyřešena",
+    "DiscussionReopenedMessage": "Diskuse znovu otevřena",
     "ParticipantsCount": "{count, plural, one {# účastník} few {# účastníci} other {# účastníků}}",
     "AddAllCollaborators": "Přidat všechny spolupracovníky karty ({count})",
     "Discussion": "Diskuze",

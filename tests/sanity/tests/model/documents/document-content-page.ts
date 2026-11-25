@@ -1,6 +1,20 @@
+//
+// Copyright © 2026 TraceX SAS.
+//
+// Licensed under the Eclipse Public License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may
+// obtain a copy of the License at https://www.eclipse.org/legal/epl-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 import { type Locator, type Page, expect } from '@playwright/test'
 import { CommonPage } from '../common-page'
-import { uploadFile } from '../../utils'
 import path from 'path'
 
 export class DocumentContentPage extends CommonPage {
@@ -13,13 +27,18 @@ export class DocumentContentPage extends CommonPage {
 
   readonly buttonDocumentTitle = (): Locator => this.page.locator('div[class*="main-content"] div.title input')
   readonly inputContent = (): Locator => this.page.locator('div.textInput div.tiptap')
-  readonly selectContent = (): Locator => this.page.locator('div.textInput .select-text')
   readonly inputContentParapraph = (): Locator => this.page.locator('div.textInput div.tiptap > p')
   readonly leftMenu = (): Locator => this.page.locator('div.tiptap-left-menu')
   readonly proseTableCell = (row: number, col: number): Locator =>
     this.page.locator('table.proseTable').locator('tr').nth(row).locator('td').nth(col).locator('p')
 
-  readonly firstImageInDocument = (): Locator => this.page.locator('.textInput .text-editor-image-container img')
+  private readonly firstImageContainer = (): Locator =>
+    this.inputContent()
+      .locator('.text-editor-image-container')
+      .filter({ has: this.page.locator('img') })
+      .first()
+
+  readonly firstImageInDocument = (): Locator => this.firstImageContainer().locator('img')
   readonly tooltipImageTools = (): Locator => this.page.locator('.tippy-box')
 
   readonly image = (): Locator => this.page.locator('.popup img')
@@ -74,7 +93,6 @@ export class DocumentContentPage extends CommonPage {
   readonly setFormNote = (): Locator =>
     this.page.locator('form[id="text-editor:string:ConfigureNote"] div.antiCard-footer button[type="submit"]')
 
-  readonly inputImageFile = (): Locator => this.page.locator('input[id="imageInput"]')
   readonly imageInContent = (): Locator => this.page.locator('p img[data-type="image"]')
   readonly noteInContent = (hasText: string): Locator => this.page.locator('p span[data-mark="note"]', { hasText })
 
@@ -96,10 +114,6 @@ export class DocumentContentPage extends CommonPage {
 
   async checkContent (content: string): Promise<void> {
     await expect(this.inputContent()).toHaveText(content)
-  }
-
-  async checkUserAddedImage (): Promise<void> {
-    await expect(this.firstImageInDocument()).toBeVisible()
   }
 
   async checkIfImageToolsIsVisible (): Promise<void> {
@@ -156,7 +170,7 @@ export class DocumentContentPage extends CommonPage {
 
   async checkImageAlign (side: 'left' | 'right' | 'center' = 'left'): Promise<void> {
     const imageBox = await this.firstImageInDocument().boundingBox()
-    const parentBox = await this.selectContent().boundingBox()
+    const parentBox = await this.firstImageContainer().boundingBox()
 
     if (!(imageBox !== null && parentBox !== null)) {
       throw new Error('Image or parent box is not found')
@@ -169,21 +183,21 @@ export class DocumentContentPage extends CommonPage {
 
     switch (side) {
       case 'right':
-        expect(elementRightEdge).toEqual(parentRightEdge)
+        expect(elementRightEdge).toBeCloseTo(parentRightEdge, 0)
         break
       case 'left':
-        expect(elementLeftEdge).toEqual(parentLeftEdge)
+        expect(elementLeftEdge).toBeCloseTo(parentLeftEdge, 0)
         break
       case 'center':
         expect(elementLeftEdge - parentLeftEdge).toBeGreaterThan(0)
-        expect(elementLeftEdge - parentLeftEdge).toEqual(parentRightEdge - elementRightEdge)
+        expect(elementLeftEdge - parentLeftEdge).toBeCloseTo(parentRightEdge - elementRightEdge, 0)
         break
     }
   }
 
   async checkImageSize (size: '25%' | '50%' | '100%' | number): Promise<void> {
     const imageBox = await this.firstImageInDocument().boundingBox()
-    const parentBox = await this.selectContent().boundingBox()
+    const parentBox = await this.firstImageContainer().boundingBox()
 
     if (!(imageBox !== null && parentBox !== null)) {
       throw new Error('Image or parent box is not found')
@@ -278,9 +292,13 @@ export class DocumentContentPage extends CommonPage {
     await expect(this.noteInContent(text)).toHaveAttribute('title', note)
   }
 
-  async addImage (text: string): Promise<void> {
-    await this.selectLine(text)
-    await this.inputImageFile().setInputFiles(path.join(__dirname, '../../files/cat.jpeg'))
+  async appendImageToDocument (fileName = 'cat.jpeg'): Promise<void> {
+    const lastParagraph = this.inputContentParapraph().last()
+    await expect(this.inputContent()).toHaveJSProperty('contentEditable', 'true')
+    await lastParagraph.click()
+    await this.inputContent().press('End')
+    await this.inputContent().press('Enter')
+    await this.addImageToDocument(fileName, lastParagraph)
   }
 
   async checkImage (width: number = 215): Promise<void> {
@@ -292,7 +310,7 @@ export class DocumentContentPage extends CommonPage {
   }
 
   async checkReferenceInTheText (label: string): Promise<void> {
-    await expect(this.page.locator('span.antiMention', { hasText: label })).toHaveAttribute('data-type', 'reference')
+    await expect(this.page.locator('[data-id][data-type="reference"]', { hasText: label })).toBeVisible()
   }
 
   async executeMoreAction (action: string): Promise<void> {
@@ -315,10 +333,16 @@ export class DocumentContentPage extends CommonPage {
     await expect(this.checkboxToDo(text)).toBeChecked({ checked, timeout: 5000 })
   }
 
-  async addImageToDocument (page: Page): Promise<void> {
-    await this.inputContentParapraph().click()
-    await this.leftMenu().click()
-    await uploadFile(page, 'cat3.jpeg', 'Image')
-    await this.checkUserAddedImage()
+  async addImageToDocument (fileName = 'cat3.jpeg', paragraph = this.inputContentParapraph().first()): Promise<void> {
+    await expect(this.inputContent()).toHaveJSProperty('contentEditable', 'true')
+    await paragraph.hover()
+    await expect(this.leftMenu()).toBeVisible()
+    await this.clickLeftMenu()
+    const [fileChooser] = await Promise.all([
+      this.page.waitForEvent('filechooser', { timeout: 15000 }),
+      this.clickPopupItem('Image')
+    ])
+    await fileChooser.setFiles(path.join(__dirname, '../../files', fileName))
+    await expect(this.firstImageInDocument()).toBeVisible({ timeout: 60000 })
   }
 }

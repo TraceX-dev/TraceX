@@ -14,6 +14,7 @@
 // limitations under the License.
 //
 
+import exportPlugin from '@hcengineering/export'
 import activity from '@hcengineering/activity'
 import calendar from '@hcengineering/calendar'
 import notification, { type NotificationType } from '@hcengineering/notification'
@@ -23,7 +24,6 @@ import questions from '@hcengineering/model-questions'
 import contact from '@hcengineering/contact'
 import tracker from '@hcengineering/model-tracker'
 import attachment from '@hcengineering/model-attachment'
-import print from '@hcengineering/model-print'
 import setting, { getRoleAttributeProps } from '@hcengineering/setting'
 import {
   type Training,
@@ -265,7 +265,7 @@ function defineTraining (builder: Builder): void {
   })
 
   builder.mixin(training.class.Training, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [view.action.Delete, tracker.action.NewRelatedIssue, print.action.Print]
+    actions: [view.action.Delete, tracker.action.NewRelatedIssue, exportPlugin.action.ExportDocuments]
   })
 
   createAction(
@@ -556,7 +556,7 @@ function defineTrainingRequest (builder: Builder): void {
   })()
 
   builder.mixin(training.class.TrainingRequest, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [view.action.Delete, tracker.action.NewRelatedIssue, print.action.Print]
+    actions: [view.action.Delete, tracker.action.NewRelatedIssue, exportPlugin.action.ExportDocuments]
   })
 
   createAction(
@@ -834,7 +834,7 @@ function defineTrainingAttempt (builder: Builder): void {
   })
 
   builder.mixin(training.class.TrainingAttempt, core.class.Class, view.mixin.IgnoreActions, {
-    actions: [view.action.Delete, tracker.action.NewRelatedIssue, print.action.Print]
+    actions: [view.action.Delete, tracker.action.NewRelatedIssue, exportPlugin.action.ExportDocuments]
   })
 
   definePermission(builder, training.permission.ViewSomeoneElsesTraineesResults, {

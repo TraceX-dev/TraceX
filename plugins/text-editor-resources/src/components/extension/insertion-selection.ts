@@ -25,6 +25,9 @@ export function saveInsertionSelection (editor: Editor, position?: number): Comm
   const bookmark = editor.state.selection.getBookmark()
 
   return ({ tr, dispatch }) => {
+    if (position !== undefined && (!Number.isInteger(position) || position < 0 || position > tr.doc.content.size)) {
+      return false
+    }
     if (dispatch === undefined) return true
 
     if (position === undefined) {
@@ -32,7 +35,7 @@ export function saveInsertionSelection (editor: Editor, position?: number): Comm
       return true
     }
 
-    const pos = Math.max(0, Math.min(position, tr.doc.content.size))
+    const pos = position
     const $pos = tr.doc.resolve(pos)
 
     // Provide a text cursor at block boundaries without selecting and replacing an atomic node.

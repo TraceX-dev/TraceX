@@ -1,7 +1,10 @@
 {
   "string": {
+    "PrintHeaderFooter": "Imprimir cabeçalhos e rodapés",
     "WorkspaceNamePattern": "O nome deve ter 40 caracteres ou menos, não estar vazio e não pode conter caracteres especiais (<, >, /)",
+    "ExportList": "Exportar lista",
     "Export": "Exportar",
+    "ExportDots": "Exportar…",
     "DataToExport": "Dados para exportar",
     "ExportDocuments": "Documentos",
     "ExportMilestones": "Marco",
@@ -73,6 +76,9 @@
     "DocumentContentConverted": "Documento convertido",
     "DocumentContentImportFailed": "Falha na importação",
     "ReviewDocumentContentChanges": "Revisar as alterações importadas",
-    "ApplyDocumentContentChanges": "Aplicar"
+    "ApplyDocumentContentChanges": "Aplicar",
+    "Orientation": "Orientação",
+    "PortraitMode": "Orientação vertical",
+    "LandscapeMode": "Orientação horizontal"
   }
 }

@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import exportPlugin from '@hcengineering/export'
 import {
   type Document,
   type DocumentMeta,
@@ -30,7 +31,7 @@ import {
   type RelatedDocument,
   type WithLookup
 } from '@hcengineering/core'
-import { type Resources } from '@hcengineering/platform'
+import { getResource, type Resources } from '@hcengineering/platform'
 import { getClient, MessageBox, type ObjectSearchResult } from '@hcengineering/presentation'
 import { showPopup } from '@hcengineering/ui'
 import { getCurrentEmployee } from '@hcengineering/contact'
@@ -83,7 +84,6 @@ import ProjectPresenter from './components/project/ProjectPresenter.svelte'
 import ProjectRefPresenter from './components/project/ProjectRefPresenter.svelte'
 import Projects from './components/project/Projects.svelte'
 
-import { getPrintBaseURL } from '@hcengineering/print'
 import CreateFolder from './components/create-doc/CreateFolder.svelte'
 import TransferDocumentPopup from './components/document/popups/TransferDocumentPopup.svelte'
 import { resolveLocation } from './navigation'
@@ -291,14 +291,8 @@ async function canPrintDocument (obj?: Document | Document[] | ProjectDocument |
   const objs = Array.isArray(obj) ? obj : [obj]
   if (objs.some((d) => isFolder(h, d))) return false
 
-  let printURL = ''
-  try {
-    printURL = getPrintBaseURL()
-  } catch (err) {
-    // do nothing
-  }
-
-  return printURL?.length > 0
+  const canExport = await getResource(exportPlugin.function.CanExport)
+  return await canExport(objs)
 }
 
 async function canTransferDocument (obj?: Doc | Doc[]): Promise<boolean> {
@@ -366,6 +360,8 @@ async function editDocSpace (docSpace: DocumentSpace | undefined): Promise<void>
   }
 }
 
+import { getPrintData } from './print-data'
+
 export default async (): Promise<Resources> => ({
   component: {
     CreateDocument,
@@ -417,6 +413,7 @@ export default async (): Promise<Resources> => ({
     ) => await queryDocumentMeta(documents.class.DocumentMeta, client, query, filter)
   },
   function: {
+    PrintData: getPrintData,
     // CheckIsDocumentCreationDisabled: getDisablingChecker(document.functionalityItem.CreateDraftQmsDocuments),
     // CheckAreTemplatesDisabled: getDisablingChecker(document.functionalityItem.Templates),
     // CheckAreDomainsDisabled: getDisablingChecker(document.functionalityItem.Domains),

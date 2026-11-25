@@ -18,6 +18,8 @@
     DefinitionPackageError,
     createDefinitionPackageExport,
     createDefinitionPackageMetadata,
+    parseDefinitionPackageRelease,
+    withDefinitionPackageDependencies,
     type DefinitionPackageOwner
   } from '@hcengineering/marketplace'
   import { getClient } from '@hcengineering/presentation'
@@ -26,6 +28,7 @@
   import { Button, CheckBox, Dialog, Label, Notice, SettingsCard, TextArea, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher, tick } from 'svelte'
   import { getMarketplaceClient, hasMarketplace } from '../catalog'
+  import { createPackageOrigin } from '../package-origin'
   import PublishPackagePopup from './PublishPackagePopup.svelte'
 
   export let source: string
@@ -68,6 +71,7 @@
       const client = getClient()
       const current = client.getModel().findObject<DefinitionPackageOwner>(definition._id)
       if (current === undefined) throw new DefinitionPackageError('package', 'The package definition is unavailable')
+      const origin = publish ? await createPackageOrigin(current) : undefined
       const info = current.definitionPackage
       if (newVersion ? info === undefined : info !== undefined) {
         throw new DefinitionPackageError('package', 'Package membership changed; reopen the export dialog')
@@ -105,11 +109,18 @@
       }
       const metadata = createDefinitionPackageMetadata(author, description, info)
       if (getSource !== undefined) metadata.members = definitions.map((member) => member._id)
-      const content = await createDefinitionPackageExport(
-        getSource === undefined ? source : await getSource(definitions),
-        metadata,
-        info
-      )
+      let packageSource = getSource === undefined ? source : await getSource(definitions)
+      const membership = current.definitionPackageInstallation
+      if (membership !== undefined) {
+        const installation = await client.findOne(marketplace.class.DefinitionPackageInstallation, {
+          _id: membership.id
+        })
+        if (installation === undefined)
+          throw new DefinitionPackageError('package', 'The package installation is unavailable')
+        const baseline = await parseDefinitionPackageRelease(installation.release)
+        packageSource = withDefinitionPackageDependencies(packageSource, baseline.dependencies ?? {})
+      }
+      const content = await createDefinitionPackageExport(packageSource, metadata, info)
       if (getSource === undefined) await client.update(current, { definitionPackage: metadata })
       else {
         const apply = client.apply('Export process package')
@@ -138,7 +149,7 @@
       dispatch('close')
       if (publish) {
         await tick()
-        showPopup(PublishPackagePopup, { source: content }, 'centered')
+        showPopup(PublishPackagePopup, { source: content, origin }, 'centered')
       }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause)
@@ -151,6 +162,8 @@
 <Dialog
   label={newVersion ? marketplace.string.CreateNewPackageVersion : marketplace.string.MakePackage}
   width="40rem"
+  height="min(44rem, calc(100dvh - 2rem))"
+  scrollable
   padding="var(--spacing-3)"
   on:close={close}
 >

@@ -91,7 +91,9 @@ export const FileUploadExtension = Extension.create<FileUploadExtensionOptions>(
               return res
             }
           },
-          handleDrop (view, event) {
+          handleDrop (view, event, _slice, moved) {
+            // moving content inside the editor is handled by ProseMirror, never re-upload dragged files
+            if (moved) return false
             const dataTransfer = event.dataTransfer
             if (dataTransfer !== null) {
               const res = handleDrop(view, view.posAtCoords({ left: event.x, top: event.y }), dataTransfer)

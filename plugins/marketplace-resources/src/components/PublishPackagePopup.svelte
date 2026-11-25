@@ -16,6 +16,7 @@
   import marketplace, {
     MarketplaceError,
     parseDefinitionPackageRelease,
+    type CatalogPackageOriginInput,
     type DefinitionPackageRelease
   } from '@hcengineering/marketplace'
   import { getEmbeddedLabel } from '@hcengineering/platform'
@@ -23,9 +24,11 @@
   import { createEventDispatcher } from 'svelte'
   import { getMarketplaceClient } from '../catalog'
   import { getPackageName } from '../package-presentation'
+  import { findLocalPackageOrigin } from '../package-origin'
   import PackageCard from './PackageCard.svelte'
 
   export let source: string
+  export let origin: CatalogPackageOriginInput | undefined = undefined
 
   const dispatch = createEventDispatcher<{ close: boolean }>()
   let release: DefinitionPackageRelease | undefined
@@ -42,6 +45,7 @@
       const author = value.package.author
       if (author === undefined) throw new Error('The package must have an author')
       release = value
+      if (origin === undefined) origin = await findLocalPackageOrigin(value)
       try {
         const entry = await getMarketplaceClient().get({ id: value.package.id, author })
         if (entry.owner !== account) throw new Error('Only the package owner can publish releases')
@@ -63,7 +67,7 @@
     busy = true
     error = ''
     try {
-      await getMarketplaceClient().publish(source, contactEmail, privatePackage ? 'private' : 'public')
+      await getMarketplaceClient().publish(source, contactEmail, privatePackage ? 'private' : 'public', origin)
       dispatch('close', true)
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause)
@@ -76,6 +80,8 @@
 <Dialog
   label={marketplace.string.PublishPackage}
   width="40rem"
+  height="min(44rem, calc(100dvh - 2rem))"
+  scrollable
   padding="var(--spacing-3)"
   on:close={() => {
     if (!busy) dispatch('close', false)

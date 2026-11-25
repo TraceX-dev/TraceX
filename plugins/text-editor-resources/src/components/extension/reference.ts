@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,6 +15,7 @@
 //
 
 import { mergeAttributes, type Editor } from '@tiptap/core'
+import { Analytics } from '@hcengineering/analytics'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import MentionList from '../MentionList.svelte'
 import { SvelteRenderer } from '../node-view'
@@ -23,7 +25,13 @@ import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type S
 
 import { type Blob, type Class, type Doc, type Ref } from '@hcengineering/core'
 import { getMetadata, getResource, translate } from '@hcengineering/platform'
-import presentation, { createQuery, getBlobRef, getClient, MessageBox } from '@hcengineering/presentation'
+import presentation, {
+  createQuery,
+  getBlobRef,
+  getClient,
+  MessageBox,
+  type PrintContext
+} from '@hcengineering/presentation'
 import view, { type ObjectTooltip, type ReferenceObjectProvider } from '@hcengineering/view'
 import activity, { type ActivityMessage } from '@hcengineering/activity'
 import contact from '@hcengineering/contact'
@@ -34,6 +42,7 @@ export interface ReferenceExtensionOptions extends ReferenceOptions {
   suggestion: Omit<SuggestionOptions, 'editor'>
   docClass?: Ref<Class<Doc>>
   multipleMentions?: boolean
+  printContext?: PrintContext
   openDocument?: (_class: Ref<Class<Doc>>, _id: Ref<Doc>, event?: MouseEvent) => void | Promise<void>
 }
 
@@ -51,7 +60,6 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
           const overrideSpace = nodeAfter?.text?.startsWith(' ')
 
           if (overrideSpace !== undefined && overrideSpace) {
-            // eslint-disable-next-line
             range.to += 1
           }
 
@@ -76,7 +84,6 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
           if (range.from > editor.state.doc.content.size) return false
           const $from = editor.state.doc.resolve(range.from)
           const type = editor.schema.nodes[this.name]
-          // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
           return !!$from.parent.type.contentMatch.matchType(type)
         }
       }
@@ -85,7 +92,9 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
 
   addNodeView () {
     return ({ node, HTMLAttributes }) => {
-      const root = document.createElement('span')
+      const withoutDoc = [contact.mention.Everyone, contact.mention.Here].includes(node.attrs.id)
+      const printing = this.options.printContext !== undefined
+      const root = document.createElement(printing && !withoutDoc ? 'a' : 'span')
       root.className = 'antiMention'
       const attributes = mergeAttributes(
         {
@@ -100,24 +109,28 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
         this.options.HTMLAttributes,
         HTMLAttributes
       )
-      const withoutDoc = [contact.mention.Everyone, contact.mention.Here].includes(node.attrs.id)
       const id = node.attrs.id
       const objectclass: Ref<Class<Doc>> = node.attrs.objectclass
 
       root.addEventListener('click', (event) => {
+        if (!(event instanceof MouseEvent)) return
         if (withoutDoc) return
         if (event.button !== 0) return
+        if (printing) return
         if (broken) {
           showPopup(MessageBox, {
             label: presentation.string.UnableToFollowMention,
             message: presentation.string.AccessDenied,
             canSubmit: false
           })
+          return
         }
         const _class = objectclass
         const _id = id
-        if (_id != null && _class != null) {
-          void this.options.openDocument?.(_class, _id, event)
+        if (_id != null && _class != null && this.options.openDocument !== undefined) {
+          void Promise.resolve(this.options.openDocument(_class, _id, event)).catch((error: unknown) => {
+            Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+          })
         }
       })
 
@@ -132,6 +145,11 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
       const options = this.options
 
       let broken = false
+      let destroyed = false
+      const finishLink =
+        !withoutDoc && id !== undefined && objectclass !== undefined
+          ? this.options.printContext?.registerResource({ timeoutMs: 15000 })
+          : undefined
 
       const renderLabel = async (props: ReferenceNodeProps): Promise<void> => {
         root.setAttribute('data-label', props.label)
@@ -194,27 +212,42 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
 
       if (id !== undefined && objectclass !== undefined && !withoutDoc) {
         query.query(objectclass, { _id: id }, async (result) => {
-          const obj = result[0]
-          broken = obj === undefined
-          if (broken) {
-            void renderLabel({ id, objectclass, label: node.attrs.label })
-            resetTooltipHandle(undefined)
-          } else {
-            const targetObj =
-              node.attrs.fixed === true ? obj : ((await getReferenceObject(objectclass, id, obj)) ?? obj)
-            const label = await getReferenceLabel(targetObj._class, targetObj._id, targetObj)
-            if (label === '') return
+          try {
+            if (destroyed) return
+            const obj = result[0]
+            broken = obj === undefined
+            if (broken) {
+              root.removeAttribute('href')
+              void renderLabel({ id, objectclass, label: node.attrs.label })
+              resetTooltipHandle(undefined)
+            } else {
+              const targetObj =
+                node.attrs.fixed === true ? obj : ((await getReferenceObject(objectclass, id, obj)) ?? obj)
+              if (printing) {
+                const getLink = await getResource(view.function.GetLink)
+                const href = await getLink(targetObj)
+                if (destroyed) return
+                root.setAttribute('href', href)
+              }
+              if (destroyed) return
+              const label = await getReferenceLabel(targetObj._class, targetObj._id, targetObj)
+              if (label === '') return
 
-            let tooltipOptions: LabelAndProps | undefined = await getReferenceTooltip(
-              targetObj._class,
-              targetObj._id,
-              targetObj
-            )
-            if (tooltipOptions.component === undefined) {
-              tooltipOptions = undefined
+              let tooltipOptions: LabelAndProps | undefined = await getReferenceTooltip(
+                targetObj._class,
+                targetObj._id,
+                targetObj
+              )
+              if (tooltipOptions.component === undefined) {
+                tooltipOptions = undefined
+              }
+              resetTooltipHandle(tooltip(root, tooltipOptions))
+              void renderLabel({ id: targetObj._id, objectclass: targetObj._class, label })
             }
-            resetTooltipHandle(tooltip(root, tooltipOptions))
-            void renderLabel({ id: targetObj._id, objectclass: targetObj._class, label })
+          } catch (error: unknown) {
+            Analytics.handleError(error instanceof Error ? error : new Error(String(error)))
+          } finally {
+            finishLink?.()
           }
         })
       } else if (withoutDoc) {
@@ -228,6 +261,8 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
           return true
         },
         destroy () {
+          destroyed = true
+          finishLink?.()
           query.unsubscribe()
           resetTooltipHandle(undefined)
         }
@@ -251,7 +286,6 @@ export const ReferenceExtension = ReferenceNode.extend<ReferenceExtensionOptions
             if (node.type.name === this.name) {
               isMention = true
 
-              // eslint-disable-next-line
               tr.insertText(this.options.suggestion.char || '', pos, pos + node.nodeSize)
 
               return false

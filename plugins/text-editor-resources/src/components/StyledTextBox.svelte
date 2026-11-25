@@ -15,7 +15,7 @@
 <script lang="ts">
   import { Markup } from '@hcengineering/core'
   import { IntlString } from '@hcengineering/platform'
-  import presentation, { MessageViewer, getFileUrl, getImageSize, imageSizeToRatio } from '@hcengineering/presentation'
+  import presentation, { MessageViewer, getFileUrl } from '@hcengineering/presentation'
   import { EmptyMarkup } from '@hcengineering/text'
   import textEditor, { RefAction } from '@hcengineering/text-editor'
   import {
@@ -25,23 +25,17 @@
     IconClose,
     IconEdit,
     Label,
-    PopupAlignment,
     ShowMore,
-    getEventPositionElement,
-    getPopupPositionElement,
     registerFocus,
     resizeObserver
   } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
-  import type { Command } from '@tiptap/core'
 
   import StyledTextEditor from './StyledTextEditor.svelte'
 
   import { EditorKitOptions } from '../kits/editor-kit'
-  import { addTableHandler } from '../utils'
-  import view from '@hcengineering/view'
-  import { getDefaultImageDisplay } from './extension/imageDisplay'
-  import { insertEditableBlock, saveInsertionSelection } from './extension/insertion-selection'
+  import { createInsertMenuItems, insertMenuOptions } from './editor/editor-insertion'
+  import { pickSelectionImages } from './editor/insert-images'
   import { type FileAttachFunction } from './extension/types'
   import { inlineCommandsConfig } from './extensions'
 
@@ -183,123 +177,19 @@
     editor.removeAttachment(id)
   }
 
-  async function handleCommandSelected (id: string, pos: number, targetItem?: MouseEvent | HTMLElement): Promise<void> {
-    const tiptap = editor.getEditor()
-    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
-    const restoreSelection = saveInsertionSelection(tiptap, pos)
-    const insertion = (): ReturnType<typeof tiptap.chain> => tiptap.chain().focus().command(restoreSelection)
-
-    switch (id) {
-      case 'image':
-        selectImage(restoreSelection)
-        break
-      case 'table': {
-        let position: PopupAlignment | undefined = undefined
-        if (targetItem !== undefined) {
-          position =
-            targetItem instanceof MouseEvent ? getEventPositionElement(targetItem) : getPopupPositionElement(targetItem)
-        }
-
-        await addTableHandler((options) => {
-          if (!tiptap.isDestroyed && tiptap.isEditable) insertion().insertTable(options).run()
-        }, position)
-        break
-      }
-      case 'code-block':
-        insertion()
-          .command(insertEditableBlock({ type: 'codeBlock' }))
-          .run()
-        break
-      case 'separator-line':
-        insertion().setHorizontalRule().run()
-        break
-      case 'mermaid':
-        insertion()
-          .command(insertEditableBlock({ type: 'mermaid' }))
-          .run()
-        break
-    }
-  }
-
-  let inputImage: HTMLInputElement
-  let imageInsertionSelection: Command | undefined
-
-  function selectImage (restoreSelection: Command): void {
-    imageInsertionSelection = restoreSelection
-    inputImage.click()
-  }
+  const { items: insertItems, getAttachFile } = createInsertMenuItems({
+    getAttachFile: () => attachFile,
+    isReadonly: () => readonly,
+    compact: true
+  })
+  const leftMenu = insertMenuOptions(insertItems)
+  const inlineCommands = inlineCommandsConfig(insertItems)
 
   export function handleAttachImage (): void {
-    const tiptap = editor.getEditor()
-    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
-    selectImage(saveInsertionSelection(tiptap))
-  }
-
-  async function createInlineImage (file: File, restoreSelection: Command): Promise<Command> {
-    if (!file.type.startsWith('image/') || attachFile === undefined) {
-      return restoreSelection
-    }
-
-    const tiptap = editor.getEditor()
-    if (tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
-    const attached = await attachFile(file)
-    if (attached === undefined) {
-      return restoreSelection
-    }
-
-    const size = await getImageSize(file)
-    if (tiptap.isDestroyed || !tiptap.isEditable) return restoreSelection
-
-    tiptap
-      .chain()
-      .focus()
-      .command(restoreSelection)
-      .command(({ tr, chain }) => {
-        return chain()
-          .insertContent({
-            type: 'image',
-            attrs: {
-              'file-id': attached.file,
-              width: imageSizeToRatio(size.width, size.pixelRatio),
-              display: getDefaultImageDisplay(tr.doc, tr.selection.from)
-            }
-          })
-          .run()
-      })
-      .run()
-    return saveInsertionSelection(tiptap)
-  }
-
-  async function fileSelected (): Promise<void> {
-    const tiptap = editor.getEditor()
-    const restoreSelection = imageInsertionSelection
-    imageInsertionSelection = undefined
-    const files = Array.from(inputImage.files ?? [])
-    inputImage.value = ''
-    if (readonly || tiptap === undefined || tiptap.isDestroyed || !tiptap.isEditable) return
-
-    try {
-      let nextSelection = restoreSelection ?? saveInsertionSelection(tiptap)
-      for (const file of files) {
-        nextSelection = await createInlineImage(file, nextSelection)
-      }
-    } catch (error) {
-      console.error('Failed to insert image:', error)
-    }
+    pickSelectionImages(editor?.getEditor(), getAttachFile)
   }
 </script>
 
-<input
-  bind:this={inputImage}
-  multiple
-  type="file"
-  name="file"
-  id="imageInput"
-  accept="image/*"
-  style="display: none"
-  disabled={readonly}
-  on:change={fileSelected}
-/>
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
@@ -346,30 +236,9 @@
             getFileUrl
           }
         },
-        inlineCommands: inlineCommandsConfig(
-          handleCommandSelected,
-          attachFile == null ? ['drawing-board', 'todo-list', 'image'] : ['drawing-board', 'todo-list']
-        ),
+        inlineCommands,
         ...kitOptions,
-        leftMenu: {
-          width: 20,
-          height: 20,
-          marginX: 8,
-          className: 'tiptap-left-menu',
-          icon: view.icon.Add,
-          iconProps: {
-            className: 'svg-tiny',
-            fill: 'currentColor'
-          },
-          items: [
-            { id: 'image', label: textEditor.string.Image, icon: view.icon.Image },
-            { id: 'table', label: textEditor.string.Table, icon: view.icon.Table2 },
-            { id: 'code-block', label: textEditor.string.CodeBlock, icon: view.icon.CodeBlock },
-            { id: 'separator-line', label: textEditor.string.SeparatorLine, icon: view.icon.SeparatorLine },
-            { id: 'mermaid', label: textEditor.string.MermaidDiargram, icon: view.icon.Model }
-          ],
-          handleSelect: handleCommandSelected
-        }
+        leftMenu
       }}
       bind:content={rawValue}
       bind:this={editor}
@@ -435,8 +304,6 @@
     :global(.tiptap-left-menu) {
       display: flex;
       color: var(--theme-trans-color);
-      width: 20px;
-      height: 20px;
       border-radius: 20%;
       align-items: center;
       justify-content: center;
@@ -446,7 +313,6 @@
         opacity 0.2s;
       position: absolute;
       cursor: pointer;
-      transform: translateX(34px); /* Сдвигаем внутрь видимой зоны */
 
       &:hover {
         background-color: var(--theme-button-hovered);
@@ -461,18 +327,6 @@
       pointer-events: none;
       user-select: none;
       -webkit-user-select: none;
-    }
-
-    :global(.textInput),
-    :global(.inputMsg),
-    :global(.select-text),
-    :global(.inputMsg > div) {
-      overflow: visible !important;
-    }
-
-    :global(.select-text) {
-      padding-left: 40px; /* Увеличил отступ */
-      position: relative;
     }
   }
 </style>

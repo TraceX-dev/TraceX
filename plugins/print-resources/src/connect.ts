@@ -188,7 +188,10 @@ export async function connect (title: string): Promise<Location> {
     connected.getHierarchy().classHierarchyMixin(_class, view.mixin.ObjectPanel)?.component ?? view.component.EditDoc
   await getResource(component)
   if (request !== generation) throw new Error('Print session was closed')
-  const target: Location = { path: ['print', workspace], fragment: getPanelURI(component, _id, _class, 'content') }
+  const target: Location = {
+    path: ['workbench', workspace],
+    fragment: getPanelURI(component, _id, _class, 'content')
+  }
   return target
 }
 

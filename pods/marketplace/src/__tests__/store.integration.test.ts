@@ -10,8 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { AccountUuid } from '@hcengineering/core'
-import type { CatalogPackageReader } from '@hcengineering/marketplace'
+import type { AccountUuid, WorkspaceUuid } from '@hcengineering/core'
+import type { CatalogPackageOrigin, CatalogPackageReader } from '@hcengineering/marketplace'
 import { PostgresCatalogStore, type CatalogPublication } from '../store'
 
 // Point only at a disposable database; these tests never use the service's DB_URL.
@@ -58,6 +58,52 @@ integration('Marketplace PostgreSQL release storage', () => {
       '1.0.1',
       '1.0.0'
     ])
+  })
+
+  it('keeps immutable origins per release outside every public metadata and download response', async () => {
+    const origin: CatalogPackageOrigin = {
+      workspace: '44371923-5983-4ab0-ac89-82f481836724' as WorkspaceUuid,
+      workspaceName: 'Confidential client',
+      workspaceUrl: 'confidential-client',
+      path: ['setting', 'types', 'private-source-type'],
+      labels: ['Source card type', 'Source tag']
+    }
+    await store.publish({ ...publication, origin })
+    expect(await store.origin(publication, author)).toEqual(origin)
+    expect(await store.origin(publication, other)).toBeUndefined()
+    await store.grantRead(publication, author, { account: other, email: 'reader@example.com' })
+    expect(await store.origin(publication, other)).toBeUndefined()
+    await store.publish({ ...publication, origin: { ...origin, labels: ['Different source'] } })
+    expect(await store.origin(publication, author)).toEqual(origin)
+    await store.transferOwnership(publication, author, other)
+    expect(await store.origin(publication, author)).toBeUndefined()
+    expect(await store.origin(publication, other)).toEqual(origin)
+    await store.publish({
+      ...publication,
+      publisher: other,
+      version: '1.0.1',
+      contentHash: 'updated',
+      origin: { ...origin, labels: ['New source'] }
+    })
+    expect(await store.origin(publication, author, '1.0.0')).toBeUndefined()
+    expect(await store.origin(publication, other, '1.0.0')).toEqual(origin)
+    expect(await store.origin(publication, other)).toEqual({ ...origin, labels: ['New source'] })
+    const responses = [
+      await store.get(publication, other),
+      await store.list({ viewer: other, search: publication.name, offset: 0, limit: 100 }),
+      await store.releases(publication, other, 0),
+      await store.download(publication, other)
+    ]
+    for (const response of responses) {
+      expect(JSON.stringify(response)).not.toContain(origin.workspaceName)
+      expect(JSON.stringify(response)).not.toContain(origin.workspace)
+      expect(JSON.stringify(response)).not.toContain(origin.path[2])
+    }
+  })
+
+  it('does not guess missing origins for old releases or file publications', async () => {
+    await store.publish(publication)
+    expect(await store.origin(publication, author)).toBeUndefined()
   })
 
   it('accepts identical retries without changing the publication timestamp', async () => {
@@ -278,5 +324,67 @@ integration('Marketplace PostgreSQL release storage', () => {
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
     await expect(store.publish(publication)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('deletes every release and reader without affecting another author with the same package ID', async () => {
+    await store.publish(publication)
+    await store.publish({ ...publication, version: '1.0.1', contentHash: 'new', source: 'new YAML' })
+    await store.grantRead(publication, author, { account: other, email: 'reader@example.com' })
+    await store.publish({ ...publication, author: other, publisher: other, source: 'other author' })
+    await store.delete(publication, author)
+
+    const page = await store.list({ viewer: author, search: '', owner: author, offset: 0, limit: 100 })
+    expect(page.items.some((entry) => entry.id === publication.id && entry.author === author)).toBe(false)
+    await expect(store.get(publication, author)).rejects.toMatchObject({ status: 404 })
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
+    await expect(store.releases(publication, author, 0)).rejects.toMatchObject({ status: 404 })
+    for (const version of [undefined, '1.0.0', '1.0.1']) {
+      await expect(store.download(publication, author, version)).rejects.toMatchObject({ status: 404 })
+    }
+    expect(await store.download({ ...publication, author: other }, other)).toBe('other author')
+
+    await store.publish({ ...publication, visibility: 'private' })
+    expect(await store.readers(publication, author)).toEqual([])
+    expect((await store.releases(publication, author, 0)).items).toHaveLength(1)
+    await expect(store.download(publication, author, '1.0.1')).rejects.toMatchObject({ status: 404 })
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('rejects deletion by non-owners for public and private packages, including explicit readers', async () => {
+    await store.publish(publication)
+    await expect(store.delete(publication, other)).rejects.toMatchObject({ status: 404 })
+    await store.setVisibility(publication, author, 'private')
+    await expect(store.delete(publication, other)).rejects.toMatchObject({ status: 404 })
+    await store.grantRead(publication, author, { account: other, email: 'reader@example.com' })
+    await expect(store.delete(publication, other)).rejects.toMatchObject({ status: 404 })
+    expect(await store.download(publication, other)).toBe('original YAML')
+    expect(await store.readers(publication, author)).toEqual([{ account: other, email: 'reader@example.com' }])
+    await store.delete(publication, author)
+    await expect(store.delete(publication, author)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('permits deletion by the current owner after transfer and rejects the original author', async () => {
+    await store.publish(publication)
+    await store.transferOwnership(publication, author, other)
+    await expect(store.delete(publication, author)).rejects.toMatchObject({ status: 404 })
+    expect(await store.download(publication, other)).toBe('original YAML')
+    await store.delete(publication, other)
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('serializes competing deletions and ownership transfers', async () => {
+    await store.publish(publication)
+    const results = await Promise.allSettled([
+      store.delete(publication, author),
+      store.transferOwnership(publication, author, other)
+    ])
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
+    await expect(store.delete(publication, author)).rejects.toMatchObject({ status: 404 })
+    if (results[1].status === 'fulfilled') {
+      expect((await store.get(publication, other)).owner).toBe(other)
+      await store.delete(publication, other)
+    }
+    await expect(store.get(publication, other)).rejects.toMatchObject({ status: 404 })
   })
 })

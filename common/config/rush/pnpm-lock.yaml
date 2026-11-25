@@ -6319,6 +6319,9 @@ importers:
 
   ../../models/card:
     dependencies:
+      '@hcengineering/print':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/print
       '@hcengineering/activity':
         specifier: workspace:^0.7.0
         version: link:../../plugins/activity
@@ -6443,6 +6446,9 @@ importers:
 
   ../../models/chunter:
     dependencies:
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/activity':
         specifier: workspace:^0.7.0
         version: link:../../plugins/activity
@@ -6479,9 +6485,6 @@ importers:
       '@hcengineering/model-presentation':
         specifier: workspace:^0.7.0
         version: link:../presentation
-      '@hcengineering/model-print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/model-view':
         specifier: workspace:^0.7.0
         version: link:../view
@@ -6673,6 +6676,9 @@ importers:
 
   ../../models/controlled-documents:
     dependencies:
+      '@hcengineering/print':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/print
       '@hcengineering/activity':
         specifier: workspace:^0.7.0
         version: link:../../plugins/activity
@@ -6724,9 +6730,6 @@ importers:
       '@hcengineering/model-presentation':
         specifier: workspace:^0.7.0
         version: link:../presentation
-      '@hcengineering/model-print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/model-request':
         specifier: workspace:^0.7.0
         version: link:../request
@@ -7210,6 +7213,9 @@ importers:
 
   ../../models/drive:
     dependencies:
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/activity':
         specifier: workspace:^0.7.0
         version: link:../../plugins/activity
@@ -7237,9 +7243,6 @@ importers:
       '@hcengineering/model-presentation':
         specifier: workspace:^0.7.0
         version: link:../presentation
-      '@hcengineering/model-print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/model-tracker':
         specifier: workspace:^0.7.0
         version: link:../tracker
@@ -7304,6 +7307,9 @@ importers:
 
   ../../models/emoji:
     dependencies:
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
@@ -7319,9 +7325,6 @@ importers:
       '@hcengineering/model-presentation':
         specifier: workspace:^0.7.0
         version: link:../presentation
-      '@hcengineering/model-print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/model-tracker':
         specifier: workspace:^0.7.0
         version: link:../tracker
@@ -8883,6 +8886,18 @@ importers:
 
   ../../models/print:
     dependencies:
+      '@hcengineering/controlled-documents':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/controlled-documents
+      '@hcengineering/setting':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/setting
+      '@hcengineering/templates':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/templates
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
@@ -9317,6 +9332,9 @@ importers:
 
   ../../models/questions:
     dependencies:
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/contact':
         specifier: workspace:^0.7.0
         version: link:../../plugins/contact
@@ -9329,9 +9347,6 @@ importers:
       '@hcengineering/model-core':
         specifier: workspace:^0.7.0
         version: link:../core
-      '@hcengineering/model-print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/model-tracker':
         specifier: workspace:^0.7.0
         version: link:../tracker
@@ -12724,6 +12739,9 @@ importers:
 
   ../../models/test-management:
     dependencies:
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/activity':
         specifier: workspace:^0.7.0
         version: link:../../plugins/activity
@@ -12763,9 +12781,6 @@ importers:
       '@hcengineering/model-presentation':
         specifier: workspace:^0.7.0
         version: link:../presentation
-      '@hcengineering/model-print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/model-tracker':
         specifier: workspace:^0.7.0
         version: link:../tracker
@@ -13178,6 +13193,9 @@ importers:
 
   ../../models/training:
     dependencies:
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../../plugins/export
       '@hcengineering/activity':
         specifier: workspace:^0.7.0
         version: link:../../plugins/activity
@@ -13211,9 +13229,6 @@ importers:
       '@hcengineering/model-notification':
         specifier: workspace:^0.7.0
         version: link:../notification
-      '@hcengineering/model-print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/model-questions':
         specifier: workspace:^0.7.0
         version: link:../questions
@@ -17396,6 +17411,15 @@ importers:
 
   ../../plugins/card-resources:
     dependencies:
+      '@hcengineering/templates':
+        specifier: workspace:^0.7.0
+        version: link:../templates
+      '@hcengineering/print-resources':
+        specifier: workspace:^0.7.0
+        version: link:../print-resources
+      '@hcengineering/print':
+        specifier: workspace:^0.7.0
+        version: link:../print
       '@hcengineering/account-client':
         specifier: workspace:^0.7.25
         version: link:../../foundations/core/packages/account-client
@@ -18272,6 +18296,18 @@ importers:
 
   ../../plugins/controlled-documents-resources:
     dependencies:
+      '@hcengineering/print-resources':
+        specifier: workspace:^0.7.0
+        version: link:../print-resources
+      '@hcengineering/print':
+        specifier: workspace:^0.7.0
+        version: link:../print
+      '@hcengineering/templates':
+        specifier: workspace:^0.7.0
+        version: link:../templates
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../export
       '@hcengineering/account-client':
         specifier: workspace:^0.7.25
         version: link:../../foundations/core/packages/account-client
@@ -18329,9 +18365,6 @@ importers:
       '@hcengineering/presentation':
         specifier: workspace:^0.7.0
         version: link:../../packages/presentation
-      '@hcengineering/print':
-        specifier: workspace:^0.7.0
-        version: link:../print
       '@hcengineering/rank':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/rank
@@ -23180,6 +23213,9 @@ importers:
       '@hcengineering/card':
         specifier: workspace:^0.7.0
         version: link:../card
+      '@hcengineering/contact':
+        specifier: workspace:^0.7.0
+        version: link:../contact
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
@@ -24263,6 +24299,12 @@ importers:
 
   ../../plugins/print:
     dependencies:
+      '@hcengineering/templates':
+        specifier: workspace:^0.7.0
+        version: link:../templates
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../export
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
@@ -24373,6 +24415,21 @@ importers:
 
   ../../plugins/print-resources:
     dependencies:
+      '@hcengineering/card':
+        specifier: workspace:^0.7.0
+        version: link:../card
+      '@hcengineering/setting':
+        specifier: workspace:^0.7.0
+        version: link:../setting
+      '@hcengineering/templates':
+        specifier: workspace:^0.7.0
+        version: link:../templates
+      '@hcengineering/export':
+        specifier: workspace:^0.7.0
+        version: link:../export
+      '@hcengineering/text-editor-resources':
+        specifier: workspace:^0.7.0
+        version: link:../text-editor-resources
       '@hcengineering/account-client':
         specifier: workspace:^0.7.25
         version: link:../../foundations/core/packages/account-client
@@ -28325,6 +28382,9 @@ importers:
 
   ../../plugins/text-editor-resources:
     dependencies:
+      '@floating-ui/dom':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@hcengineering/activity':
         specifier: workspace:^0.7.0
         version: link:../activity

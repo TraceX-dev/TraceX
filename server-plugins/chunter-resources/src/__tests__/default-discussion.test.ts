@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 
+import activity from '@hcengineering/activity'
+import view from '@hcengineering/view'
 import chunter, { type DefaultDiscussion, type Discussion } from '@hcengineering/chunter'
 import core, {
   type AccountUuid,
@@ -33,7 +35,8 @@ import {
   OnDefaultDiscussionRenamed,
   OnDefaultDiscussionUpdated,
   OnDiscussionOwnerClassChanged,
-  OnDiscussionOwnerCreated
+  OnDiscussionOwnerCreated,
+  OnDiscussionResolvedChanged
 } from '../index'
 
 const Task = 'card:class:Task' as Ref<Class<Doc>>
@@ -337,5 +340,43 @@ describe('OnDiscussionOwnerClassChanged', () => {
     const tx = factory.createTxUpdateDoc(Task, 'space' as any, 'card' as any, { title: 'x' } as any)
     const control = createControl([discussion('d1', 'General', Task, 'c1')], [])
     expect(await OnDiscussionOwnerClassChanged([tx], control)).toEqual([])
+  })
+})
+
+describe('OnDiscussionResolvedChanged', () => {
+  const setResolved = (resolved: boolean): TxUpdateDoc<Discussion> =>
+    ownerFactory.createTxUpdateDoc(chunter.class.Discussion, 'space' as Ref<Space>, 'd1' as Ref<Discussion>, {
+      resolved
+    })
+
+  it.each([
+    [true, chunter.string.DiscussionResolvedMessage, view.icon.CheckCircle],
+    [false, chunter.string.DiscussionReopenedMessage, view.icon.Undo]
+  ])('records resolved=%s in the discussion channel', async (resolved, message, contentIcon) => {
+    const result = await OnDiscussionResolvedChanged([setResolved(resolved)], createControl([], []))
+    expect(result.map((tx) => TxProcessor.createDoc2Doc(tx as TxCreateDoc<Doc>))).toEqual([
+      expect.objectContaining({
+        _class: activity.class.ActivityInfoMessage,
+        space: 'space',
+        attachedTo: 'd1',
+        attachedToClass: chunter.class.Discussion,
+        collection: 'activity',
+        message,
+        contentIcon,
+        createdBy: ownerIdentity
+      })
+    ])
+  })
+
+  it('ignores updates that do not change the resolve flag', async () => {
+    const tx = ownerFactory.createTxUpdateDoc(
+      chunter.class.Discussion,
+      'space' as Ref<Space>,
+      'd1' as Ref<Discussion>,
+      {
+        name: 'x'
+      }
+    )
+    expect(await OnDiscussionResolvedChanged([tx], createControl([], []))).toEqual([])
   })
 })

@@ -61,7 +61,7 @@ export async function readPackageAuthoringGuide (section = 'Start here'): Promis
           sections,
           examples,
           instructions:
-            'Read Design preferences first, then only relevant sections. Resolve technical choices yourself; record assumptions in the review. Validate and save the requested private draft.'
+            'Read Design preferences first, then only relevant sections. To add an existing Marketplace process to a package draft, read Reusing a Marketplace process and use package_add_dependency with the inspected release lock and parent bindings. Resolve technical choices yourself; record assumptions in the review. Validate and save the requested private draft.'
         }
       : {})
   }

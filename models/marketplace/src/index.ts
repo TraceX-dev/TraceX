@@ -61,6 +61,9 @@ export class TDefinitionPackageInstallation extends TDoc implements DefinitionPa
 
   @Prop(TypeRecord(), marketplace.string.InstalledPackages)
     destinations!: Record<string, DefinitionPackageDestination>
+
+  @Prop(TypeRecord(), marketplace.string.InstalledPackages)
+    dependencies?: DefinitionPackageInstallation['dependencies']
 }
 
 export function createModel (builder: Builder): void {

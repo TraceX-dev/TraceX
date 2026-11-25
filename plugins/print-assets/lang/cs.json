@@ -1,10 +1,21 @@
 {
   "string": {
+    "Enabled": "Povoleno",
+    "Printing": "Tisk",
+    "Header": "Záhlaví",
+    "Footer": "Zápatí",
+    "PrintLogo": "Tisknout logo",
+    "InsertField": "Vložit pole",
+    "InvalidPrintSettings": "Nastavení tisku nelze uložit. Zkontrolujte pole.",
+    "PrintedObject": "Tištěný objekt",
+    "Title": "Název",
+    "Page": "Strana ",
+    "Of": " z ",
+    "CreatedFromTemplate": "Vytvořeno ze šablony: ",
     "PrintToPDF": "Tisk do PDF",
     "PrintingDocumentOf": "Tisk dokumentu {current} z {total}",
     "DownloadAll": "Stáhnout vše",
     "PrintFailed": "Tisk se nezdařil",
-    "PrintSettings": "Print settings",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2022 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -44,17 +45,19 @@
   let btns: HTMLButtonElement[] = []
 
   const keyDown = (ev: KeyboardEvent, n?: number): void => {
-    if (ev.key === 'ArrowDown') {
-      ev.stopPropagation()
-      ev.preventDefault()
-      if (n === undefined || n === btns.length - 1) btns[0].focus()
-      else btns[n + 1].focus()
-    } else if (ev.key === 'ArrowUp') {
-      ev.stopPropagation()
-      ev.preventDefault()
-      if (n === undefined || n === 0) btns[btns.length - 1].focus()
-      else btns[n - 1].focus()
-    }
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return
+    ev.stopPropagation()
+    ev.preventDefault()
+    const enabled = btns.filter((button) => button !== undefined && !button.disabled)
+    if (enabled.length === 0) return
+    const current = n === undefined ? -1 : enabled.indexOf(btns[n])
+    const next =
+      current === -1
+        ? ev.key === 'ArrowDown'
+          ? 0
+          : enabled.length - 1
+        : (current + (ev.key === 'ArrowDown' ? 1 : enabled.length - 1)) % enabled.length
+    enabled[next].focus()
   }
 
   let search: string = ''
@@ -104,6 +107,8 @@
         <!-- svelte-ignore a11y-mouse-events-have-key-events -->
         <button
           class="menu-item flex-between"
+          class:no-hover={item.disabled}
+          disabled={item.disabled}
           bind:this={btns[i]}
           on:mouseover={(ev) => {
             ev.currentTarget.focus()
@@ -143,6 +148,11 @@
 </div>
 
 <style lang="scss">
+  .menu-item:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
   .search {
     display: flex;
     padding: 0.5rem 0.5rem 0 0.5rem;

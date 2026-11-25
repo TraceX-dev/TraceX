@@ -17,6 +17,8 @@
   import { MasterTag } from '@hcengineering/card'
   import { DefinitionYamlEditor, newDefinitionYaml } from '@hcengineering/card-resources'
   import core, { Doc, generateId, Ref, SortingOrder } from '@hcengineering/core'
+  import marketplace from '@hcengineering/marketplace'
+  import { MarketplacePopup } from '@hcengineering/marketplace-resources'
   import { setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { Process, State } from '@hcengineering/process'
@@ -133,12 +135,20 @@
   <div class="flex-row-center flex-gap-1">
     <ButtonIcon
       kind="primary"
+      icon={marketplace.icon.Marketplace}
+      size="small"
+      dataId="processes-from-marketplace"
+      tooltip={{ label: marketplace.string.FromMarketplace, direction: 'bottom' }}
+      on:click={() => showPopup(MarketplacePopup, { kind: 'process', masterTag: masterTag._id }, 'centered')}
+    />
+    <ButtonIcon
+      kind="primary"
       icon={IconFile}
       size="small"
       tooltip={{ label: process.string.Import, direction: 'bottom' }}
       on:click={handleImport}
     />
-    <ButtonIcon kind="primary" icon={IconAdd} size="small" dataId={'btnAdd'} on:click={add} />
+    <ButtonIcon kind="primary" icon={IconAdd} size="small" dataId="btnAdd" on:click={add} />
     <ButtonIcon
       kind="primary"
       icon={IconEdit}
@@ -154,12 +164,13 @@
       <svelte:fragment slot="object" let:value>
         {@const processValue = toProcess(value)}
         <button
-          class="hulyTableAttr-content__row justify-start"
+          type="button"
+          class="hulyTableAttr-content__row justify-start w-full cursor-pointer"
           on:click|stopPropagation={() => {
             handleSelect(processValue._id)
           }}
         >
-          <div class="hulyTableAttr-content__row-label px-2 font-medium-14 cursor-pointer">
+          <div class="hulyTableAttr-content__row-label px-2 font-medium-14">
             {processValue.name}
           </div>
         </button>

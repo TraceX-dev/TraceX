@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,13 +14,21 @@
 // limitations under the License.
 //
 
-import type { Class, Doc, Domain, Ref } from '@hcengineering/core'
-import type { ExportResultRecord } from '@hcengineering/export'
+import { DOMAIN_MODEL, type Class, type Doc, type Domain, type Ref } from '@hcengineering/core'
+import type {
+  DocumentExporter,
+  DocumentExportFunction,
+  DocumentExportPreviewFunction,
+  DocumentExportAvailabilityFunction,
+  DocumentBulkExportFunction,
+  ExportResultRecord
+} from '@hcengineering/export'
 import { type Builder, Model, Prop, ArrOf, TypeRef, TypeString, TypeNumber, UX } from '@hcengineering/model'
 import core, { TDoc } from '@hcengineering/model-core'
 import presentation from '@hcengineering/model-presentation'
 import workbench from '@hcengineering/workbench'
-import view from '@hcengineering/model-view'
+import view, { createAction } from '@hcengineering/model-view'
+import type { IntlString, Resource } from '@hcengineering/platform'
 import notification from '@hcengineering/notification'
 import exportPlugin from '@hcengineering/export'
 
@@ -31,8 +40,21 @@ export default exportModelPlugin
 
 export const DOMAIN_EXPORT = 'export' as Domain
 
+@Model(exportPlugin.class.DocumentExporter, core.class.Doc, DOMAIN_MODEL)
+export class TDocumentExporter extends TDoc implements DocumentExporter {
+  format!: string
+  label!: IntlString
+  export!: Resource<DocumentExportFunction>
+  supportsHeaderFooter?: boolean
+  supportsOrientation!: boolean
+  preview?: Resource<DocumentExportPreviewFunction>
+  isAvailable?: Resource<DocumentExportAvailabilityFunction>
+  bulkExport?: Resource<DocumentBulkExportFunction>
+  order!: number
+}
+
 @Model(exportPlugin.class.ExportResultRecord, core.class.Doc, DOMAIN_EXPORT)
-@UX(exportPlugin.string.ImportCompleted, exportPlugin.icon.Export)
+@UX(exportPlugin.string.ImportCompleted, exportPlugin.icon.Import)
 export class TExportResultRecord extends TDoc implements ExportResultRecord {
   @Prop(TypeString(), exportPlugin.string.SourceWorkspace)
     sourceWorkspace!: string
@@ -54,7 +76,50 @@ export class TExportResultRecord extends TDoc implements ExportResultRecord {
 }
 
 export function createModel (builder: Builder): void {
-  builder.createModel(TExportResultRecord)
+  builder.createModel(TExportResultRecord, TDocumentExporter)
+
+  builder.createDoc(
+    exportPlugin.class.DocumentExporter,
+    core.space.Model,
+    {
+      format: 'docx',
+      label: exportPlugin.string.ExportFormatWord,
+      export: exportPlugin.function.ExportContent,
+      supportsOrientation: true,
+      isAvailable: exportPlugin.function.CanExportContent,
+      order: 20
+    },
+    exportPlugin.exporter.Word
+  )
+
+  builder.createDoc(
+    exportPlugin.class.DocumentExporter,
+    core.space.Model,
+    {
+      format: 'md',
+      label: exportPlugin.string.ExportFormatMarkdown,
+      export: exportPlugin.function.ExportContent,
+      supportsOrientation: false,
+      isAvailable: exportPlugin.function.CanExportContent,
+      order: 30
+    },
+    exportPlugin.exporter.Markdown
+  )
+
+  createAction(
+    builder,
+    {
+      action: exportPlugin.actionImpl.ExportDocuments,
+      label: exportPlugin.string.ExportDots,
+      icon: exportPlugin.icon.Export,
+      category: view.category.General,
+      input: 'any',
+      target: core.class.Doc,
+      context: { mode: ['context', 'browser'], group: 'tools' },
+      visibilityTester: exportPlugin.function.CanExport
+    },
+    exportPlugin.action.ExportDocuments
+  )
 
   builder.mixin(exportPlugin.class.ExportResultRecord, core.class.Class, view.mixin.ObjectPresenter, {
     presenter: view.component.BaseDocPresenter
@@ -73,7 +138,7 @@ export function createModel (builder: Builder): void {
     core.space.Model,
     {
       label: exportPlugin.string.Import,
-      icon: exportPlugin.icon.Export,
+      icon: exportPlugin.icon.Import,
       objectClass: exportPlugin.class.ExportResultRecord
     },
     exportPlugin.ids.ImportNotificationGroup

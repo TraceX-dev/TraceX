@@ -342,6 +342,7 @@ export interface DropdownTextItem {
 /** Localized option whose ID can retain a domain enum or branded string type. */
 export interface DropdownIntlItem<Id extends string | number = string | number> {
   id: Id
+  disabled?: boolean
   label: IntlString
   icon?: Asset | AnySvelteComponent | ComponentType
   iconProps?: Record<string, any>

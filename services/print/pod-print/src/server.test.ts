@@ -98,8 +98,8 @@ describe('print HTTP requests', () => {
     })
   })
 
-  async function requestPrint (): Promise<Response> {
-    return await fetch(`${origin}/print?objectClass=core:class:Doc&objectId=document`, {
+  async function requestPrint (query = ''): Promise<Response> {
+    return await fetch(`${origin}/print?objectClass=core:class:Doc&objectId=document${query}`, {
       headers: { Authorization: 'Bearer user-token' }
     })
   }
@@ -111,6 +111,12 @@ describe('print HTTP requests', () => {
     expect(accounts.selectWorkspace).not.toHaveBeenCalled()
     expect(createRestTxOperations).toHaveBeenCalledWith('http://localhost:3334', 'workspace', 'readonly-token', false)
     expect(print).toHaveBeenCalled()
+  })
+
+  it('passes page orientation to the PDF renderer', async () => {
+    const response = await requestPrint('&orientation=landscape')
+    expect(response.status).toBe(200)
+    expect(jest.mocked(print).mock.calls[0][2]).toEqual(expect.objectContaining({ orientation: 'landscape' }))
   })
 
   it('passes the original error and request context to the logger without authorization data', async () => {

@@ -1,7 +1,10 @@
 {
   "string": {
+    "PrintHeaderFooter": "Stampa intestazioni e piè di pagina",
     "WorkspaceNamePattern": "Il nome deve essere di 40 caratteri o meno, non vuoto e non può contenere caratteri speciali (<, >, /)",
+    "ExportList": "Esporta elenco",
     "Export": "Esporta",
+    "ExportDots": "Esporta…",
     "DataToExport": "Dati da esportare",
     "ExportDocuments": "Documenti",
     "ExportMilestones": "Pietra miliare",
@@ -72,6 +75,9 @@
     "DocumentContentConverted": "Documento convertito",
     "DocumentContentImportFailed": "Importazione non riuscita",
     "ReviewDocumentContentChanges": "Rivedi le modifiche importate",
-    "ApplyDocumentContentChanges": "Applica"
+    "ApplyDocumentContentChanges": "Applica",
+    "Orientation": "Orientamento",
+    "PortraitMode": "Orientamento verticale",
+    "LandscapeMode": "Orientamento orizzontale"
   }
 }

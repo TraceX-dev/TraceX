@@ -20,6 +20,7 @@ import config from './config'
 
 export interface PrintOptions {
   kind?: ExportKind
+  printHeaderFooter?: boolean
   orientation?: PageOrientation
   viewport?: Viewport
 }
@@ -120,15 +121,23 @@ export async function print (
     let res: Uint8Array | undefined
     if (kind === 'pdf') {
       // Read page header and footer if defined
-      const pageHeader = await page.evaluate(() => {
-        const header = document.querySelector('#page-header')
-        return header?.innerHTML ?? ''
-      })
+      const pageHeader =
+        options?.printHeaderFooter === false
+          ? ''
+          : await page.evaluate(() => {
+              const header = document.querySelector('[data-print-header]') ?? document.querySelector('#page-header')
+              return header !== null && (header.textContent?.trim() !== '' || header.querySelector('img') !== null)
+                ? header.innerHTML
+                : ''
+            })
 
-      const pageFooter = await page.evaluate(() => {
-        const footer = document.querySelector('#page-footer')
-        return footer?.innerHTML ?? ''
-      })
+      const pageFooter =
+        options?.printHeaderFooter === false
+          ? ''
+          : await page.evaluate(() => {
+              const footer = document.querySelector('[data-print-footer]') ?? document.querySelector('#page-footer')
+              return footer !== null && footer.textContent?.trim() !== '' ? footer.innerHTML : ''
+            })
 
       const displayHeaderFooter = pageHeader !== '' || pageFooter !== ''
 

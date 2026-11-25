@@ -34,6 +34,7 @@ describe('Marketplace request quotas', () => {
   const store: jest.Mocked<CatalogStore> = {
     list: jest.fn(),
     get: jest.fn(),
+    delete: jest.fn(),
     readers: jest.fn(),
     grantRead: jest.fn(),
     revokeRead: jest.fn(),
@@ -41,6 +42,7 @@ describe('Marketplace request quotas', () => {
     setVisibility: jest.fn(),
     releases: jest.fn(),
     download: jest.fn(),
+    origin: jest.fn(),
     publish: jest.fn()
   }
   const onError = jest.fn()
@@ -53,6 +55,7 @@ describe('Marketplace request quotas', () => {
       authenticate,
       onError,
       resolveRecipient: async () => author,
+      resolveWorkspace: async () => undefined,
       ...limits
     }).listen(0, '127.0.0.1')
     await new Promise<void>((resolve, reject) => {
@@ -117,6 +120,15 @@ describe('Marketplace request quotas', () => {
     expect((await fetch(`${url}/packages`, { headers })).status).toBe(429)
     expect(authenticate).toHaveBeenCalledTimes(2)
     expect(store.list).not.toHaveBeenCalled()
+  })
+
+  it('applies the shared request quota before deleting a package', async () => {
+    await start({ requestLimit: 1 })
+    expect((await fetch(`${url}/packages`, { headers })).status).toBe(200)
+    const response = await fetch(`${url}/package?id=acme/review&author=${author}`, { method: 'DELETE', headers })
+    expect(response.status).toBe(429)
+    expect(authenticate).toHaveBeenCalledTimes(1)
+    expect(store.delete).not.toHaveBeenCalled()
   })
 
   it('limits publications before authentication and YAML parsing while keeping catalog reads available', async () => {

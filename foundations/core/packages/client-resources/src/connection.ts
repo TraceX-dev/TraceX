@@ -66,6 +66,8 @@ const hangTimeout = 5 * 60 * SECOND
 const dialTimeout = 30 * SECOND
 // After visibilitychange -> visible we probe with short timeout.
 const visibilityProbeTimeout = 1 * SECOND
+// Requests delayed this long on the client side (connection wait, resends) are logged.
+const slowRequestMs = 1 * SECOND
 // Jitter (ms) applied to reconnect retries after a failed attempt and to pending-request
 // resend, so a herd of clients doesn't redial/resend on the same tick.
 const reconnectJitterMs = 300
@@ -109,6 +111,9 @@ class RequestPromise {
 
 const globalRPCHandler: RPCHandler = new RPCHandler()
 
+// Diagnostics: per-page sequence to tell connections apart in logs (`<workspace>#<n>`).
+let connectionSeq = 0
+
 interface OnConnectHandler {
   resolve: () => void
   reject: (err: Error) => void
@@ -138,6 +143,7 @@ class Connection implements ClientConnection {
   private account: Account | undefined
 
   private visibilityHandler?: () => void
+  private readonly diagId: string
   private lastReconnectAt: number = 0
   private lastVisibilityLogAt: number = 0
 
@@ -157,6 +163,7 @@ class Connection implements ClientConnection {
     readonly user: PersonUuid,
     readonly opt?: ClientFactoryOptions
   ) {
+    this.diagId = `${workspace}#${++connectionSeq}`
     if (typeof sessionStorage !== 'undefined') {
       // Find local session id in session storage only if user refresh a page.
       const sKey = 'session.id.' + this.url
@@ -310,11 +317,18 @@ class Connection implements ClientConnection {
       document.removeEventListener('visibilitychange', this.visibilityHandler)
       this.visibilityHandler = undefined
     }
-    for (const handler of this.onConnectHandlers) {
-      handler.reject(new Error('Connection closed'))
+    // Reject with the dedicated status: callers (presentation pipeline, live queries) treat it as an
+    // expected shutdown and stay silent, instead of surfacing "Connection closed" as an error.
+    const closedError = (): PlatformError<any> =>
+      new PlatformError(new Status(Severity.ERROR, platform.status.ConnectionClosed, {}))
+    const handlers = this.onConnectHandlers.splice(0, this.onConnectHandlers.length)
+    for (const handler of handlers) {
+      handler.reject(closedError())
     }
-    for (const req of this.requests.values()) {
-      req.reject(new Error('Connection closed'))
+    const requests = [...this.requests.values()]
+    this.requests.clear()
+    for (const req of requests) {
+      req.reject(closedError())
     }
     if (this.websocket !== null) {
       this.websocket.close(1000)
@@ -409,6 +423,11 @@ class Connection implements ClientConnection {
 
     if (resp.error !== undefined) {
       if (resp.terminate === true) {
+        console.warn('[conn] terminated by server', {
+          conn: this.diagId,
+          code: resp.error.code,
+          params: resp.error.params
+        })
         if (
           resp.error.code !== platform.status.WorkspaceArchived &&
           resp.error.code !== platform.status.WorkspaceNotFound
@@ -763,10 +782,12 @@ class Connection implements ClientConnection {
         return
       }
       console.log('[conn] wsocket.onclose', {
+        conn: this.diagId,
         code: ev.code,
         reason: ev.reason,
         pendingCount: this.requests.size,
-        workspace: this.workspace
+        workspace: this.workspace,
+        willReconnect: !this.closed
       })
       // Immediate redial for a clean disconnect; if the transactor is down the failed
       // attempt bumps delay and scheduleOpen jitters the retry herd (see reconnectJitterMs).
@@ -819,11 +840,13 @@ class Connection implements ClientConnection {
         if (this.closed) {
           throw new PlatformError(new Status(Severity.ERROR, platform.status.ConnectionClosed, {}))
         }
+        const requestStart = platformNow()
 
         if (this.slowDownTimer > 0) {
           // We need to wait a bit to avoid ban.
           await new Promise((resolve) => setTimeout(resolve, this.slowDownTimer))
         }
+        const slowDownMs = platformNow() - requestStart
 
         if (data.once === true) {
           // Check if has same request already then skip
@@ -840,10 +863,12 @@ class Connection implements ClientConnection {
         const promise = new RequestPromise(data.method, data.params, data.handleResult)
         promise.handleTime = data.measure
 
+        const waitStart = platformNow()
         const w = this.waitOpenConnection(ctx)
         if (w instanceof Promise) {
           await w
         }
+        const waitConnectionMs = platformNow() - waitStart
         if (data.method !== pingConst) {
           this.requests.set(id, promise)
         }
@@ -879,9 +904,41 @@ class Connection implements ClientConnection {
             }, 50)
           }
         }
+        // Server-side slowness is already logged (server 'slow request', 'measure slow findAll');
+        // here only delays the server can't see: waiting for a connection or for a resend.
+        let sendAttempts = 0
+        let sentOnOpenSocket = 0
+        const doSend = promise.sendData
+        promise.sendData = (): void => {
+          sendAttempts++
+          if (this.websocket?.readyState === ClientSocketReadyState.OPEN) sentOnOpenSocket++
+          doSend()
+        }
+        const logIfSlow = (outcome: string): void => {
+          const totalMs = platformNow() - requestStart
+          const waitMs = slowDownMs + waitConnectionMs
+          if (totalMs < slowRequestMs) return
+          if (waitMs < slowRequestMs && sendAttempts <= 1 && sentOnOpenSocket > 0) return
+          console.warn('[conn] slow request', {
+            conn: this.diagId,
+            method: data.method,
+            outcome,
+            totalMs: Math.round(totalMs),
+            waitMs: Math.round(waitMs),
+            sendAttempts,
+            sentOnOpenSocket
+          })
+        }
         promise.sendData()
         if (data.method !== pingConst) {
-          return await promise.promise
+          try {
+            const result = await promise.promise
+            logIfSlow('ok')
+            return result
+          } catch (err: any) {
+            logIfSlow(err instanceof PlatformError ? String(err.status.code) : 'error')
+            throw err
+          }
         }
       },
       { method: data.method },

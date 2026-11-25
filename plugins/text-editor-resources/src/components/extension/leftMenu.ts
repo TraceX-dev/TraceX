@@ -14,11 +14,33 @@
 // limitations under the License.
 //
 
-import { Extension } from '@tiptap/core'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
-import { type EditorView } from '@tiptap/pm/view'
-import { type Asset, getMetadata } from '@hcengineering/platform'
-import { SelectPopup, getEventPositionElement, showPopup } from '@hcengineering/ui'
+import { type Asset, type IntlString, getMetadata } from '@hcengineering/platform'
+import {
+  type AnySvelteComponent,
+  type PopupAlignment,
+  SelectPopup,
+  getEventPositionElement,
+  showPopup
+} from '@hcengineering/ui'
+import { Extension, type Editor } from '@tiptap/core'
+import { type EditorState, Plugin, PluginKey } from '@tiptap/pm/state'
+import type { EditorView } from '@tiptap/pm/view'
+import { blockStartAt, blockStartForDom } from './block-hover'
+import { ButtonPositioner, firstLineRect } from './button-positioner'
+import { type InsertTarget, trackInsertTarget } from './insert-target'
+
+export interface InsertContext {
+  editor: Editor
+  target: InsertTarget
+  anchor: PopupAlignment | undefined
+}
+
+export interface InsertMenuItem {
+  id: string
+  label: IntlString
+  icon: Asset | AnySvelteComponent
+  run: (context: InsertContext) => void | Promise<void>
+}
 
 export interface LeftMenuOptions {
   width: number
@@ -26,236 +48,194 @@ export interface LeftMenuOptions {
   marginX: number
   className: string
   icon: Asset
-  iconProps: any
-  items: Array<{ id: string, label: string, icon: Asset }>
-  handleSelect: (id: string, pos: number, event: MouseEvent) => Promise<void>
+  iconProps?: Record<string, string>
+  items: () => readonly InsertMenuItem[]
 }
 
-function nodeDOMAtCoords (coords: { x: number, y: number }): Element | undefined {
-  if (!Number.isFinite(coords.x) || !Number.isFinite(coords.y)) {
-    return undefined
-  }
-  return document
-    .elementsFromPoint(coords.x, coords.y)
-    .find((elem: Element) => elem.parentElement?.matches?.('.ProseMirror') === true)
+function createButton (doc: Document, options: LeftMenuOptions): HTMLElement {
+  const button = doc.createElement('div')
+  button.className = options.className
+  button.style.position = 'absolute'
+  button.style.width = `${options.width}px`
+  button.style.height = `${options.height}px`
+
+  const svgNs = 'http://www.w3.org/2000/svg'
+  const icon = doc.createElementNS(svgNs, 'svg')
+  const { className, ...attributes } = options.iconProps ?? {}
+  if (className !== undefined) icon.classList.add(...className.split(/\s+/).filter(Boolean))
+  for (const [name, value] of Object.entries(attributes)) icon.setAttribute(name, value)
+
+  const use = doc.createElementNS(svgNs, 'use')
+  const href = options.icon === undefined ? undefined : getMetadata(options.icon)
+  if (href !== undefined) use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href)
+  icon.appendChild(use)
+  button.appendChild(icon)
+  return button
 }
 
-function posAtLeftMenuElement (view: EditorView, leftMenuElement: HTMLElement, offsetX: number): number | null {
-  const rect = leftMenuElement.getBoundingClientRect()
+function mountMenu (
+  editor: Editor,
+  view: EditorView,
+  options: LeftMenuOptions
+): { update: (view: EditorView, previous: EditorState) => void, destroy: () => void } {
+  const doc = view.dom.ownerDocument
+  const button = createButton(doc, options)
+  const positioner = new ButtonPositioner(button, options.marginX)
 
-  const position = view.posAtCoords({
-    left: rect.left + offsetX,
-    top: rect.top + rect.height / 2
-  })
+  let host: HTMLElement | null = null
+  let hovered: HTMLElement | null = null
+  let lastY: number | null = null
+  let frame: number | null = null
+  const targets = new Set<InsertTarget>()
+  let pending: InsertTarget | undefined
 
-  if (position === null) {
-    return null
+  function hide (): void {
+    if (frame !== null) cancelAnimationFrame(frame)
+    frame = null
+    hovered = null
+    lastY = null
+    positioner.hide()
   }
 
-  const pos = position.inside >= 0 ? position.inside : position.pos
-  const $pos = view.state.doc.resolve(pos)
-  return $pos.depth === 0 ? $pos.pos : $pos.before($pos.depth)
-}
-
-function LeftMenu (options: LeftMenuOptions): Plugin {
-  let leftMenuElement: HTMLElement | null = null
-  const offsetX = options.width + options.marginX
-  let rafId: number | null = null
-  let styleCache = new WeakMap<HTMLElement, { lineHeight: number, paddingTop: number, marginTop: number }>()
-
-  function hideLeftMenu (): void {
-    if (leftMenuElement !== null) {
-      leftMenuElement.classList.add('hidden')
+  function recompute (): void {
+    frame = null
+    const from = lastY !== null && view.editable && options.items().length > 0 ? blockStartAt(view, lastY) : null
+    const block = from === null ? null : view.nodeDOM(from)
+    if (!(block instanceof HTMLElement)) {
+      hovered = null
+      positioner.hide()
+      return
     }
+    hovered = block
+    positioner.show(block, () => firstLineRect(view, blockStartForDom(view, block), block, options.height))
   }
 
-  function showLeftMenu (): void {
-    if (leftMenuElement !== null) {
-      leftMenuElement.classList.remove('hidden')
-    }
+  function schedule (): void {
+    if (lastY !== null && frame === null) frame = requestAnimationFrame(recompute)
   }
 
-  function getCachedStyle (node: HTMLElement): { lineHeight: number, paddingTop: number, marginTop: number } {
-    let cached = styleCache.get(node)
-    if (cached === undefined) {
-      const compStyle = window.getComputedStyle(node)
-      const lineHeight = parseInt(compStyle.lineHeight, 10)
-      const paddingTop = parseInt(compStyle.paddingTop, 10)
-      const marginTop = parseInt(compStyle.marginTop, 10)
-      cached = { lineHeight, paddingTop, marginTop }
-      styleCache.set(node, cached)
-    }
-    return cached
+  function onMove (event: PointerEvent): void {
+    if (!view.editable || button.contains(event.target as Node)) return
+    lastY = event.clientY
+    schedule()
   }
 
-  return new Plugin({
-    key: new PluginKey('left-menu'),
-    view: (view) => {
-      leftMenuElement = document.createElement('div')
-      leftMenuElement.className = options.className // Style externally with CSS
-      leftMenuElement.style.position = 'absolute'
-      hideLeftMenu()
+  function detach (): void {
+    if (host === null) return
+    hide()
+    host.removeEventListener('pointermove', onMove)
+    host.removeEventListener('pointerleave', hide)
+    host.removeEventListener('wheel', schedule)
+    doc.removeEventListener('scroll', schedule, true)
+    host.classList.remove('tiptap-insert-host')
+    host.style.removeProperty('--insert-btn-size')
+    host.style.removeProperty('--insert-btn-gap')
+    button.remove()
+    host = null
+  }
 
-      const svgNs = 'http://www.w3.org/2000/svg'
-      const icon = document.createElementNS(svgNs, 'svg')
-      const { className: iconClassName, ...restIconProps } = options.iconProps ?? {}
-      if (iconClassName !== undefined) {
-        icon.classList.add(iconClassName)
-      }
-      Object.entries(restIconProps).forEach(([key, value]) => {
-        icon.setAttribute(key, value as string)
-      })
+  function releaseTargets (): void {
+    for (const target of targets) target.release()
+  }
 
-      const use = document.createElementNS(svgNs, 'use')
-      const href = options.icon !== undefined ? getMetadata(options.icon) : undefined
-
-      if (href !== undefined) {
-        use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href)
-      }
-
-      icon.appendChild(use)
-      leftMenuElement.appendChild(icon)
-
-      leftMenuElement.addEventListener('mousedown', (e) => {
-        // Prevent default in order for the popup to take focus for keyboard events
-        e.preventDefault()
-        e.stopPropagation()
-        if (leftMenuElement === null) return
-        const pos = posAtLeftMenuElement(view, leftMenuElement, offsetX)
-        if (pos === null) return
-
-        showPopup(
-          SelectPopup,
-          {
-            value: options.items
-          },
-          getEventPositionElement(e),
-          async (val) => {
-            if (leftMenuElement === null || val === undefined) return
-            await options.handleSelect(val, pos, e)
-          }
-        )
-      })
-
-      view?.dom?.parentElement?.appendChild(leftMenuElement)
-
-      return {
-        destroy: () => {
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId)
-            rafId = null
-          }
-          leftMenuElement?.remove?.()
-          leftMenuElement = null
-          styleCache = new WeakMap()
-        }
-      }
-    },
-    props: {
-      handleDOMEvents: {
-        mousemove: (view, event) => {
-          if (!view.editable) {
-            return
-          }
-
-          if (rafId !== null) {
-            return
-          }
-
-          rafId = requestAnimationFrame(() => {
-            rafId = null
-
-            const node = nodeDOMAtCoords({
-              x: event.clientX + offsetX,
-              y: event.clientY
-            })
-
-            if (
-              !(node instanceof HTMLElement) ||
-              node.nodeName === 'HR' ||
-              options.items === undefined ||
-              options.items.length === 0
-            ) {
-              hideLeftMenu()
-              return
-            }
-
-            const parent = node?.parentElement
-            if (!(parent instanceof HTMLElement)) {
-              hideLeftMenu()
-              return
-            }
-
-            // For some reason the offsetTop value for all elements is shifted by the first element's margin
-            // so taking it into account here
-            let firstMargin = 0
-            const firstChild = parent.firstChild
-            if (firstChild !== null && firstChild instanceof HTMLElement) {
-              const { marginTop } = getCachedStyle(firstChild)
-              firstMargin = marginTop
-            }
-
-            const { lineHeight, paddingTop } = getCachedStyle(node)
-            const left = -offsetX
-            let top = node.offsetTop
-            top += (lineHeight - options.height) / 2
-            top += paddingTop
-            top += firstMargin
-
-            if (leftMenuElement === null) return
-
-            leftMenuElement.style.left = `${left}px`
-            leftMenuElement.style.top = `${top}px`
-
-            showLeftMenu()
-          })
-        },
-        keydown: () => {
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId)
-            rafId = null
-          }
-          hideLeftMenu()
-        },
-        mousewheel: () => {
-          if (rafId !== null) {
-            cancelAnimationFrame(rafId)
-            rafId = null
-          }
-          hideLeftMenu()
-        },
-        mouseleave: (view, event) => {
-          if (!view.editable) {
-            return
-          }
-
-          const node = nodeDOMAtCoords({
-            x: event.clientX + offsetX,
-            y: event.clientY
-          })
-
-          if (!(node instanceof HTMLElement) || node.nodeName === 'HR') {
-            hideLeftMenu()
-            return
-          }
-
-          const parent = node?.parentElement
-          if (!(parent instanceof HTMLElement)) {
-            hideLeftMenu()
-          }
+  function update (_view: EditorView, previous?: EditorState): void {
+    const parent = view.editable ? view.dom.parentElement : null
+    const hostChanged = host !== parent
+    if (hostChanged) {
+      detach()
+      if (parent !== null) {
+        host = parent
+        host.classList.add('tiptap-insert-host')
+        host.style.setProperty('--insert-btn-size', `${options.width}px`)
+        host.style.setProperty('--insert-btn-gap', `${options.marginX}px`)
+        host.appendChild(button)
+        host.addEventListener('pointermove', onMove)
+        host.addEventListener('pointerleave', hide)
+        host.addEventListener('wheel', schedule, { passive: true })
+        doc.addEventListener('scroll', schedule, { capture: true, passive: true })
+        if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+          console.assert(getComputedStyle(host).position !== 'static', 'Insert button host must be positioned')
         }
       }
     }
+    if (!view.editable) {
+      hide()
+      releaseTargets()
+    } else {
+      if (hovered !== null && hovered.parentElement !== view.dom) {
+        hovered = null
+        positioner.hide()
+      }
+      if (
+        hostChanged ||
+        previous === undefined ||
+        previous.doc !== view.state.doc ||
+        !previous.selection.eq(view.state.selection)
+      ) {
+        schedule()
+      }
+    }
+  }
+
+  button.addEventListener('mousedown', (event) => {
+    // Keep the editor selection intact while the popup takes focus.
+    event.preventDefault()
+    event.stopPropagation()
+    if (!view.editable || hovered === null) return
+    const from = blockStartForDom(view, hovered)
+    const node = from === null ? null : view.state.doc.nodeAt(from)
+
+    const items = options.items()
+    if (from === null || node === null || items.length === 0) {
+      hide()
+      return
+    }
+
+    if (pending?.started === false) pending.release()
+    const target = trackInsertTarget(editor, from, (released) => {
+      targets.delete(released)
+      if (pending === released) pending = undefined
+    })
+    targets.add(target)
+    pending = target
+    const anchor = getEventPositionElement(event)
+    const value = items.map(({ id, label, icon }) => ({ id, label, icon }))
+    showPopup(SelectPopup, { value }, anchor, async (id) => {
+      const item = items.find((item) => item.id === id)
+      if (item === undefined || target.pos === null) {
+        target.release()
+        return
+      }
+      try {
+        await item.run({ editor, target, anchor })
+      } catch (error) {
+        target.release()
+        throw error
+      }
+    })
   })
+
+  update(view)
+  return {
+    update,
+    destroy: () => {
+      detach()
+      releaseTargets()
+    }
+  }
 }
 
-/*
- * @public
- */
+/** @public */
 export const LeftMenuExtension = Extension.create<LeftMenuOptions>({
   name: 'leftMenu',
 
   addProseMirrorPlugins () {
-    return [LeftMenu(this.options)]
+    const { editor, options } = this
+    return [
+      new Plugin({
+        key: new PluginKey('left-menu'),
+        view: (view) => mountMenu(editor, view, options)
+      })
+    ]
   }
 })

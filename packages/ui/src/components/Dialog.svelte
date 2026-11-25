@@ -29,12 +29,15 @@
     checkAdaptiveMatching
   } from '..'
   import ui from '../plugin'
+  import Scroller from './Scroller.svelte'
 
   export let label: IntlString | undefined = undefined
   export let isFullSize: boolean = false
   export let padding: string = '1rem'
   export let width: string | undefined = undefined
   export let height: string | undefined = undefined
+  /** Scroll content independently from the dialog header and footer actions. */
+  export let scrollable: boolean = false
 
   const dispatch = createEventDispatcher<{ close: void, fullsize: boolean, changeContent: void }>()
 
@@ -92,8 +95,18 @@
       {/if}
     </div>
   </div>
-  <div class="content" class:rounded={!($$slots.footerLeft || $$slots.footerRight)} style:padding>
-    <slot />
+  <div
+    class="content"
+    class:rounded={!($$slots.footerLeft || $$slots.footerRight)}
+    style:padding={scrollable ? '0' : padding}
+  >
+    {#if scrollable}
+      <Scroller {padding} bottomPadding={padding} noStretch>
+        <slot />
+      </Scroller>
+    {:else}
+      <slot />
+    {/if}
   </div>
   {#if $$slots.footerLeft || $$slots.footerRight}
     <div class="footer flex-wrap flex-gap-2">

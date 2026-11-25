@@ -113,6 +113,8 @@ export { default as CardTimestamp } from './components/CardTimestamp.svelte'
 export type * from './types'
 export { getCardIconInfo, openCardInSidebar } from './utils'
 
+import { getPrintData } from './print-data'
+
 export default async (): Promise<Resources> => ({
   component: {
     MasterTags,
@@ -180,6 +182,7 @@ export default async (): Promise<Resources> => ({
     CreateChild: createChildAction
   },
   function: {
+    PrintData: getPrintData,
     CardTitleProvider: getCardTitle,
     CardReferenceObjectProvider: cardReferenceObjectProvider,
     GetCardLink: getCardLink,

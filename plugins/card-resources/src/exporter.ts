@@ -14,6 +14,7 @@ import core, {
   type AnyAttribute,
   getReferenceFilterClasses,
   type ArrOf,
+  type Association,
   type AttachedData,
   type AttachedDoc,
   type Class,
@@ -28,8 +29,13 @@ import core, {
 } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
 import { getClient } from '@hcengineering/presentation'
-import marketplace, { stripDefinitionPackageInfo, type DefinitionPackageOwner } from '@hcengineering/marketplace'
-import {
+import marketplace, {
+  stripDefinitionPackageInfo,
+  parseDefinitionPackageRelease,
+  withDefinitionPackageDependencies,
+  type DefinitionPackageOwner
+} from '@hcengineering/marketplace'
+import process, {
   exportAuthoringModel,
   compileProcessYaml,
   getAuthoringProcessIdentities,
@@ -118,31 +124,63 @@ export async function exportModulePackageSource (ids: Array<Ref<Class<Doc>>>): P
     _id: [...installations][0]
   })
   if (installation === undefined) throw new Error('The package installation is unavailable')
-  const native = compileProcessYaml(source).docs
+  const exported = compileProcessYaml(source).docs
+  const excluded = new Set(
+    exported
+      .filter((doc) => {
+        if (doc._class !== process.class.Process) return false
+        const membership = model.findObject<DefinitionPackageOwner>(
+          doc._id as Ref<DefinitionPackageOwner>
+        )?.definitionPackageInstallation
+        return membership !== undefined && membership.id !== installation._id
+      })
+      .map((doc) => doc._id)
+  )
+  const native = exported.filter((doc) => !excluded.has(doc._id) && !excluded.has(String(doc.process)))
   const mapping = new Map(
     [...native.map((doc) => doc._id), ...getAuthoringProcessIdentities(native)].map((id) => [id, id])
   )
   for (const [original, local] of Object.entries(installation.identities)) mapping.set(local, original)
   const documents = cloneAuthoringModule(native as unknown as Doc[], model, client.getHierarchy(), mapping)
-  return exportAuthoringModel(documents, 'card', getAuthoringCatalog(model))
+  const baseline = await parseDefinitionPackageRelease(installation.release)
+  return withDefinitionPackageDependencies(
+    exportAuthoringModel(documents, 'card', getAuthoringCatalog(model)),
+    baseline.dependencies ?? {}
+  )
 }
 
 async function exportModules (ids: Array<Ref<Class<Doc>>>, format: 'json' | 'yaml'): Promise<string> {
-  const model = getClient().getModel()
-  const hierarchy = getClient().getHierarchy()
-  // Resolve the full module first so dependency traversal cannot narrow a package member's export.
-  const moduleTypes = new Set(ids)
-  for (const id of ids) {
-    if (id === card.class.Card || model.findObject(id) === undefined) continue
-    for (const descendant of hierarchy.getDescendants(id)) moduleTypes.add(descendant)
+  const client = getClient()
+  const model = client.getModel()
+  const hierarchy = client.getHierarchy()
+  const roots = new Set(ids)
+  const moduleTypes = new Set(roots)
+  const associations = new Map<Ref<Association>, Association>()
+  // Iteration also visits types added through inheritance or associations, once per identity.
+  for (const id of moduleTypes) {
+    if (id === card.class.Card) continue
+    const type = model.findObject(id)
+    if (type === undefined) continue
+    if (!roots.has(id) && type._class !== card.class.MasterTag && type._class !== card.class.Tag) continue
+    for (const descendant of hierarchy.getDescendants(id)) {
+      if (hierarchy.getClass(descendant).extends === id) moduleTypes.add(descendant)
+    }
+    for (const association of [
+      ...model.findAllSync(core.class.Association, { classA: id }),
+      ...model.findAllSync(core.class.Association, { classB: id })
+    ]) {
+      associations.set(association._id, association)
+      moduleTypes.add(association.classA === id ? association.classB : association.classA)
+    }
   }
+
   const processed = new Set<Ref<Doc>>()
   const res: Doc[] = []
-  for (const id of ids) res.push(...(await exportType(id, processed, moduleTypes, format === 'yaml')))
-  const unique = Array.from(new Map(res.map((d) => [d._id, d])).values())
+  for (const id of moduleTypes) res.push(...(await exportType(id, processed, format === 'yaml')))
+  const unique = Array.from(new Map([...res, ...associations.values()].map((doc) => [doc._id, doc])).values())
   const clear = unique.map(strip)
   if (format === 'json') return JSON.stringify(clear)
-  return exportAuthoringModel(clear, 'card', getAuthoringCatalog(getClient().getModel()))
+  return exportAuthoringModel(clear, 'card', getAuthoringCatalog(model))
 }
 
 function strip<T extends Doc> (doc: T): Omit<T, 'modifiedBy' | 'modifiedOn' | 'createdBy' | 'createdOn'> {
@@ -202,12 +240,7 @@ async function exportAttribute (
   return { docs, required }
 }
 
-async function exportType (
-  _id: Ref<Class<Doc>>,
-  processed: Set<Ref<Doc>>,
-  moduleTypes: ReadonlySet<Ref<Class<Doc>>>,
-  preserveIcon: boolean = false
-): Promise<Doc[]> {
+async function exportType (_id: Ref<Class<Doc>>, processed: Set<Ref<Doc>>, preserveIcon: boolean): Promise<Doc[]> {
   if (processed.has(_id)) return []
   processed.add(_id)
   const res: Doc[] = []
@@ -221,7 +254,7 @@ async function exportType (
   const parent = h.getClass(_id).extends
   if (parent !== undefined && h.isDerived(parent, card.class.Card) && parent !== card.class.Card) {
     if (!processed.has(parent)) {
-      res.push(...(await exportType(parent, processed, moduleTypes, preserveIcon)))
+      res.push(...(await exportType(parent, processed, preserveIcon)))
     }
   }
 
@@ -242,29 +275,7 @@ async function exportType (
     required.push(...at.required)
   }
 
-  if (moduleTypes.has(_id) && _id !== card.class.Card) {
-    const descendants = h.getDescendants(_id)
-    for (const desc of descendants) {
-      if (h.getClass(desc).extends !== _id) continue
-      required.push(desc)
-    }
-  }
-
   res.push(...m.findAllSync(card.class.Role, { types: _id }))
-
-  if (moduleTypes.has(_id)) {
-    const assocA = m.findAllSync(core.class.Association, { classA: _id })
-    for (const assoc of assocA) {
-      res.push(assoc)
-      required.push(assoc.classB)
-    }
-
-    const assocB = m.findAllSync(core.class.Association, { classB: _id })
-    for (const assoc of assocB) {
-      res.push(assoc)
-      required.push(assoc.classA)
-    }
-  }
 
   const extensions = m.findAllSync(card.class.ExportExtension, {})
   for (const ext of extensions) {
@@ -275,7 +286,7 @@ async function exportType (
   }
 
   for (const req of required) {
-    res.push(...(await exportType(req, processed, moduleTypes, preserveIcon)))
+    res.push(...(await exportType(req, processed, preserveIcon)))
   }
   return res
 }

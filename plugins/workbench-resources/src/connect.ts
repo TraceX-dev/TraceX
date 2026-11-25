@@ -87,15 +87,41 @@ let _token: string | undefined
 let _client: Client | undefined
 let _clientSet: boolean = false
 
+// connect() calls in flight, to report the (not yet fixed) race between concurrent connects.
+let connectSeq = 0
+const connectsInFlight = new Map<number, string | undefined>()
+
+function describeInFlight (): string[] {
+  return [...connectsInFlight.entries()].map(([id, ws]) => `${id}:${ws ?? '-'}`)
+}
+
 export async function disconnect (): Promise<void> {
   if (_client !== undefined) {
-    await _client.close()
+    const client = _client
     _client = undefined
     _clientSet = false
+    // Same order as a workspace switch in connect(): stop live queries and the presentation pipeline
+    // first, so components don't keep issuing requests through a client that is being closed.
+    await purgeClient()
+    await client.close()
   }
 }
 
 export async function connect (title: string): Promise<Client | undefined> {
+  const connectId = ++connectSeq
+  const wsUrl = getCurrentLocation().path[1]
+  connectsInFlight.set(connectId, wsUrl)
+  try {
+    return await doConnect(title, connectId)
+  } catch (err: any) {
+    console.warn('[workbench] connect failed', { connectId, wsUrl, error: err?.message ?? err })
+    throw err
+  } finally {
+    connectsInFlight.delete(connectId)
+  }
+}
+
+async function doConnect (title: string, connectId: number): Promise<Client | undefined> {
   const ctx = uiContext.newChild('connect', {})
   const loc = getCurrentLocation()
   const wsUrl = loc.path[1]
@@ -476,12 +502,29 @@ export async function connect (title: string): Promise<Client | undefined> {
       })
   )
 
+  const currentWsUrl = getCurrentLocation().path[1]
+  const overwrites = _client !== undefined && _client !== newClient
+  if (overwrites || wsUrl !== currentWsUrl) {
+    // connect() calls are not serialized: another one finished meanwhile (its client is overwritten
+    // without being closed) or the user already moved to another workspace.
+    console.warn('[workbench] concurrent connect', {
+      connectId,
+      wsUrl,
+      currentWsUrl,
+      overwrites,
+      inFlight: describeInFlight()
+    })
+  }
   _client = newClient
 
   // TODO: should we take the function from some resource like fetchWorkspace/selectWorkspace
   // to remove account client dependency?
   const accountsUrl = getMetadata(login.metadata.AccountsUrl)
-  const socialIds: SocialId[] = await getAccountClient(accountsUrl, token).getSocialIds(true)
+  const socialIds: SocialId[] = await ctx.with(
+    'get-social-ids',
+    {},
+    async () => await getAccountClient(accountsUrl, token).getSocialIds(true)
+  )
 
   const me: Account = {
     uuid: account,
@@ -493,7 +536,11 @@ export async function connect (title: string): Promise<Client | undefined> {
 
   // Ensure employee and social identifiers
   if (workspaceLoginInfo.role !== AccountRole.Admin) {
-    const employee = await ensureEmployee(ctx, me, newClient, socialIds, getGlobalPerson)
+    const employee = await ctx.with(
+      'ensure-employee',
+      {},
+      async (ctx) => await ensureEmployee(ctx, me, newClient, socialIds, getGlobalPerson)
+    )
 
     if (employee == null) {
       console.log('Failed to ensure employee')

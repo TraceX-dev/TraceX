@@ -983,6 +983,14 @@ export const coreOperation: MigrateOperation = {
         }
       },
       {
+        // Elastic index v3 uses the word_delimiter_graph analyzer; repopulate the new index.
+        state: 'reindex-after-word-delimiter-analyzer',
+        mode: 'upgrade',
+        func: async (client) => {
+          await client.fullReindex()
+        }
+      },
+      {
         state: 'space-direct-members',
         func: migrateSpaceDirectMembers
       }

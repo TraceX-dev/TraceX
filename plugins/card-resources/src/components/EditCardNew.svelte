@@ -16,6 +16,7 @@
 //
 -->
 <script lang="ts">
+  import { getPrintObject } from '@hcengineering/print-resources'
   import { Card } from '@hcengineering/card'
   import { Ref, WithLookup } from '@hcengineering/core'
   import presence from '@hcengineering/presence'
@@ -65,8 +66,11 @@
 
   const manager = createFocusManager()
   const query = createQuery()
+  const printObject = getPrintObject()
 
   let doc: WithLookup<Card> | undefined
+
+  $: if (doc !== undefined) printObject?.set(doc)
 
   let title: string = ''
   let isTitleEditing = false

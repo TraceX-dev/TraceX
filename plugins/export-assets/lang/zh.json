@@ -1,7 +1,10 @@
 {
   "string": {
+    "PrintHeaderFooter": "打印页眉和页脚",
     "WorkspaceNamePattern": "名称必须为 40 个字符或更少，不能为空，不能包含特殊字符（<、>、/）",
+    "ExportList": "导出列表",
     "Export": "导出",
+    "ExportDots": "导出…",
     "DataToExport": "要导出的数据",
     "ExportDocuments": "文档",
     "ExportMilestones": "里程碑",
@@ -72,6 +75,9 @@
     "DocumentContentConverted": "文档已转换",
     "DocumentContentImportFailed": "导入失败",
     "ReviewDocumentContentChanges": "查看导入的更改",
-    "ApplyDocumentContentChanges": "应用"
+    "ApplyDocumentContentChanges": "应用",
+    "Orientation": "页面方向",
+    "PortraitMode": "纵向模式",
+    "LandscapeMode": "横向模式"
   }
 }
