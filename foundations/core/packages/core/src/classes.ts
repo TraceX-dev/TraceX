@@ -1051,7 +1051,6 @@ export enum SocialIdType {
   OIDC = 'oidc',
   HULY = 'huly',
   TELEGRAM = 'telegram',
-  HULY_ASSISTANT = 'huly-assistant',
   LOVE = 'office',
   EXTERNAL = 'external'
 }
