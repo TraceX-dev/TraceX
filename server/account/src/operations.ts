@@ -2406,7 +2406,6 @@ export async function getWorkspaceInfo (
 
 /**
  * Validates the token and returns the decoded account information.
- * Internal callers can omit token issuance when they only need to validate the session.
  */
 export async function getLoginInfoByToken (
   ctx: MeasureContext,
@@ -2414,8 +2413,7 @@ export async function getLoginInfoByToken (
   branding: Branding | null,
   token: string,
   params?: LoginInfoRequestData,
-  meta?: Meta,
-  issueToken: boolean = true
+  meta?: Meta
 ): Promise<LoginInfo | WorkspaceLoginInfo | LoginInfoRequest | null> {
   let accountUuid: AccountUuid
   let workspaceUuid: WorkspaceUuid
@@ -2578,9 +2576,7 @@ export async function getLoginInfoByToken (
     name: getPersonName(person),
     primarySocialId,
     socialId: externalSocialId ?? socialIds.find((identity) => identity.type !== SocialIdType.EXTERNAL)?._id,
-    ...(issueToken
-      ? { token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub }) }
-      : {})
+    token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub })
   }
 
   if (!isSystem) {
