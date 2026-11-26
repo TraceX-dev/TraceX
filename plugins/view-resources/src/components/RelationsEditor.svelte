@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { Association, AssociationQuery, Doc } from '@hcengineering/core'
+  import core, { Association, AssociationQuery, Doc, Ref } from '@hcengineering/core'
   import { getEmbeddedLabel } from '@hcengineering/platform'
   import { createQuery, getClient } from '@hcengineering/presentation'
   import { createEventDispatcher } from 'svelte'
@@ -25,6 +25,8 @@
   export let readonly: boolean = false
   export let compactMode: boolean = false
   export let emptyKind: 'create' | 'placeholder' = 'create'
+  /** Associations edited elsewhere, for example by a dedicated attribute editor. */
+  export let excludedAssociations: Array<Ref<Association>> = []
 
   const client = getClient()
   const dispatch = createEventDispatcher()
@@ -33,20 +35,20 @@
   let associationsA: Association[] = []
   let associationsB: Association[] = []
 
-  function getAssociations (object: Doc): void {
+  function getAssociations (object: Doc, excluded: Array<Ref<Association>> = excludedAssociations): void {
     const parents = h.getAncestors(object._class)
     const mixins = h.findAllMixins(object)
     associationsB = client
       .getModel()
       .findAllSync(core.class.Association, { classA: { $in: [...parents, ...mixins] } })
-      .filter((a) => a.nameB.trim().length > 0)
+      .filter((a) => a.nameB.trim().length > 0 && !excluded.includes(a._id))
     associationsA = client
       .getModel()
       .findAllSync(core.class.Association, { classB: { $in: [...parents, ...mixins] } })
-      .filter((a) => a.nameA.trim().length > 0)
+      .filter((a) => a.nameA.trim().length > 0 && !excluded.includes(a._id))
   }
 
-  $: getAssociations(object)
+  $: getAssociations(object, excludedAssociations)
 
   const q = createQuery()
   $: q.query(core.class.Association, {}, () => {

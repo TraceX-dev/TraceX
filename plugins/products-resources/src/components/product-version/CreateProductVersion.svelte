@@ -346,7 +346,7 @@
           bind:value={changeControlCard}
           _class={getRelationCandidatesClass(changeControlAssociation.association, changeControlAssociation.direction)}
           docQuery={changeControlCardQuery}
-          docProps={{ shouldShowAvatar: true }}
+          docProps={{ type: 'text' }}
           kind={'regular'}
           size={'small'}
           label={products.string.ChangeControl}

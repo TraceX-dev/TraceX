@@ -158,11 +158,11 @@ export class TProductVersion extends TProject implements ProductVersion {
     TypeAny(
       products.component.ChangeControlInlineEditor,
       products.string.ChangeControl,
-      products.component.ChangeControlInlineEditor
+      products.component.ChangeControlEditor
     ),
     products.string.ChangeControl
   )
-  @ReadOnly()
+  // Editable only in the latest version by the product owner, Manager or QARA, see `ChangeControlEditor`.
     changeControl?: Ref<Document>
 }
 
