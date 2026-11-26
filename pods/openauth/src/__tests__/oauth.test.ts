@@ -37,7 +37,7 @@ function testStore (): OAuthStore {
   const values = new Map<string, { value: unknown, expiry?: number }>()
   const clients = new Map<string, RegisteredClient>()
   const connections = new Map<string, OAuthConnection>()
-  const tokens = new Map<string, { connection: string, expiresOn: number, delegatedToken: string }>()
+  const tokens = new Map<string, { connection: string, expiresOn: number, token: string }>()
   const locks = new Map<string, Promise<unknown>>()
   jest.spyOn(store, 'get').mockImplementation(async (_ctx, key) => {
     const found = values.get(JSON.stringify(key))
@@ -103,11 +103,9 @@ function testStore (): OAuthStore {
     const connection = connections.get(id)
     if (connection?.account === accountId) connection.revokedOn = Date.now()
   })
-  jest
-    .spyOn(store, 'issueAccessToken')
-    .mockImplementation(async (_ctx, token, connection, expiresOn, delegatedToken) => {
-      tokens.set(token, { connection, expiresOn, delegatedToken })
-    })
+  jest.spyOn(store, 'issueAccessToken').mockImplementation(async (_ctx, accessToken, connection, expiresOn, token) => {
+    tokens.set(accessToken, { connection, expiresOn, token })
+  })
   jest.spyOn(store, 'resolveAccessToken').mockImplementation(async (ctx, token) => {
     const entry = tokens.get(token)
     if (entry === undefined || entry.expiresOn <= Date.now()) return undefined
@@ -121,7 +119,7 @@ function testStore (): OAuthStore {
           resource: connection.resource,
           workspaceId: connection.workspaceId,
           expiresAt: Math.floor(entry.expiresOn / 1000),
-          accountToken: entry.delegatedToken
+          accountToken: entry.token
         }
   })
   return store

@@ -18,7 +18,7 @@ export function getMigrations (): [string, string][] {
   return [getV1Migration(), getV2Migration(), getV3Migration()]
 }
 
-// Never modify an existing migration. Add a new migration when changing the schema.
+// Never modify a released migration. Add a new migration when changing the schema.
 function getV1Migration (): [string, string] {
   return [
     'openauth_db_v1_init',
@@ -57,8 +57,5 @@ function getV2Migration (): [string, string] {
 }
 
 function getV3Migration (): [string, string] {
-  return [
-    'openauth_db_v3_delegated_token',
-    'ALTER TABLE openauth.access_token ADD COLUMN IF NOT EXISTS delegated_token TEXT;'
-  ]
+  return ['openauth_db_v3_token', 'ALTER TABLE openauth.access_token ADD COLUMN IF NOT EXISTS token TEXT;']
 }

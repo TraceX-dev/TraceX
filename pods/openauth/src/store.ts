@@ -35,7 +35,7 @@ interface ConnectionRow {
 
 interface AccessTokenRow extends Pick<ConnectionRow, 'id' | 'account' | 'client_id' | 'resource' | 'workspace_id'> {
   expires_on: string
-  delegated_token: string
+  token: string
 }
 
 interface ResolvedAccessToken {
@@ -235,22 +235,22 @@ export class OAuthStore {
 
   async issueAccessToken (
     ctx: MeasureContext,
-    token: string,
+    accessToken: string,
     connection: string,
     expiresOn: number,
-    delegatedToken: string
+    token: string
   ): Promise<void> {
-    const encryptedToken = this.encrypt(ctx, delegatedToken)
-    await this.sql`INSERT INTO openauth.access_token (hash, connection_id, expires_on, delegated_token)
-      VALUES (${hash(token)}, ${connection}, ${expiresOn}, ${encryptedToken})`
+    const encryptedToken = this.encrypt(ctx, token)
+    await this.sql`INSERT INTO openauth.access_token (hash, connection_id, expires_on, token)
+      VALUES (${hash(accessToken)}, ${connection}, ${expiresOn}, ${encryptedToken})`
   }
 
   async resolveAccessToken (ctx: MeasureContext, token: string): Promise<ResolvedAccessToken | undefined> {
     const rows = await this.sql<AccessTokenRow[]>`
-      SELECT c.id, c.account, c.client_id, c.resource, c.workspace_id, t.expires_on, t.delegated_token
+      SELECT c.id, c.account, c.client_id, c.resource, c.workspace_id, t.expires_on, t.token
       FROM openauth.access_token t JOIN openauth.connection c ON c.id = t.connection_id
       WHERE t.hash = ${hash(token)} AND t.expires_on > ${Date.now()} AND c.revoked_on IS NULL
-      AND t.delegated_token IS NOT NULL`
+      AND t.token IS NOT NULL`
     const row = rows[0]
     if (row === undefined) return undefined
     return {
@@ -260,7 +260,7 @@ export class OAuthStore {
       resource: row.resource,
       workspaceId: row.workspace_id,
       expiresAt: Math.floor(Number(row.expires_on) / 1000),
-      accountToken: this.decrypt<string>(ctx, row.delegated_token)
+      accountToken: this.decrypt<string>(ctx, row.token)
     }
   }
 
