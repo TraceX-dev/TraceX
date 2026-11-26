@@ -14,8 +14,16 @@
 //
 
 import card from '@hcengineering/card'
-import core, { type Association, type Class, type Client, type Doc, type Ref } from '@hcengineering/core'
-import products from '@hcengineering/products'
+import core, {
+  type AccountUuid,
+  type Association,
+  type Class,
+  type Client,
+  type Doc,
+  type Ref,
+  type Relation
+} from '@hcengineering/core'
+import products, { ProductVersionState, type Product, type ProductVersion } from '@hcengineering/products'
 
 export interface ProductVersionCardAssociation {
   association: Association
@@ -65,4 +73,35 @@ export function getProductVersionCardAssociation (
   association: Ref<Association>
 ): ProductVersionCardAssociation | undefined {
   return getProductVersionCardAssociations(client).find((candidate) => candidate.association._id === association)
+}
+
+/**
+ * Whether the change control of a product version can be changed afterwards.
+ * Only the latest (active, not released) version can be changed, and only by an owner of the product
+ * or by a member whose product role allows updating the product (Manager, QARA).
+ */
+export function canChangeProductVersionChangeControl (
+  version: Pick<ProductVersion, 'state' | 'readonly'>,
+  product: Pick<Product, 'owners'> | undefined,
+  account: AccountUuid,
+  canUpdateProduct: boolean
+): boolean {
+  if (product === undefined) return false
+  if (version.state !== ProductVersionState.Active || version.readonly) return false
+  return (product.owners ?? []).includes(account) || canUpdateProduct
+}
+
+/** The side of a relation that points to the product version. */
+export function getProductVersionRelationQuery (
+  association: ProductVersionCardAssociation,
+  version: Ref<ProductVersion>
+): Partial<Pick<Relation, 'association' | 'docA' | 'docB'>> {
+  return association.direction === 'B'
+    ? { association: association.association._id, docA: version }
+    : { association: association.association._id, docB: version }
+}
+
+/** The card a relation links to the product version. */
+export function getRelatedCard (association: ProductVersionCardAssociation, relation: Relation): Ref<Doc> {
+  return association.direction === 'B' ? relation.docB : relation.docA
 }
