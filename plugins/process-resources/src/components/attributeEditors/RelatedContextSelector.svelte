@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -18,7 +19,7 @@
   import { RelatedContext, SelectedContext } from '@hcengineering/process'
   import { Label, resizeObserver, Scroller } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
-  import { getRelationReduceFunc, getValueReduceFunc } from '../../utils'
+  import { getDefaultArrayAggregate, getRelationReduceFunc, getValueReduceFunc } from '../../utils'
 
   export let context: RelatedContext
   export let target: AnyAttribute
@@ -46,7 +47,8 @@
 
   function onAttribute (attr: AnyAttribute): void {
     const reduceFunc = getRelationReduceFunc(client, context.association, context.direction)
-    const valueFunc = getValueReduceFunc(attr, target)
+    const aggregate = reduceFunc !== undefined ? getDefaultArrayAggregate(client, attr, target) : undefined
+    const valueFunc = aggregate ?? getValueReduceFunc(attr, target)
     onSelect({
       type: 'relation',
       key: attr.name,
@@ -54,7 +56,7 @@
       direction: context.direction,
       name: context.name,
       functions: valueFunc !== undefined ? [valueFunc] : [],
-      sourceFunction: reduceFunc
+      sourceFunction: aggregate === undefined ? reduceFunc : undefined
     })
   }
 </script>

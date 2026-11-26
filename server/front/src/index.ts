@@ -16,7 +16,15 @@
 //
 
 import { Analytics } from '@hcengineering/analytics'
-import { MeasureContext, Blob as PlatformBlob, WorkspaceIds, metricsAggregate, type Ref } from '@hcengineering/core'
+import {
+  MeasureContext,
+  Blob as PlatformBlob,
+  WorkspaceIds,
+  metricsAggregate,
+  redactUrl,
+  safeHttpLogFormat,
+  type Ref
+} from '@hcengineering/core'
 import platform, { PlatformError } from '@hcengineering/platform'
 import { TokenError, decodeToken } from '@hcengineering/server-token'
 import { StorageAdapter } from '@hcengineering/storage'
@@ -337,7 +345,7 @@ export function start (
 
   const myStream = new MyStream()
 
-  app.use(morgan('short', { stream: myStream }))
+  app.use(morgan(safeHttpLogFormat, { stream: myStream }))
 
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff')
@@ -688,7 +696,7 @@ export function start (
         return
       }
       Analytics.handleError(error)
-      ctx.error('failed to delete', { url: req.url })
+      ctx.error('failed to delete', { url: redactUrl(req.url) })
       res.status(500).send()
     }
   }
