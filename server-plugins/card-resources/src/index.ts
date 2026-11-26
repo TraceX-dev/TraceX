@@ -32,7 +32,9 @@ import core, {
   TxMixin,
   TxProcessor,
   TxRemoveDoc,
-  TxUpdateDoc
+  TxUpdateDoc,
+  type Sequence,
+  type TypeIdentifier
 } from '@hcengineering/core'
 import { getMetadata, translate } from '@hcengineering/platform'
 import serverCore, { TriggerControl } from '@hcengineering/server-core'
@@ -199,15 +201,40 @@ function addViewletAttributes (
   return result
 }
 
+async function removeUnusedIdentifierSequences (
+  txes: TxRemoveDoc<AnyAttribute>[],
+  control: TriggerControl
+): Promise<Tx[]> {
+  const ids = new Set<Ref<Sequence>>()
+  for (const tx of txes) {
+    const attr = control.removedMap.get(tx.objectId) as AnyAttribute | undefined
+    if (attr?.type._class === core.class.TypeIdentifier) ids.add((attr.type as TypeIdentifier).of)
+  }
+  if (ids.size === 0) return []
+
+  const remaining = control.modelDb.findAllSync(core.class.Attribute, {
+    'type._class': core.class.TypeIdentifier,
+    'type.of': { $in: [...ids] }
+  })
+  for (const attr of remaining) ids.delete((attr.type as TypeIdentifier).of)
+  if (ids.size === 0) return []
+
+  const sequences = await control.findAll(control.ctx, core.class.Sequence, {
+    _id: { $in: [...ids] },
+    space: core.space.Workspace
+  })
+  return sequences.map((doc) => control.txFactory.createTxRemoveDoc(doc._class, doc.space, doc._id))
+}
+
 async function OnAttributeRemove (ctx: TxRemoveDoc<AnyAttribute>[], control: TriggerControl): Promise<Tx[]> {
+  const res = await removeUnusedIdentifierSequences(ctx, control)
   const attr = control.removedMap.get(ctx[0].objectId) as AnyAttribute
-  if (attr === undefined) return []
+  if (attr === undefined) return res
   if (control.hierarchy.isDerived(attr.attributeOf, card.class.Card)) {
     const desc = control.hierarchy.getDescendants(attr.attributeOf)
     const forbidden = new Set(desc.map((d) => `${d}.${attr.name}`))
     forbidden.add(attr.name)
 
-    const res: Tx[] = []
     const viewlets = control.modelDb.findAllSync(view.class.Viewlet, {})
     for (const viewlet of viewlets) {
       const filteredConfig = viewlet.config.filter((p) => {
@@ -236,9 +263,8 @@ async function OnAttributeRemove (ctx: TxRemoveDoc<AnyAttribute>[], control: Tri
         )
       }
     }
-    return res
   }
-  return []
+  return res
 }
 
 async function OnViewletUpdate (ctx: TxUpdateDoc<Viewlet>[], control: TriggerControl): Promise<Tx[]> {

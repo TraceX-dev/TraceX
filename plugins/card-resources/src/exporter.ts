@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import chunter from '@hcengineering/chunter'
 import core, {
   type AnyAttribute,
   getReferenceFilterClasses,
@@ -25,6 +26,7 @@ import core, {
   type ModelDb,
   type Ref,
   type RefTo,
+  type Sequence,
   type TypeIdentifier
 } from '@hcengineering/core'
 import { getResource } from '@hcengineering/platform'
@@ -60,8 +62,27 @@ export async function importModule (json: string, createNew: boolean = false): P
       validateAuthoringModelOperations(data as unknown as AuthoringNativeDocument[], m, h)
       if (createNew) data = cloneAuthoringModule(data, m, h)
     }
+    const sequenceIds = data.filter(isSequence).map((doc) => doc._id)
+    const existingSequences: Sequence[] =
+      sequenceIds.length > 0 ? await client.findAll(core.class.Sequence, { _id: { $in: sequenceIds } }) : []
+    const sequences = new Map(existingSequences.map((doc) => [doc._id, doc]))
     const apply = client.apply('Import')
     for (const elem of data) {
+      if (isSequence(elem)) {
+        const existing = sequences.get(elem._id)
+        if (existing === undefined) {
+          apply.notMatch(core.class.Sequence, { _id: elem._id })
+          await apply.createDoc(elem._class, elem.space, stripData(elem), elem._id)
+        } else {
+          apply.match(existing._class, { _id: existing._id })
+          const { sequence: incomingCounter, ...newData } = stripData(elem)
+          const { sequence: currentCounter, ...oldData } = stripData(existing)
+          if (!deepEqual(newData, oldData)) {
+            await apply.updateDoc(existing._class, existing.space, existing._id, newData)
+          }
+        }
+        continue
+      }
       const existing = m.findObject(elem._id)
       if (existing !== undefined) {
         const newData = stripData(elem)
@@ -92,6 +113,10 @@ export async function importModule (json: string, createNew: boolean = false): P
     console.error('Failed to import process module:', e)
     throw e
   }
+}
+
+function isSequence (doc: Doc): doc is Sequence {
+  return doc._class === core.class.Sequence || doc._class === core.class.CustomSequence
 }
 
 function stripAttached (doc: AttachedDoc): AttachedData<AttachedDoc> {
@@ -267,6 +292,9 @@ async function exportType (_id: Ref<Class<Doc>>, processed: Set<Ref<Doc>>, prese
   )
 
   res.push(...m.findAllSync(core.class.ClassPermission, { targetClass: _id }))
+  if (type._class === card.class.MasterTag) {
+    res.push(...m.findAllSync(chunter.class.DefaultDiscussion, { ofClass: _id }))
+  }
 
   const attrs = h.getOwnAttributes(_id)
   for (const attr of attrs) {

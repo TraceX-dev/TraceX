@@ -11,6 +11,7 @@
 // limitations under the License.
 
 import card from '@hcengineering/card'
+import chunter from '@hcengineering/chunter'
 import { dump, JSON_SCHEMA } from 'js-yaml'
 import core, { type Class, type Doc, type Hierarchy, type ModelDb, type Ref } from '@hcengineering/core'
 import process, {
@@ -128,6 +129,12 @@ export async function prepareDefinitionPackageUpdate (
     if (doc._class === card.class.MasterTag || doc._class === card.class.Tag) {
       for (const attribute of model.findAllSync(core.class.Attribute, { attributeOf: doc._id as Ref<Class<Doc>> })) {
         current.set(attribute._id, attribute)
+      }
+    }
+    if (doc._class === card.class.MasterTag) {
+      const discussions = model.findAllSync(chunter.class.DefaultDiscussion, { ofClass: doc._id as Ref<Class<Doc>> })
+      for (const discussion of discussions) {
+        current.set(discussion._id, discussion)
       }
     }
     if ((doc as DefinitionPackageOwner).definitionPackageInstallation !== undefined && actual !== undefined) {

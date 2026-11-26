@@ -345,6 +345,9 @@ export function cloneAuthoringModule (
   }
   const attributes = documents.filter((doc) => doc._class === core.class.Attribute) as AnyAttribute[]
   const literal = (doc: AuthoringNativeDocument, path: readonly string[]): boolean => {
+    if (doc._class === 'chunter:class:DefaultDiscussion' && path.length === 1 && path[0] === 'visibility') {
+      return true
+    }
     let owner = doc._class
     let key = path[0]
     if (doc._class === 'process:class:Transition') {

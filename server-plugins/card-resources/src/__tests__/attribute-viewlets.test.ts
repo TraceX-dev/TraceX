@@ -20,6 +20,7 @@ import core, {
   toFindResult,
   type AnyAttribute,
   type Class,
+  type CustomSequence,
   type Data,
   type Doc,
   type DocumentQuery,
@@ -28,7 +29,8 @@ import core, {
   type Ref,
   type Tx,
   type TxCreateDoc,
-  type TxUpdateDoc
+  type TxUpdateDoc,
+  type TypeIdentifier
 } from '@hcengineering/core'
 import type { TriggerControl } from '@hcengineering/server-core'
 import view, {
@@ -101,6 +103,63 @@ async function run (
   const result = await plugin.trigger.OnAttribute(txes, triggerControl)
   return result as TxUpdateDoc<Viewlet | ViewletPreference>[]
 }
+
+describe('identifier counters on attribute removal', () => {
+  it('removes each unused counter once and keeps counters referenced by another field', async () => {
+    const first = attribute('first')
+    const duplicate = attribute('duplicate')
+    const shared = attribute('shared')
+    const counters = ['unused', 'shared'].map((id) => {
+      const data: Data<CustomSequence> = {
+        prefix: id.toUpperCase(),
+        sequence: 17,
+        attachedTo: core.class.CustomSequence
+      }
+      return TxProcessor.createDoc2Doc(
+        factory.createTxCreateDoc(core.class.CustomSequence, core.space.Workspace, data, id as Ref<CustomSequence>)
+      )
+    })
+    const unusedType: TypeIdentifier = { _class: core.class.TypeIdentifier, label: core.string.Id, of: counters[0]._id }
+    const sharedType: TypeIdentifier = { ...unusedType, of: counters[1]._id }
+    first.attributes.type = unusedType
+    duplicate.attributes.type = unusedType
+    shared.attributes.type = sharedType
+    const removed = [attribute('text'), first, duplicate, shared].map((tx) => TxProcessor.createDoc2Doc(tx))
+    const remaining = TxProcessor.createDoc2Doc(attribute('remaining', OTHER_TYPE))
+    remaining.type = sharedType
+    const triggerControl = control([])
+    triggerControl.removedMap = new Map(removed.map((doc) => [doc._id, doc]))
+    triggerControl.modelDb.findAllSync = jest
+      .fn()
+      .mockImplementation((clazz: Ref<Class<Doc>>) =>
+        clazz === core.class.Attribute ? toFindResult([remaining]) : toFindResult([])
+      )
+    const findAll = jest
+      .fn()
+      .mockImplementation(async (_ctx: unknown, clazz: Ref<Class<Doc>>) =>
+        clazz === core.class.Sequence ? toFindResult(counters.slice(0, 1)) : toFindResult([])
+      )
+    triggerControl.findAll = findAll
+
+    const plugin = await resources()
+    const txes = removed.map((doc) => factory.createTxRemoveDoc(doc._class, doc.space, doc._id))
+    const result = await plugin.trigger.OnAttributeRemove(txes, triggerControl)
+
+    expect(findAll).toHaveBeenCalledWith(triggerControl.ctx, core.class.Sequence, {
+      _id: { $in: [counters[0]._id] },
+      space: core.space.Workspace
+    })
+    expect(result).toContainEqual(
+      expect.objectContaining({
+        _class: core.class.TxRemoveDoc,
+        objectClass: core.class.CustomSequence,
+        objectSpace: core.space.Workspace,
+        objectId: counters[0]._id
+      })
+    )
+    expect(result).toHaveLength(1)
+  })
+})
 
 describe('card attribute viewlet configuration', () => {
   it('preserves an imported view configuration, including omitted fields', async () => {
