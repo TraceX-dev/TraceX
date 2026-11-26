@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -88,16 +89,19 @@ describe('addSocialIdToPerson', () => {
     addSocialIdSpy.mockRestore()
   })
 
-  test('should allow github service to add social id', async () => {
+  test.each<[string, SocialIdType]>([
+    ['github', SocialIdType.GITHUB],
+    ['openauth', SocialIdType.EXTERNAL]
+  ])('should allow %s service to add a social id through the common implementation', async (service, type) => {
     ;(decodeTokenVerbose as jest.Mock).mockReturnValue({
-      extra: { service: 'github' }
+      extra: { service }
     })
     const newSocialId = 'new-social-id' as PersonId
     addSocialIdSpy.mockResolvedValue(newSocialId)
 
-    const params = {
+    const params: Parameters<typeof addSocialIdToPerson>[4] = {
       person: 'test-person' as PersonUuid,
-      type: SocialIdType.GITHUB,
+      type,
       value: 'test-value',
       confirmed: true,
       displayValue: 'test-display-value'

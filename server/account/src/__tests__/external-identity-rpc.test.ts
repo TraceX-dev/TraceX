@@ -14,34 +14,36 @@
 //
 
 import {
-  AccountRole,
   externalIdentityValue,
   SocialIdType,
   systemAccountUuid,
   type MeasureContext,
-  type PersonId,
-  type WorkspaceUuid
+  type PersonId
 } from '@hcengineering/core'
-import { setMetadata } from '@hcengineering/platform'
+import platform, { setMetadata, PlatformError } from '@hcengineering/platform'
 import serverToken, { generateToken } from '@hcengineering/server-token'
 import { addSocialIdToPerson } from '../serviceOperations'
-import type { SocialId } from '../types'
+import type { AccountDB, SocialId } from '../types'
 import { account, identityDatabase } from './external-access-fixture'
 
 const secret = 'external-identity-rpc-test-secret'
 const logs: Pick<MeasureContext, 'error' | 'warn' | 'info'> = { error: jest.fn(), warn: jest.fn(), info: jest.fn() }
 const ctx = logs as MeasureContext
-const params = {
+const params: Parameters<typeof addSocialIdToPerson>[4] = {
   person: account,
   type: SocialIdType.EXTERNAL,
   value: externalIdentityValue(account, 'codex'),
-  confirmed: true
+  confirmed: true,
+  displayValue: 'codex'
 }
 
-function issuerToken (service = 'openauth', lifetime = 60): string {
-  return generateToken(systemAccountUuid, undefined, { service }, secret, {
-    exp: Math.floor(Date.now() / 1000) + lifetime
-  })
+function database (): ReturnType<typeof identityDatabase> {
+  const fixture = identityDatabase()
+  const person: Partial<AccountDB['person']> = {
+    findOne: jest.fn(async () => ({ uuid: account, firstName: 'Ben', lastName: 'Liden' }))
+  }
+  fixture.db.person = person as AccountDB['person']
+  return fixture
 }
 
 beforeEach(() => {
@@ -50,93 +52,44 @@ beforeEach(() => {
   setMetadata(serverToken.metadata.Service, undefined)
 })
 
-it('resolves one stable external identity through the service RPC', async () => {
-  const { db, identities } = identityDatabase()
-  const first = await addSocialIdToPerson(ctx, db, null, issuerToken(), params)
-  const second = await addSocialIdToPerson(ctx, db, null, issuerToken(), params)
+it.each(['openauth', 'tool'])('reuses an external identity through the ordinary %s service RPC', async (service) => {
+  const { db, identities } = database()
+  const token = generateToken(systemAccountUuid, undefined, { service }, secret)
+  const first = await addSocialIdToPerson(ctx, db, null, token, params)
+  const second = await addSocialIdToPerson(ctx, db, null, token, params)
   expect(second).toBe(first)
   expect(identities.size).toBe(1)
   expect(identities.get(params.value)).toMatchObject({
     personUuid: account,
     type: SocialIdType.EXTERNAL,
-    displayValue: 'codex'
+    displayValue: 'codex',
+    verifiedOn: expect.any(Number)
   })
 })
 
-it.each(['user', 'long-lived', 'expired', 'missing-expiry', 'workspace', 'subject', 'grant'])(
-  'rejects %s OpenAuth issuer credentials',
-  async (kind) => {
-    const { db, identities } = identityDatabase()
-    const options = { exp: Math.floor(Date.now() / 1000) + 60 }
-    const token =
-      kind === 'user'
-        ? generateToken(account, undefined, { service: 'openauth' }, secret, options)
-        : kind === 'missing-expiry'
-          ? generateToken(systemAccountUuid, undefined, { service: 'openauth' }, secret)
-          : kind === 'workspace'
-            ? generateToken(
-                systemAccountUuid,
-                '00000000-0000-4000-8000-000000000002' as WorkspaceUuid,
-                { service: 'openauth' },
-                secret,
-                options
-              )
-            : kind === 'subject'
-              ? generateToken(systemAccountUuid, undefined, { service: 'openauth' }, secret, {
-                  ...options,
-                  sub: account
-                })
-              : kind === 'grant'
-                ? generateToken(systemAccountUuid, undefined, { service: 'openauth' }, secret, {
-                    ...options,
-                    nbf: Math.floor(Date.now() / 1000) - 1,
-                    grant: {
-                      workspace: '00000000-0000-4000-8000-000000000002' as WorkspaceUuid,
-                      role: AccountRole.User
-                    }
-                  })
-                : issuerToken('openauth', kind === 'long-lived' ? 3600 : -10)
-    await expect(addSocialIdToPerson(ctx, db, null, token, params)).rejects.toThrow()
-    expect(identities.size).toBe(0)
-  }
-)
-
-it.each([
-  { ...params, type: SocialIdType.EMAIL },
-  { ...params, confirmed: false },
-  { ...params, value: 'another-account:codex' },
-  { ...params, value: `${account}:Codex` },
-  { ...params, displayValue: 'claude' },
-  { ...params, value: `${account}:invalid source` }
-])('limits OpenAuth to confirmed canonical external identities %j', async (input) => {
-  const { db, identities } = identityDatabase()
-  await expect(addSocialIdToPerson(ctx, db, null, issuerToken(), input)).rejects.toThrow()
-  expect(identities.size).toBe(0)
-})
-
-it.each(['owner', 'deleted', 'unverified'])('rejects a conflicting %s identity', async (kind) => {
-  const { db, identities } = identityDatabase()
+it.each(['openauth', 'tool'])('preserves verified identity ownership for %s', async (service) => {
+  const { db, identities } = database()
   const identity: SocialId = {
     _id: 'external-author' as PersonId,
     key: `external:${params.value}`,
     type: SocialIdType.EXTERNAL,
     value: params.value,
-    personUuid: kind === 'owner' ? systemAccountUuid : account,
-    isDeleted: kind === 'deleted',
-    verifiedOn: kind === 'unverified' ? undefined : Date.now()
+    personUuid: systemAccountUuid,
+    verifiedOn: Date.now()
   }
   identities.set(identity.value, identity)
-  await expect(addSocialIdToPerson(ctx, db, null, issuerToken(), params)).rejects.toThrow()
+  const token = generateToken(systemAccountUuid, undefined, { service }, secret)
+  const result = addSocialIdToPerson(ctx, db, null, token, params)
+  await expect(result).rejects.toBeInstanceOf(PlatformError)
+  await expect(result).rejects.toMatchObject({ status: { code: platform.status.SocialIdAlreadyExists } })
+  expect(identities.get(identity.value)?.personUuid).toBe(systemAccountUuid)
 })
 
-it('resolves the identity created by a competing request', async () => {
-  const { db, identities } = identityDatabase()
-  const insert = db.socialId.insertOne.bind(db.socialId)
-  jest.spyOn(db.socialId, 'insertOne').mockImplementationOnce(async (data) => {
-    await insert(data)
-    throw new Error('Unique identity conflict')
+it('rejects an ordinary user attempting to create an external identity', async () => {
+  const { db, identities } = database()
+  const token = generateToken(account, undefined, undefined, secret)
+  await expect(addSocialIdToPerson(ctx, db, null, token, params)).rejects.toMatchObject({
+    status: { code: platform.status.Forbidden }
   })
-  const id = await addSocialIdToPerson(ctx, db, null, issuerToken(), params)
-  expect(id).toBe(identities.get(params.value)?._id)
-  expect(identities.size).toBe(1)
+  expect(identities.size).toBe(0)
 })

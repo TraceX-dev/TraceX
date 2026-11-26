@@ -15,7 +15,7 @@
 
 import { externalIdentityValue, SocialIdType, type AccountUuid, type PersonId } from '@hcengineering/core'
 import platform, { PlatformError, Severity, Status } from '@hcengineering/platform'
-import type { AccountDB, SocialId } from './types'
+import type { AccountDB } from './types'
 
 /** Validates the external identity bound to an issued credential. */
 export async function resolveExternalSocialId (
@@ -38,31 +38,4 @@ export async function resolveExternalSocialId (
   })
   if (identity === null) throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
   return identity._id
-}
-
-/** Resolves one immutable author per user and source, including concurrent first connections. */
-export async function ensureExternalIdentity (db: AccountDB, account: AccountUuid, source: string): Promise<SocialId> {
-  const value = externalIdentityValue(account, source)
-  const query = { type: SocialIdType.EXTERNAL, value }
-  let identity = await db.socialId.findOne(query)
-  if (identity === null) {
-    const data: Omit<SocialId, '_id' | 'key'> = {
-      ...query,
-      personUuid: account,
-      verifiedOn: Date.now(),
-      displayValue: source.trim()
-    }
-    try {
-      const id = await db.socialId.insertOne(data)
-      identity = { ...data, _id: id, key: `${query.type}:${value}` }
-    } catch (error: unknown) {
-      // A competing request can win the unique (type, value) insert.
-      identity = await db.socialId.findOne(query)
-      if (identity === null) throw error
-    }
-  }
-  if (identity.personUuid !== account || identity.isDeleted === true || identity.verifiedOn == null) {
-    throw new Error('External identity does not belong to the authenticated account')
-  }
-  return identity
 }

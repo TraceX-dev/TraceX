@@ -29,17 +29,13 @@ import {
   type WorkspaceUuid,
   type AccountUuid,
   type UsageStatus,
-  readOnlyGuestAccountUuid,
-  systemAccountUuid,
-  normalizeExternalSource,
-  externalIdentityValue
+  readOnlyGuestAccountUuid
 } from '@hcengineering/core'
 import platform, { getMetadata, PlatformError, Severity, Status, unknownError } from '@hcengineering/platform'
 import { decodeTokenVerbose } from '@hcengineering/server-token'
 
 import { accountPlugin } from './plugin'
 import { auditAccountEvent } from './audit'
-import { ensureExternalIdentity } from './external-identity'
 import type {
   AccountAggregatedInfo,
   AccountDB,
@@ -654,38 +650,11 @@ export async function addSocialIdToPerson (
   params: { person: PersonUuid, type: SocialIdType, value: string, confirmed: boolean, displayValue?: string }
 ): Promise<PersonId> {
   const { person, type, value, confirmed, displayValue } = params
-  const service = decodeTokenVerbose(ctx, token)
-  const { extra } = service
-
-  if (extra?.service === 'openauth') {
-    const now = Math.floor(Date.now() / 1000)
-    if (
-      service.account !== systemAccountUuid ||
-      service.workspace != null ||
-      service.grant != null ||
-      service.sub != null ||
-      typeof service.exp !== 'number' ||
-      !Number.isFinite(service.exp) ||
-      service.exp <= now ||
-      service.exp > now + 60 ||
-      type !== SocialIdType.EXTERNAL ||
-      !confirmed
-    ) {
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
-    }
-    if (typeof person !== 'string' || person === '' || typeof value !== 'string') {
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
-    }
-    const source = normalizeExternalSource(value.slice(person.length + 1))
-    if (value !== externalIdentityValue(person, source) || (displayValue != null && displayValue !== source)) {
-      throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
-    }
-    return (await ensureExternalIdentity(db, person as AccountUuid, source))._id
-  }
+  const { extra } = decodeTokenVerbose(ctx, token)
 
   if (extra?.admin !== 'true') {
     verifyAllowedServices(
-      ['github', 'telegram-bot', 'gmail', 'tool', 'workspace', 'hulygram', 'google-calendar'],
+      ['github', 'telegram-bot', 'gmail', 'tool', 'workspace', 'hulygram', 'google-calendar', 'openauth'],
       extra
     )
   }

@@ -107,9 +107,10 @@ their connection ID and workspace consent and do not create API key rows. Worksp
 their existing issuance, author selection and revocation behavior without external identities.
 
 OpenAuth validates the stored ordinary user session with `getLoginInfoByToken` and resolves its
-external author through the existing `addSocialIdToPerson` RPC. For OpenAuth, this RPC only permits
-confirmed `EXTERNAL` identities with a canonical `account:source` value, using a signed system token
-with `extra.service = 'openauth'` and an expiration no more than 60 seconds away.
+external author through the existing `addSocialIdToPerson` RPC. OpenAuth is a trusted caller of that
+RPC and uses its ordinary social identity creation and ownership checks. OpenAuth constructs a
+confirmed `EXTERNAL` identity with a canonical `account:source` value and authenticates its RPC call
+with a short-lived signed service token.
 OpenAuth signs the internal token with that author, normalized source and saved connection ID,
 retaining the original session restrictions and expiration limit.
 An invalid user session revokes the connection. A temporary Accounts failure rolls back the token
