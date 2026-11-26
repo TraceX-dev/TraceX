@@ -120,6 +120,10 @@ the tracing context. Do not assume every span attribute is copied into every exp
 The `log: true` operation option calls the configured logger's `logOperation`; it is not the same as
 an explicit OTLP log emission, and the default console logger's operation hook is a no-op.
 
+All log backends mask sensitive fields (see `log-redaction.ts` in `measurements`), but this is only a
+safety net: log explicit non-secret fields, not whole tokens, invites or requests. For URLs use
+`safeHttpLogFormat` (morgan) and `redactUrl`.
+
 The shared base context isolates failures during completion and logging and reports telemetry failures
 through its diagnostic helper. This is not a blanket guarantee for every observability call: direct
 metric calls, child creation, and alternative implementations have their own behavior.

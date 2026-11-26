@@ -17,6 +17,7 @@ import { Analytics } from '@hcengineering/analytics'
 import {
   MeasureContext,
   metricsAggregate,
+  safeHttpLogFormat,
   type WorkspaceDataId,
   type WorkspaceIds,
   type WorkspaceUuid
@@ -142,7 +143,7 @@ export async function createServer (ctx: MeasureContext, config: Config): Promis
     }
   }
 
-  app.use(morgan('short', { stream: new LogStream() }))
+  app.use(morgan(safeHttpLogFormat, { stream: new LogStream() }))
 
   // See authorizeBackupAccess: keyed by account and workspace.
   const wsInfoCache = new Map<string, WorkspaceIds>()

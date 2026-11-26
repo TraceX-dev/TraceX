@@ -73,7 +73,13 @@ import {
   type WorkspaceStatus
 } from './types'
 import { isAdminEmail } from './admin'
-import { auditAccountEvent, auditEmailHash, auditInviteLimitExceeded, isAccountAuditDenial } from './audit'
+import {
+  auditAccountEvent,
+  auditEmailHash,
+  auditInviteLimitExceeded,
+  auditValueHash,
+  isAccountAuditDenial
+} from './audit'
 
 export async function getAccountDB (
   uri: string,
@@ -114,6 +120,33 @@ export async function getAccountDB (
 }
 
 export const assignableRoles = [AccountRole.Guest, AccountRole.User, AccountRole.Maintainer, AccountRole.Owner]
+
+/**
+ * Invite id is the secret part of an invite link, so only its keyed hash may appear in logs.
+ */
+export function inviteIdLogHash (inviteId: string | null | undefined): string | undefined {
+  if (inviteId == null || inviteId === '') return undefined
+  return auditValueHash(inviteId, 'invite')
+}
+
+/**
+ * Non-secret invite fields for logging.
+ */
+export function inviteLogInfo (invite: WorkspaceInvite): Record<string, any> {
+  return {
+    inviteIdHash: inviteIdLogHash(invite.id),
+    workspaceUuid: invite.workspaceUuid,
+    role: invite.role,
+    expiresOn: invite.expiresOn,
+    remainingUses: invite.remainingUses,
+    autoJoin: invite.autoJoin,
+    isShareLink: invite.isShareLink,
+    revokedOn: invite.revokedOn,
+    createdBy: invite.createdBy,
+    restrictedToEmail: invite.email != null && invite.email !== '',
+    hasEmailPattern: invite.emailPattern != null && invite.emailPattern !== ''
+  }
+}
 
 export function getRolePower (role: AccountRole): number {
   return roleOrder[role]
@@ -761,7 +794,11 @@ export async function signUpByGrant (
   const lastName = grant.lastName ?? info?.lastName
 
   if (firstName == null || firstName === '') {
-    ctx.error('First name is required for grant sign up', { grant, info })
+    ctx.error('First name is required for grant sign up', {
+      workspace: grant.workspace,
+      role: grant.role,
+      grantedBy: grant.grantedBy
+    })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.BadRequest, {}))
   }
 
@@ -839,7 +876,12 @@ export async function selectWorkspace (
   }
 
   if (workspace == null) {
-    ctx.error('Workspace not found in selectWorkspace', { workspaceUrl, kind, accountUuid, extra })
+    ctx.error('Workspace not found in selectWorkspace', {
+      workspaceUrl,
+      kind,
+      accountUuid,
+      extraKeys: Object.keys(extra ?? {})
+    })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
   }
 
@@ -882,7 +924,12 @@ export async function selectWorkspace (
   if (isGuest(accountUuid, extra)) {
     const workspace = await getWorkspaceByUrl(db, workspaceUrl)
     if (workspace == null || tokenWorkspace == null || workspace.uuid !== tokenWorkspace) {
-      ctx.error('Workspace not found in selectWorkspace', { workspaceUrl, kind, accountUuid, extra })
+      ctx.error('Workspace not found in selectWorkspace', {
+        workspaceUrl,
+        kind,
+        accountUuid,
+        extraKeys: Object.keys(extra ?? {})
+      })
       throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl }))
     }
 
@@ -1336,12 +1383,12 @@ export async function checkInvite (ctx: MeasureContext, invite: WorkspaceInvite,
   }
 
   if (invite.remainingUses === 0) {
-    ctx.warn('Invite limit exceeded', { email, ...invite })
+    ctx.warn('Invite limit exceeded', { email, ...inviteLogInfo(invite) })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
   if (invite.expiresOn > 0 && invite.expiresOn < Date.now()) {
-    ctx.warn('Invite link expired', { email, ...invite })
+    ctx.warn('Invite link expired', { email, ...inviteLogInfo(invite) })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.ExpiredLink, {}))
   }
 
@@ -1358,7 +1405,7 @@ export async function checkInvite (ctx: MeasureContext, invite: WorkspaceInvite,
   // }
 
   if (invite.email != null && invite.email.trim().length > 0 && invite.email !== email) {
-    ctx.warn("Invite doesn't allow this email address", { email, ...invite })
+    ctx.warn("Invite doesn't allow this email address", { email, ...inviteLogInfo(invite) })
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
