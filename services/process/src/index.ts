@@ -17,7 +17,6 @@
 import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import { newMetrics } from '@hcengineering/core'
-import { getPlatformQueue } from '@hcengineering/kafka'
 import { setMetadata } from '@hcengineering/platform'
 import { initStatisticsContext, QueueTopic } from '@hcengineering/server-core'
 import { ProcessMessage } from '@hcengineering/server-process'
@@ -26,6 +25,7 @@ import { join } from 'path'
 import config from './config'
 import { prepare } from './init'
 import { messageHandler } from './main'
+import { closeQueue, getQueue } from './queue'
 import { closeClients, configureClients, SERVICE_NAME } from './utils'
 
 async function main (): Promise<void> {
@@ -50,7 +50,7 @@ async function main (): Promise<void> {
   setMetadata(serverToken.metadata.Secret, config.Secret)
   setMetadata(serverToken.metadata.Service, SERVICE_NAME)
 
-  const queue = getPlatformQueue(SERVICE_NAME, config.QueueRegion)
+  const queue = getQueue()
 
   const consumer = queue.createConsumer<ProcessMessage>(
     ctx,
@@ -67,6 +67,7 @@ async function main (): Promise<void> {
     void consumer
       .close()
       .then(async () => {
+        await closeQueue()
         await closeClients()
         process.exit()
       })
