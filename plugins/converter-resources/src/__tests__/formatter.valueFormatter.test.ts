@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,8 +14,10 @@
 // limitations under the License.
 //
 
-import core, { type Doc } from '@hcengineering/core'
+import core, { type Doc, type Hierarchy } from '@hcengineering/core'
+import { getResource, type IntlString } from '@hcengineering/platform'
 import type { AttributeModel } from '@hcengineering/view'
+import type { ValueFormatter } from '../types'
 import { formatValue } from '../formatter/valueFormatter'
 
 jest.mock('@hcengineering/platform', () => {
@@ -40,6 +43,51 @@ jest.mock('../markdown/link', () => ({
 }))
 
 describe('formatter/valueFormatter', () => {
+  it.each(['Title', 'Status', 'Version', 'Labels'])(
+    'calls the class formatter for the empty-key %s column',
+    async (label) => {
+      const attr: Partial<AttributeModel> = { key: '', label: label as IntlString }
+      const card: Partial<Doc> = {
+        _id: 'document-1' as Doc['_id'],
+        _class: 'documents:class:Document' as Doc['_class']
+      }
+      const hierarchy: Partial<Hierarchy> = {
+        classHierarchyMixin: jest.fn().mockReturnValue({ formatter: 'document-formatter' }),
+        getClass: jest.fn()
+      }
+      const formatter: ValueFormatter = jest.fn(async () => `formatted:${label}`)
+      jest.mocked(getResource).mockResolvedValue(formatter)
+
+      expect(
+        await formatValue(attr as AttributeModel, card as Doc, hierarchy as Hierarchy, card._class!, 'en', false)
+      ).toBe(`formatted:${label}`)
+    }
+  )
+
+  it('keeps unsupported empty-key columns empty after trying custom formatters', async () => {
+    const attr: Partial<AttributeModel> = { key: '', label: 'Unsupported' as IntlString }
+    const card: Partial<Doc> = { _class: core.class.Doc }
+    const hierarchy: Partial<Hierarchy> = {
+      classHierarchyMixin: jest.fn(() => undefined),
+      getClass: jest.fn()
+    }
+    const formatter: ValueFormatter = jest.fn(async () => undefined)
+
+    expect(
+      await formatValue(
+        attr as AttributeModel,
+        card as Doc,
+        hierarchy as Hierarchy,
+        core.class.Doc,
+        'en',
+        false,
+        undefined,
+        formatter
+      )
+    ).toBe('')
+    expect(formatter).toHaveBeenCalled()
+  })
+
   const baseCard = {
     _id: 'card-1',
     _class: 'card:class:Card'

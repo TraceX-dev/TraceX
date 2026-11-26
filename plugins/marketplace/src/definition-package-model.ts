@@ -11,6 +11,7 @@
 // limitations under the License.
 
 import card from '@hcengineering/card'
+import chunter from '@hcengineering/chunter'
 import core from '@hcengineering/core'
 import type { AuthoringNativeDocument, ProcessAuthoringResult } from '@hcengineering/process'
 import process, { authoringDataEqual } from '@hcengineering/process'
@@ -46,7 +47,8 @@ const KNOWN_PROPERTIES: Record<string, Set<string>> = {
   [card.class.MasterTag]: new Set([...MODEL_PROPERTIES, 'extends', 'kind', 'baseType']),
   [card.class.Tag]: new Set([...MODEL_PROPERTIES, 'extends', 'kind']),
   [core.class.Enum]: new Set([...MODEL_PROPERTIES, 'name', 'enumValues']),
-  [core.class.Association]: new Set([...MODEL_PROPERTIES, 'classA', 'classB', 'nameA', 'nameB', 'type'])
+  [core.class.Association]: new Set([...MODEL_PROPERTIES, 'classA', 'classB', 'nameA', 'nameB', 'type']),
+  [chunter.class.DefaultDiscussion]: new Set([...MODEL_PROPERTIES, 'ofClass', 'name', 'visibility'])
 }
 
 export interface DefinitionPackageDocument {
@@ -147,7 +149,12 @@ export function definitionPackageImpact (
     impact: DefinitionPackageChange['impact'],
     reason: string
   ): Pick<DefinitionPackageChange, 'impact' | 'reason'> => ({ impact, reason })
-  if (after === undefined) return finding('destructive', 'Removing a component requires data and dependency analysis')
+  if (after === undefined) {
+    if (before?.class === chunter.class.DefaultDiscussion) {
+      return finding('behavioral', 'Removing a default discussion affects future cards and retains existing threads')
+    }
+    return finding('destructive', 'Removing a component requires data and dependency analysis')
+  }
   if (before?.class !== undefined && before.class !== after.class) {
     return finding('destructive', 'The component class changed')
   }
@@ -212,6 +219,9 @@ export function definitionPackageImpact (
   }
   if (after.class === core.class.Association && ['classA', 'classB', 'type'].some((key) => changed.has(key))) {
     return finding('destructive', 'Association endpoints or cardinality changed')
+  }
+  if (after.class === chunter.class.DefaultDiscussion && changed.has('ofClass')) {
+    return finding('destructive', 'The default discussion owner changed')
   }
   if (after.class === core.class.Enum && changed.has('enumValues')) {
     const oldValues = previous.enumValues

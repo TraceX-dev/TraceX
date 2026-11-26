@@ -87,6 +87,9 @@
       checkMyPermission(core.permission.UpdateSpace, object.space, $permissionsStore) ||
       checkMyPermission(core.permission.UpdateObject, core.space.Space, $permissionsStore))
 
+  // The change control relation is edited in the attribute bar, see `ChangeControlEditor`.
+  $: changeControlRelation = object?.$lookup?.space?.changeControlRelation
+
   $: descriptionKey = client.getHierarchy().getAttribute(products.class.ProductVersion, 'description')
 </script>
 
@@ -134,7 +137,11 @@
     </div>
 
     <div class="w-full mt-6">
-      <RelationsEditor {object} readonly={!canEdit} />
+      <RelationsEditor
+        {object}
+        readonly={!canEdit}
+        excludedAssociations={changeControlRelation !== undefined ? [changeControlRelation] : []}
+      />
     </div>
 
     <svelte:fragment slot="utils">

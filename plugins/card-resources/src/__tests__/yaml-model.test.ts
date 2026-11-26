@@ -13,8 +13,7 @@
 // limitations under the License.
 //
 
-/* eslint-disable no-template-curly-in-string -- Fixtures intentionally use native process expressions. */
-
+import chunter from '@hcengineering/chunter'
 import core from '@hcengineering/core'
 import { getClient } from '@hcengineering/presentation'
 import process, { compileProcessYaml, exportAuthoringModel, type AuthoringNativeDocument } from '@hcengineering/process'
@@ -31,6 +30,7 @@ function setup (): {
   addCollection: jest.Mock
   updateDoc: jest.Mock
   commit: jest.Mock
+  findAll: jest.Mock
 } {
   const docs = compileProcessYaml(
     readFileSync(`${__dirname}/../../../process/docs/examples/risk-management.card.yaml`, 'utf8')
@@ -99,15 +99,17 @@ function setup (): {
   const addCollection = jest.fn().mockResolvedValue(undefined)
   const updateDoc = jest.fn().mockResolvedValue(undefined)
   const commit = jest.fn().mockResolvedValue({ result: true })
+  const findAll = jest.fn().mockResolvedValue([])
   ;(getClient as jest.Mock).mockReturnValue({
     getHierarchy: () => ({
       isDerived: (clazz: string, parent: string) => clazz === 'card:class:Role' && parent === core.class.AttachedDoc,
       findAttribute: () => undefined
     }),
     getModel: () => ({ findObject: (id: string) => registry.find((doc) => doc._id === id) }),
-    apply: () => ({ createDoc, addCollection, updateDoc, commit })
+    apply: () => ({ createDoc, addCollection, updateDoc, commit, match: jest.fn(), notMatch: jest.fn() }),
+    findAll
   })
-  return { docs, createDoc, addCollection, updateDoc, commit }
+  return { docs, createDoc, addCollection, updateDoc, commit, findAll }
 }
 
 describe('full card model import', () => {
@@ -246,6 +248,46 @@ processes:
     expect(createDoc.mock.calls.find((call) => call[3] === 'permission')[2].futureOptions).toEqual({ limit: 4 })
     expect(commit).toHaveBeenCalledWith(true)
   })
+
+  it.each(['JSON', 'YAML'])('imports the discussion configuration from a %s card module', async (format) => {
+    const { docs, createDoc } = setup()
+    const discussion: AuthoringNativeDocument = {
+      _id: 'general-discussion',
+      _class: chunter.class.DefaultDiscussion,
+      space: core.space.Model,
+      ofClass: 'child',
+      name: 'General',
+      visibility: 'participants'
+    }
+    docs.push(discussion)
+    await importModule(format === 'JSON' ? JSON.stringify(docs) : exportAuthoringModel(docs, 'card'))
+    expect(createDoc).toHaveBeenCalledWith(
+      chunter.class.DefaultDiscussion,
+      core.space.Model,
+      { ofClass: 'child', name: 'General', visibility: 'participants' },
+      'general-discussion'
+    )
+  })
+
+  it.each(['JSON', 'YAML'])(
+    'reimports a %s module without recreating or resetting its workspace counter',
+    async (format) => {
+      const { docs, createDoc, updateDoc, commit, findAll } = setup()
+      const source = format === 'JSON' ? JSON.stringify(docs) : exportAuthoringModel(docs, 'card')
+      const original = docs.find((doc) => doc._id === 'sequence')
+      const existing = { ...original, prefix: 'OLD', sequence: 42 }
+      findAll.mockResolvedValue([existing])
+      createDoc.mockImplementation(async (_class: string, _space: string, _data: unknown, id: string) => {
+        if (id === existing._id) throw new Error(`Duplicate workspace sequence ${id}`)
+      })
+
+      await importModule(source)
+
+      expect(findAll).toHaveBeenCalledWith(core.class.Sequence, { _id: { $in: ['sequence'] } })
+      expect(updateDoc).toHaveBeenCalledWith(core.class.Sequence, core.space.Workspace, 'sequence', { prefix: 'RISK' })
+      expect(commit).toHaveBeenCalledWith(true)
+    }
+  )
 
   it('creates a fresh module from the editor and rebinds dependent types, attributes, roles and graph references', async () => {
     const { docs, createDoc, addCollection, updateDoc } = setup()

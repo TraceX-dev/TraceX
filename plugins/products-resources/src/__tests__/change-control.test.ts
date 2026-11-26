@@ -13,10 +13,16 @@
 // limitations under the License.
 //
 
-import { type Association, type Client } from '@hcengineering/core'
-import products from '@hcengineering/products'
+import { type AccountUuid, type Association, type Client, type Ref, type Relation } from '@hcengineering/core'
+import products, { ProductVersionState, type ProductVersion } from '@hcengineering/products'
 
-import { getProductVersionCardAssociation, getProductVersionCardAssociations } from '../change-control'
+import {
+  canChangeProductVersionChangeControl,
+  getProductVersionCardAssociation,
+  getProductVersionCardAssociations,
+  getProductVersionRelationQuery,
+  getRelatedCard
+} from '../change-control'
 
 const forward = {
   _id: 'forward',
@@ -68,5 +74,49 @@ describe('getProductVersionCardAssociations', () => {
     const client = mockClient([forward])
     expect(getProductVersionCardAssociation(client, forward._id)?.association).toBe(forward)
     expect(getProductVersionCardAssociation(client, 'missing' as Association['_id'])).toBeUndefined()
+  })
+})
+
+describe('canChangeProductVersionChangeControl', () => {
+  const owner = 'owner' as AccountUuid
+  const member = 'member' as AccountUuid
+  const product = { owners: [owner] }
+  const active = { state: ProductVersionState.Active, readonly: false }
+  const released = { state: ProductVersionState.Released, readonly: true }
+
+  it('allows the product owner and members with a product role that updates the product', () => {
+    expect(canChangeProductVersionChangeControl(active, product, owner, false)).toBe(true)
+    expect(canChangeProductVersionChangeControl(active, product, member, true)).toBe(true)
+  })
+
+  it('denies other members', () => {
+    expect(canChangeProductVersionChangeControl(active, product, member, false)).toBe(false)
+    expect(canChangeProductVersionChangeControl(active, undefined, owner, true)).toBe(false)
+  })
+
+  it('denies previous versions', () => {
+    expect(canChangeProductVersionChangeControl(released, product, owner, true)).toBe(false)
+    expect(
+      canChangeProductVersionChangeControl({ state: ProductVersionState.Active, readonly: true }, product, owner, true)
+    ).toBe(false)
+  })
+})
+
+describe('change control relation of a product version', () => {
+  const version = 'version' as Ref<ProductVersion>
+  const relation = { docA: version, docB: 'card', association: 'forward' } as unknown as Relation
+  const reversed = { docA: 'card', docB: version, association: 'reverse' } as unknown as Relation
+
+  it('finds the relation and the card on the right side', () => {
+    expect(getProductVersionRelationQuery({ association: forward, direction: 'B' }, version)).toEqual({
+      association: 'forward',
+      docA: version
+    })
+    expect(getProductVersionRelationQuery({ association: reverse, direction: 'A' }, version)).toEqual({
+      association: 'reverse',
+      docB: version
+    })
+    expect(getRelatedCard({ association: forward, direction: 'B' }, relation)).toBe('card')
+    expect(getRelatedCard({ association: reverse, direction: 'A' }, reversed)).toBe('card')
   })
 })

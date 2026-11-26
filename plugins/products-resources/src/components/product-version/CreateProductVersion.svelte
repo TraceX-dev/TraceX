@@ -48,8 +48,9 @@
 
   import { getProductVersionCardAssociation, type ProductVersionCardAssociation } from '../../change-control'
   import products from '../../plugin'
+  import { getNextProductVersionNumber, type ProductVersionSeverity } from '../../product-version'
 
-  type Severity = 'major' | 'minor' | 'patch'
+  type Severity = ProductVersionSeverity
   type ProductVersionDraft = Omit<Data<ProductVersion>, 'parent' | 'name'>
 
   export let space: Ref<Product> | undefined
@@ -142,15 +143,10 @@
   }
 
   function updateSeverity (parent: ProductVersion | null | undefined, severity: Severity): void {
-    if (parent != null) {
-      object.major = severity === 'major' ? parent.major + 1 : parent.major
-      object.minor = severity === 'minor' ? parent.minor + 1 : 0
-      object.patch = severity === 'patch' ? parent.patch + 1 : 0
-    } else {
-      object.major = 1
-      object.minor = 0
-      object.patch = 0
-    }
+    const next = getNextProductVersionNumber(parent, severity)
+    object.major = next.major
+    object.minor = next.minor
+    object.patch = next.patch
   }
 
   function formatProductVersion (object: ProductVersionDraft): string {
@@ -346,7 +342,7 @@
           bind:value={changeControlCard}
           _class={getRelationCandidatesClass(changeControlAssociation.association, changeControlAssociation.direction)}
           docQuery={changeControlCardQuery}
-          docProps={{ shouldShowAvatar: true }}
+          docProps={{ type: 'text' }}
           kind={'regular'}
           size={'small'}
           label={products.string.ChangeControl}

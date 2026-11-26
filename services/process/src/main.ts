@@ -30,7 +30,6 @@ import core, {
   TxUpdateDoc,
   WorkspaceUuid
 } from '@hcengineering/core'
-import { getPlatformQueue } from '@hcengineering/kafka'
 import { getResource } from '@hcengineering/platform'
 import process, {
   ContextId,
@@ -63,8 +62,8 @@ import serverProcess, {
 import { getContextValue } from '@hcengineering/server-process-resources'
 import { createCollaboratorClient } from './collaborator'
 import { isError } from './errors'
-import { getClient, releaseClient, SERVICE_NAME } from './utils'
-import config from './config'
+import { getQueue } from './queue'
+import { getClient, releaseClient } from './utils'
 import { instrumentClient, type ProcessMeasurements } from './telemetry'
 import { copyExecutionReason, createExecutionDiagnostics, saveExecutionDiagnostics } from './diagnostics'
 
@@ -731,8 +730,7 @@ async function setNextTimers (control: ProcessControl, execution: Execution): Pr
 
 async function cleanTimers (control: ProcessControl, execution: Execution): Promise<void> {
   try {
-    const queue = getPlatformQueue(SERVICE_NAME, config.QueueRegion)
-    const producer = queue.getProducer<TimeMachineMessage>(control.ctx, QueueTopic.TimeMachine)
+    const producer = getQueue().getProducer<TimeMachineMessage>(control.ctx, QueueTopic.TimeMachine)
     await producer.send(control.ctx, control.workspace, [
       {
         type: 'cancel',
@@ -749,8 +747,7 @@ async function setTimer (control: ProcessControl, execution: Execution, transiti
   const targetDate: number = filled.value
   if (targetDate === undefined || typeof targetDate !== 'number' || targetDate === 0 || Number.isNaN(targetDate)) return
   try {
-    const queue = getPlatformQueue(SERVICE_NAME, config.QueueRegion)
-    const producer = queue.getProducer<TimeMachineMessage>(control.ctx, QueueTopic.TimeMachine)
+    const producer = getQueue().getProducer<TimeMachineMessage>(control.ctx, QueueTopic.TimeMachine)
 
     const data: ProcessMessage = {
       _id: `${execution._id}_${transition._id}`,

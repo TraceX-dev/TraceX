@@ -93,15 +93,18 @@
     {#if loading}
       <Loading />
     {:else}
-      <AccountArrayEditor
-        value={users}
-        {label}
-        emptyLabel={emptyLabel ?? settingsRes.string.SelectUsers}
-        onChange={handleUsersChange}
-        kind={'regular'}
-        size={'large'}
-        {allowGuests}
-      />
+      <div class="editor">
+        <AccountArrayEditor
+          value={users}
+          {label}
+          emptyLabel={emptyLabel ?? settingsRes.string.SelectUsers}
+          onChange={handleUsersChange}
+          kind={'regular'}
+          size={'medium'}
+          width={'100%'}
+          {allowGuests}
+        />
+      </div>
     {/if}
   </div>
 </div>
@@ -133,6 +136,10 @@
   .description {
     flex: 1 1 auto;
     min-width: 0;
+  }
+
+  .editor {
+    min-width: 7.5rem;
   }
 
   @media (max-width: 40rem) {

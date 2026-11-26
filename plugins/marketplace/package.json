@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@hcengineering/card": "workspace:^0.7.0",
+    "@hcengineering/chunter": "workspace:^0.7.0",
     "@hcengineering/core": "workspace:^0.7.26",
     "@hcengineering/platform": "workspace:^0.7.20",
     "@hcengineering/process": "workspace:^0.7.0",
