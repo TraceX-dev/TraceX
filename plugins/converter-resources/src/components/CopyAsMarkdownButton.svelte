@@ -19,6 +19,7 @@
 
 {#if _class !== undefined}
   <Button
+    dataId="btnCopyTable"
     size="small"
     kind="ghost"
     icon={IconCopy}

@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,12 +14,21 @@
 // limitations under the License.
 //
 
-import core, { type Class, type Doc, type Hierarchy, type Ref, type Space, getObjectValue } from '@hcengineering/core'
+import core, {
+  type Class,
+  type Doc,
+  type Hierarchy,
+  type Ref,
+  type Space,
+  getObjectValue,
+  SortingOrder
+} from '@hcengineering/core'
 import { translate, type IntlString } from '@hcengineering/platform'
 import documentsPlugin from '@hcengineering/controlled-documents'
 import { type AttributeModel } from '@hcengineering/view'
 import { getClient } from '@hcengineering/presentation'
 import { isIntlString } from '@hcengineering/converter-resources'
+import tags from '@hcengineering/tags'
 
 /**
  * Format version number from major and minor
@@ -94,17 +104,25 @@ export async function formatControlledDocumentValue (
   const doc = card as unknown as Record<string, unknown>
 
   // Handle labels field - check props.key or sortingKey when key is empty
-  if (attr.key === '' && (attr.props?.key === 'labels' || attr.sortingKey === 'labels')) {
-    // TODO: request labels and display them
-    return ''
+  if (attr.key === 'labels' || (attr.key === '' && (attr.props?.key === 'labels' || attr.sortingKey === 'labels'))) {
+    const references = await getClient().findAll(
+      tags.class.TagReference,
+      {
+        attachedTo: card._id,
+        attachedToClass: attr.props?._class ?? documentsPlugin.class.Document,
+        collection: 'labels'
+      },
+      { sort: { title: SortingOrder.Ascending } }
+    )
+    return references.map((reference) => reference.title).join(', ')
   }
 
   // Handle empty key with specific presenters (for ID, Title, Status, Version)
   if (attr.key === '') {
-    // Translate label to determine which field to extract
+    // Use the stable label id; translated text cannot identify a field reliably.
     let labelText = ''
     if (typeof attr.label === 'string') {
-      labelText = isIntlString(attr.label) ? await translate(attr.label, {}, language) : attr.label
+      labelText = attr.label
     } else {
       labelText = await translate(attr.label, {}, language)
     }
@@ -170,11 +188,6 @@ export async function formatControlledDocumentValue (
     }
   }
 
-  // Handle labels field - return empty string for collection size (labels are displayed via presenter, not as raw data)
-  if (attr.key === 'labels') {
-    return ''
-  }
-
   // Handle space field - format space ID to space name
   if (attr.key === 'space') {
     const spaceValue: unknown = doc.space
@@ -202,13 +215,16 @@ export async function formatControlledDocumentValue (
     const lookupKey = attr.key.replace('$lookup.', '')
     const lookupParts = lookupKey.split('.')
     const docWithLookup = doc as Record<string, unknown> & { $lookup?: Record<string, unknown> }
-    const lookupObj: unknown = docWithLookup.$lookup?.[lookupParts[0]]
+    // The shared formatter resolves a document-valued lookup before invoking its class formatter.
+    const lookupObj: unknown =
+      docWithLookup.$lookup?.[lookupParts[0]] ??
+      (lookupKey === 'template' && hierarchy.hasMixin(card, documentsPlugin.mixin.DocumentTemplate) ? card : undefined)
 
     if (lookupObj !== undefined && lookupObj !== null) {
-      // Translate label to determine which field to extract for template
+      // Keep template and template-version columns distinct in every language.
       let labelText = ''
       if (typeof attr.label === 'string') {
-        labelText = isIntlString(attr.label) ? await translate(attr.label, {}, language) : attr.label
+        labelText = attr.label
       } else {
         labelText = await translate(attr.label, {}, language)
       }

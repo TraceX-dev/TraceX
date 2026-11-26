@@ -336,10 +336,7 @@ export async function buildTableData (
   // so a refresh rebuilds exactly the same columns. Undefined when columns come from the viewlet.
   let sourceKeys: Array<string | BuildModelKey> | undefined
   if (actualConfig !== undefined && actualConfig.length > 0) {
-    const lookup =
-      viewlet !== undefined
-        ? buildConfigLookup(hierarchy, props.cardClass, actualConfig, viewlet.options?.lookup)
-        : undefined
+    const lookup = buildConfigLookup(hierarchy, props.cardClass, actualConfig, viewlet?.options?.lookup)
     const hiddenKeys = viewlet?.configOptions?.hiddenKeys ?? []
     const keys = actualConfig.filter((key: string | BuildModelKey) => {
       if (typeof key === 'string') {

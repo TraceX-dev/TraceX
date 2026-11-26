@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -334,9 +335,13 @@ export async function formatValue (
   customFormatter?: ValueFormatter,
   elementFormatter?: ElementFormatter
 ): Promise<string> {
-  const ctx = resolveDisplayContext(attr, card, hierarchy, _class, isFirstColumn)
-  if (ctx === null) {
-    return ''
+  // Presenter-only columns have no raw value, but class formatters can still render them.
+  const ctx: DisplayContext = resolveDisplayContext(attr, card, hierarchy, _class, isFirstColumn) ?? {
+    value: undefined,
+    displayDoc: card,
+    displayClass: card._class,
+    attribute: undefined,
+    lookupKey: ''
   }
 
   const { value, displayDoc, displayClass } = ctx
