@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,16 +15,18 @@
 -->
 <script lang="ts">
   import { AnyAttribute } from '@hcengineering/core'
+  import { getClient } from '@hcengineering/presentation'
   import { Label, resizeObserver, Scroller } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { SelectedContext, NestedContext } from '@hcengineering/process'
-  import { getValueReduceFunc } from '../../utils'
+  import { getDefaultArrayAggregate, getValueReduceFunc } from '../../utils'
 
   export let context: NestedContext
   export let target: AnyAttribute
   export let onSelect: (val: SelectedContext) => void
 
   const dispatch = createEventDispatcher()
+  const client = getClient()
 
   const elements: HTMLButtonElement[] = []
 
@@ -43,13 +46,14 @@
 
   function onAttribute (attr: AnyAttribute): void {
     const pathReduce = getValueReduceFunc(context.attribute, target)
-    const valueFunc = getValueReduceFunc(attr, target)
+    const aggregate = pathReduce !== undefined ? getDefaultArrayAggregate(client, attr, target) : undefined
+    const valueFunc = aggregate ?? getValueReduceFunc(attr, target)
     onSelect({
       type: 'nested',
       key: attr.name,
       path: context.attribute.name,
       functions: valueFunc !== undefined ? [valueFunc] : [],
-      sourceFunction: pathReduce
+      sourceFunction: aggregate === undefined ? pathReduce : undefined
     })
   }
 </script>

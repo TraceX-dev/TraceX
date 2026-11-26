@@ -152,12 +152,22 @@ async function fillValue (
 async function getNestedValue (control: ProcessControl, execution: Execution, context: SelectedNested): Promise<any> {
   const card = control.cache.get(execution.card)
   if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card }, {}, true)
-  const _process = control.client.getModel().findObject(execution.process)
+  const model = control.client.getModel()
+  const hierarchy = control.client.getHierarchy()
+  const _process = model.findObject(execution.process)
   if (_process === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.process })
   const realPath = resolveAttributeId(_process, context.path)
-  const attr = control.client.getHierarchy().findAttribute(card._class, realPath)
+  const attr = hierarchy.findAttribute(card._class, realPath)
   if (attr === undefined) throw processError(process.error.AttributeNotExists, { key: realPath })
   const nestedValue = getValue(control, execution, context.path, card)
+  if (
+    attr.type._class === core.class.ArrOf &&
+    context.sourceFunction === undefined &&
+    (nestedValue == null || (Array.isArray(nestedValue) && nestedValue.length === 0)) &&
+    context.functions?.some(({ func }) => model.findObject(func)?.arrayElement !== undefined) === true
+  ) {
+    return []
+  }
   if (nestedValue === undefined) throw processError(process.error.EmptyAttributeContextValue, {}, { attr: attr.label })
   const parentType = attr.type._class === core.class.ArrOf ? (attr.type as ArrOf<Doc>).of : attr.type
   const targetClass = parentType._class === core.class.RefTo ? (parentType as RefTo<Doc>).to : parentType._class
@@ -167,7 +177,8 @@ async function getNestedValue (control: ProcessControl, execution: Execution, co
   })
   if (target.length === 0) throw processError(process.error.RelatedObjectNotFound, {}, { attr: attr.label })
   const realKey = resolveAttributeId(_process, context.key)
-  const nested = control.client.getHierarchy().findAttribute(targetClass, realKey)
+  const nested = hierarchy.findAttribute(targetClass, realKey)
+  const key = checkMixinKey(realKey, targetClass, hierarchy)
   if (context.sourceFunction !== undefined) {
     const transform = control.client.getModel().findObject(context.sourceFunction.func)
     if (transform === undefined) {
@@ -179,9 +190,7 @@ async function getNestedValue (control: ProcessControl, execution: Execution, co
     const funcImpl = control.client.getHierarchy().as(transform, serverProcess.mixin.FuncImpl)
     const f = await getResource(funcImpl.func)
     const reduced = await f(target, context.sourceFunction.props, control, execution)
-    const val = Array.isArray(reduced)
-      ? reduced.map((v) => getValue(control, execution, context.key, v))
-      : getValue(control, execution, context.key, reduced)
+    const val = Array.isArray(reduced) ? reduced.map((v) => getObjectValue(key, v)) : getObjectValue(key, reduced)
     if (val == null) {
       throw processError(
         process.error.EmptyRelatedObjectValue,
@@ -191,9 +200,7 @@ async function getNestedValue (control: ProcessControl, execution: Execution, co
     }
     return val
   }
-  const val = Array.isArray(nestedValue)
-    ? target.map((v) => getValue(control, execution, context.key, v))
-    : getValue(control, execution, context.key, target[0])
+  const val = Array.isArray(nestedValue) ? target.map((v) => getObjectValue(key, v)) : getObjectValue(key, target[0])
   if (val == null) {
     throw processError(
       process.error.EmptyRelatedObjectValue,
@@ -229,7 +236,9 @@ async function getRelationValue (
   const target = await control.client.findAll(targetClass, { _id: { $in: ids } })
   if (target.length === 0) throw processError(process.error.RelatedObjectNotFound, { attr: context.name })
   const realKey = resolveAttributeId(_process, context.key)
-  const attr = realKey !== '' ? control.client.getHierarchy().findAttribute(targetClass, realKey) : undefined
+  const hierarchy = control.client.getHierarchy()
+  const attr = realKey !== '' ? hierarchy.findAttribute(targetClass, realKey) : undefined
+  const key = checkMixinKey(realKey, targetClass, hierarchy)
   if (context.sourceFunction !== undefined) {
     const transform = control.client.getModel().findObject(context.sourceFunction.func)
     if (transform === undefined) {
@@ -241,9 +250,7 @@ async function getRelationValue (
     const funcImpl = control.client.getHierarchy().as(transform, serverProcess.mixin.FuncImpl)
     const f = await getResource(funcImpl.func)
     const reduced = await f(target, context.sourceFunction.props, control, execution)
-    const val = Array.isArray(reduced)
-      ? reduced.map((v) => getValue(control, execution, context.key, v))
-      : getValue(control, execution, context.key, reduced)
+    const val = Array.isArray(reduced) ? reduced.map((v) => getObjectValue(key, v)) : getObjectValue(key, reduced)
     if (val == null) {
       throw processError(
         process.error.EmptyRelatedObjectValue,
@@ -253,9 +260,7 @@ async function getRelationValue (
     }
     return val
   }
-  const val = shouldBeArray
-    ? target.map((v) => getValue(control, execution, context.key, v))
-    : getValue(control, execution, context.key, target[0])
+  const val = shouldBeArray ? target.map((v) => getObjectValue(key, v)) : getObjectValue(key, target[0])
   if (val == null) {
     throw processError(
       process.error.EmptyRelatedObjectValue,

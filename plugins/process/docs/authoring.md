@@ -370,6 +370,35 @@ expr:
 
 Use a literal source for constants: `expr: {from: {literal: 5}, pipe: [{Multiply: {value: 2}}]}`. Ordinary strings are never templates. `{literal: {expr: ...}}` preserves a native object whose keys resemble expression syntax; exporters add escapes automatically. Function property expressions are resolved by that function's existing contract, not automatically by every function. Quotes, newlines and values that the text grammar cannot preserve use the engine's supported JSON context encoding internally. Canonical native expressions export as YAML pipelines; legacy/noncanonical expressions stay unchanged for exact round trips.
 
+#### Aggregating arrays and related fields
+
+For a field reached through an array of card references or the many side of a `1:N` or `N:N` association, select the relationship and field in the value picker. Open the selected value's settings and choose an aggregation from the same menu as **First value**, **Last value**, and **Random**. For a standalone array field or a typed array result in the execution context, choose an aggregation in the value picker and then select the array.
+
+Aggregations are `pipe` functions. They receive the array of field values after selection. Each function takes no properties and skips missing values and values of a different type. Numbers must be finite. Date functions accept date values and numeric timestamps and return a timestamp in milliseconds. Boolean functions use literal `true` and `false`.
+
+| Input | Functions | Result when there are no matching values |
+| --- | --- | --- |
+| Numbers | `ArraySum`, `ArrayProduct` | `0`, `1`, respectively |
+| Numbers | `ArrayMin`, `ArrayMax`, `ArrayAverage` | `null` |
+| Dates | `ArrayEarliest`, `ArrayLatest` | `null` |
+| Booleans | `ArrayAllTrue`, `ArrayAnyTrue`, `ArrayCountTrue` | `true`, `false`, `0`, respectively |
+
+If the sum or product exceeds the finite numeric range, the result is `null`. Use `ArrayLength` to count all array entries and `RelationCount` to count association links.
+
+```yaml
+expr:
+  from: $card.line_items.amount
+  pipe: [ArraySum]
+```
+
+Here `line_items` is an array of card references and `amount` is a field on each referenced card. For an association, the value picker stores the native relation selector, which also works as an expression source. This example reads `amount` on side `A` of the association bound to the declared `line_items_relation` slot.
+
+```yaml
+expr:
+  from: '${$relation(__SLOT_line_items_relation__,A,amount,Line items)}'
+  pipe: [ArraySum]
+```
+
 #### Finding references in the current card space
 
 The `FindObjects` context function searches the referenced document type using a native `DocumentQuery` and optional `SortingQuery`. In the visual context selector, **Find objects** is available for `Ref` and `Arr<Ref>` fields. Clicking it opens a separate popup that stays open when the pointer leaves it. The target type comes from the field; filters reuse the process criteria editor, and sorting can contain several fields in priority order. The saved context configuration can be reopened to edit the filters and ordering.

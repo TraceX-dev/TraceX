@@ -258,6 +258,22 @@ export function createModel (builder: Builder): void {
     func: serverProcess.transform.ArrayLength
   })
 
+  const aggregates = [
+    [process.function.ArraySum, serverProcess.transform.ArraySum],
+    [process.function.ArrayProduct, serverProcess.transform.ArrayProduct],
+    [process.function.ArrayMin, serverProcess.transform.ArrayMin],
+    [process.function.ArrayMax, serverProcess.transform.ArrayMax],
+    [process.function.ArrayAverage, serverProcess.transform.ArrayAverage],
+    [process.function.ArrayEarliest, serverProcess.transform.ArrayEarliest],
+    [process.function.ArrayLatest, serverProcess.transform.ArrayLatest],
+    [process.function.ArrayAllTrue, serverProcess.transform.ArrayAllTrue],
+    [process.function.ArrayAnyTrue, serverProcess.transform.ArrayAnyTrue],
+    [process.function.ArrayCountTrue, serverProcess.transform.ArrayCountTrue]
+  ] as const
+  for (const [id, func] of aggregates) {
+    builder.mixin(id, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, { func })
+  }
+
   builder.mixin(process.function.RelationCount, process.class.ProcessFunction, serverProcess.mixin.FuncImpl, {
     func: serverProcess.transform.RelationCount
   })

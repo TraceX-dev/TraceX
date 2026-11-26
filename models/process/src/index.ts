@@ -332,6 +332,9 @@ export class TProcessFunction extends TDoc implements ProcessFunction {
   @Prop(TypeRef(core.class.Class), getEmbeddedLabel('Of'))
     of!: Ref<Class<Doc<Space>>>
 
+  @Prop(TypeRef(core.class.Class), getEmbeddedLabel('Array element type'))
+    arrayElement?: Ref<Class<Doc>>
+
   @Prop(TypeString(), getEmbeddedLabel('Category'))
     category: AttributeCategory | undefined
 

@@ -60,7 +60,7 @@
 
   $: nested = Object.values(context.nested)
   $: relations = Object.entries(context.relations)
-  $: convertible = (context as any).convertible ?? []
+  $: convertible = context.convertible ?? []
 
   function onUserRequest (): void {
     onSelect({

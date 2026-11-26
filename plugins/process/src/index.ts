@@ -266,6 +266,8 @@ export interface ProcessFunction extends Doc {
   type: 'transform' | 'reduce' | 'context' | 'convert'
   of: Ref<Class<Doc>>
   to?: Ref<Class<Doc>>
+  /** Element type for conversions that consume a typed array. */
+  arrayElement?: Ref<Class<Doc>>
   editor?: AnyComponent
   editorProps?: Record<string, unknown>
   presenter?: AnyComponent
@@ -478,6 +480,16 @@ export default plugin(processId, {
     FirstMatchValue: '' as Ref<ProcessFunction>,
     Filter: '' as Ref<ProcessFunction>,
     ArrayLength: '' as Ref<ProcessFunction>,
+    ArraySum: '' as Ref<ProcessFunction>,
+    ArrayProduct: '' as Ref<ProcessFunction>,
+    ArrayMin: '' as Ref<ProcessFunction>,
+    ArrayMax: '' as Ref<ProcessFunction>,
+    ArrayAverage: '' as Ref<ProcessFunction>,
+    ArrayEarliest: '' as Ref<ProcessFunction>,
+    ArrayLatest: '' as Ref<ProcessFunction>,
+    ArrayAllTrue: '' as Ref<ProcessFunction>,
+    ArrayAnyTrue: '' as Ref<ProcessFunction>,
+    ArrayCountTrue: '' as Ref<ProcessFunction>,
     RelationCount: '' as Ref<ProcessFunction>,
     FindObjects: '' as Ref<ProcessFunction>,
     FirstValue: '' as Ref<ProcessFunction>,
