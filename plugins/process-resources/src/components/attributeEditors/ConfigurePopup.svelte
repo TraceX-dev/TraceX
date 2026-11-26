@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import core, { AnyAttribute, Class, Doc, DocumentQuery, Ref, RefTo } from '@hcengineering/core'
+  import core, { AnyAttribute, ArrOf, Class, Doc, DocumentQuery, Ref, RefTo } from '@hcengineering/core'
   import presentation, { Card, getClient } from '@hcengineering/presentation'
   import { Context, Func, Process, ProcessFunction, SelectedContext } from '@hcengineering/process'
   import {
@@ -35,6 +35,7 @@
   import { AttributeCategory } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
+  import { getArrayAggregates, isRelationToMany, setArraySourceMode } from '../../utils'
   import RelationVersionsEditor from '../settings/RelationVersionsEditor.svelte'
   import FallbackEditor from '../contextEditors/FallbackEditor.svelte'
   import RelationTableConfigPopup from '../contextEditors/RelationTableConfigPopup.svelte'
@@ -57,40 +58,55 @@
 
   const elements: HTMLElement[] = []
 
-  function getRelationClass (): Ref<Class<Doc>> | undefined {
-    if (contextValue.type !== 'relation') return undefined
-    const association = client.getModel().findObject(contextValue.association)
-    if (association === undefined) return undefined
-    return contextValue.direction === 'A' ? association.classA : association.classB
+  function getProjection (
+    value: SelectedContext,
+    definition: Process
+  ): { of: Ref<Class<Doc>>, many: boolean } | undefined {
+    if (value.type === 'relation') {
+      const associationId = (definition.bindings?.[value.association] ?? value.association) as typeof value.association
+      const association = client.getModel().findObject(associationId)
+      if (association === undefined) return undefined
+      return {
+        of: value.direction === 'A' ? association.classA : association.classB,
+        many: isRelationToMany(association, value.direction)
+      }
+    }
+    if (value.type === 'nested') {
+      const path = definition.bindings?.[value.path] ?? value.path
+      const source = hierarchy.findAttribute(definition.masterTag, path)
+      if (source?.type._class !== core.class.ArrOf) return undefined
+      const element = (source.type as ArrOf<Doc>).of
+      if (element._class === core.class.RefTo) return { of: (element as RefTo<Doc>).to, many: true }
+    }
   }
 
-  function getRelationObjectAttribute (relationClass: Ref<Class<Doc>>): AnyAttribute {
+  function getSourceObjectAttribute (sourceClass: Ref<Class<Doc>>, attribute: AnyAttribute): AnyAttribute {
     const type: RefTo<Doc> = {
       label: core.string.Ref,
       _class: core.class.RefTo,
-      to: relationClass
+      to: sourceClass
     }
     return {
       ...attribute,
-      attributeOf: relationClass,
+      attributeOf: sourceClass,
       type
     }
   }
 
-  const relationClass = getRelationClass()
-  const sourceReduceAttribute = relationClass !== undefined ? getRelationObjectAttribute(relationClass) : attribute
-  const reduceAttribute =
-    relationClass !== undefined && contextValue.type === 'relation' && contextValue.key !== '_id'
-      ? (hierarchy.findAttribute(relationClass, contextValue.key) ?? attribute)
-      : sourceReduceAttribute
+  $: projection = getProjection(contextValue, process)
+  $: sourceReduceAttribute = projection !== undefined ? getSourceObjectAttribute(projection.of, attribute) : attribute
+  $: fieldKey = process.bindings?.[contextValue.key] ?? contextValue.key
+  $: projectedField =
+    projection !== undefined && fieldKey !== '_id' && fieldKey !== ''
+      ? hierarchy.findAttribute(projection.of, fieldKey)
+      : undefined
+  $: reduceAttribute = projectedField ?? sourceReduceAttribute
 
   const keyDown = (event: KeyboardEvent, index: number): void => {
-    if (event.key === 'ArrowDown') {
-      elements[(index + 1) % elements.length].focus()
-    }
-
-    if (event.key === 'ArrowUp') {
-      elements[(elements.length + index - 1) % elements.length].focus()
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      const visible = elements.filter((element) => element?.isConnected)
+      const step = event.key === 'ArrowDown' ? 1 : -1
+      visible[(visible.indexOf(elements[index]) + visible.length + step) % visible.length]?.focus()
     }
 
     if (event.key === 'ArrowLeft') {
@@ -115,9 +131,28 @@
 
   const reduceFuncs = getReduceFunctions()
 
-  $: availableFunctions = getAvailableFunctions(contextValue.functions, attrClass, category)
+  $: aggregateModes =
+    projection?.many === true && projectedField !== undefined && category === 'attribute'
+      ? getArrayAggregates(client, projectedField.type._class, attribute.type._class)
+      : []
+  $: sourceModes =
+    aggregateModes.length > 0 && projectedField?.type._class !== attribute.type._class
+      ? aggregateModes
+      : [...reduceFuncs, ...aggregateModes]
+  $: firstFunction = contextValue.functions?.[0]
+  $: activeAggregate =
+    contextValue.sourceFunction === undefined &&
+    firstFunction !== undefined &&
+    aggregateModes.includes(firstFunction.func)
+      ? firstFunction
+      : undefined
+  $: selectedMode = contextValue.sourceFunction ?? activeAggregate
+  $: sourceMode = selectedMode !== undefined && getFunction(selectedMode.func) !== undefined ? selectedMode : undefined
+  $: showSourceMode = sourceMode !== undefined || aggregateModes.length > 0
+  $: firstTransformIndex = activeAggregate !== undefined ? 1 : 0
+  $: transforms = (contextValue.functions ?? []).slice(firstTransformIndex)
 
-  $: functionsLength = contextValue.functions?.length ?? 0
+  $: availableFunctions = getAvailableFunctions(contextValue.functions, attrClass, category)
 
   function getAvailableFunctions (
     functions: Func[] | undefined,
@@ -141,19 +176,7 @@
     return result
   }
 
-  $: funcs =
-    (contextValue.functions?.length ?? 0) > 0
-      ? client
-          .getModel()
-          .findAllSync(plugin.class.ProcessFunction, { _id: { $in: contextValue.functions?.map((it) => it.func) } })
-      : []
-
-  $: sourceFunc =
-    contextValue.sourceFunction !== undefined
-      ? client.getModel().findAllSync(plugin.class.ProcessFunction, { _id: contextValue.sourceFunction.func })[0]
-      : undefined
-
-  $: functionButtonIndex = functionsLength + (sourceFunc !== undefined ? 1 : 0)
+  $: functionButtonIndex = transforms.length + (showSourceMode ? 1 : 0)
 
   function onFallback (): void {
     showPopup(FallbackEditor, { contextValue, attribute }, elements[functionButtonIndex + 1], (res) => {
@@ -184,13 +207,15 @@
     onFunction(
       e,
       contextValue.sourceFunction?.props ?? {},
-      (res) => (contextValue.sourceFunction = res),
+      (res) => {
+        contextValue = setArraySourceMode(contextValue, res, aggregateModes)
+      },
       sourceReduceAttribute
     )
   }
 
   function onSourceFunctionChange (e: Func): void {
-    contextValue.sourceFunction = e
+    contextValue = setArraySourceMode(contextValue, e, aggregateModes)
     onChange(contextValue)
   }
 
@@ -339,7 +364,7 @@
       },
       eventToHTMLElement(e),
       (res) => {
-        if (res != null) {
+        if (res != null && contextValue.type === 'function') {
           if (res.sort != null) {
             contextValue.props = {
               ...contextValue.props,
@@ -422,7 +447,7 @@
           <div class="menu-separator" />
         {/if}
       {/if}
-      {#if sourceFunc !== undefined}
+      {#if showSourceMode}
         <Submenu
           bind:element={elements[0]}
           on:keydown={(event) => {
@@ -431,34 +456,36 @@
           on:mouseover={() => {
             elements[0]?.focus()
           }}
-          label={sourceFunc.label}
+          label={sourceMode === undefined ? plugin.string.Functions : getFunction(sourceMode.func)?.label}
           props={{
             attribute: sourceReduceAttribute,
             process,
             context,
-            func: contextValue.sourceFunction,
-            availableFunctions: reduceFuncs,
+            func: sourceMode,
+            availableFunctions: sourceModes,
             onSelect: onSourceFunctionSelect,
             onChange: onSourceFunctionChange
           }}
-          component={plugin.component.FunctionSubmenu}
+          component={sourceMode !== undefined ? plugin.component.FunctionSubmenu : undefined}
           options={{ component: plugin.component.FunctionSelector }}
           withHover
         />
       {/if}
-      {#if availableFunctions.length > 0 || functionsLength > 0}
-        {#if sourceFunc !== undefined}
+      {#if availableFunctions.length > 0 || transforms.length > 0}
+        {#if showSourceMode}
           <div class="menu-separator" />
         {/if}
-        {#each contextValue.functions ?? [] as f, i}
+        {#each transforms as f, i}
+          {@const transformIndex = firstTransformIndex + i}
+          {@const buttonIndex = i + (showSourceMode ? 1 : 0)}
           {#if reduceFuncs.includes(f.func)}
             <Submenu
-              bind:element={elements[i + (sourceFunc !== undefined ? 1 : 0)]}
+              bind:element={elements[buttonIndex]}
               on:keydown={(event) => {
-                keyDown(event, i + (sourceFunc !== undefined ? 1 : 0))
+                keyDown(event, buttonIndex)
               }}
               on:mouseover={() => {
-                elements[i + (sourceFunc !== undefined ? 1 : 0)]?.focus()
+                elements[buttonIndex]?.focus()
               }}
               label={getFunction(f.func)?.label}
               props={{
@@ -467,8 +494,8 @@
                 process,
                 context,
                 availableFunctions: reduceFuncs,
-                onSelect: getFunctionSelect(i),
-                onChange: getFunctionChange(i)
+                onSelect: getFunctionSelect(transformIndex),
+                onChange: getFunctionChange(transformIndex)
               }}
               component={plugin.component.FunctionSubmenu}
               options={{ component: plugin.component.FunctionSelector }}
@@ -479,12 +506,12 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div
               class="menu-item"
-              bind:this={elements[i + (sourceFunc !== undefined ? 1 : 0)]}
+              bind:this={elements[buttonIndex]}
               on:keydown={(event) => {
-                keyDown(event, i + (sourceFunc !== undefined ? 1 : 0))
+                keyDown(event, buttonIndex)
               }}
               on:mouseover={() => {
-                elements[i + (sourceFunc !== undefined ? 1 : 0)]?.focus()
+                elements[buttonIndex]?.focus()
               }}
             >
               <div>
@@ -497,7 +524,7 @@
                     size="small"
                     kind="tertiary"
                     on:click={(e) => {
-                      onConfigure(e, f, i)
+                      onConfigure(e, f, transformIndex)
                     }}
                   />
                 {/if}
@@ -506,7 +533,7 @@
                   size="small"
                   kind="tertiary"
                   on:click={() => {
-                    onFunctionRemove(i)
+                    onFunctionRemove(transformIndex)
                   }}
                 />
               </div>
@@ -534,7 +561,7 @@
         {/if}
       {/if}
       {#if !forbidValue}
-        {#if sourceFunc !== undefined || availableFunctions.length > 0 || functionsLength > 0}
+        {#if showSourceMode || availableFunctions.length > 0 || transforms.length > 0}
           <div class="menu-separator" />
         {/if}
         <!-- svelte-ignore a11y-mouse-events-have-key-events -->

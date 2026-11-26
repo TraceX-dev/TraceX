@@ -231,6 +231,21 @@ export function getContext (
   }
 
   const functions = getContextFunctions(client, _process.masterTag, target, category)
+  const conversions: ProcessFunction[] = includeConvertible
+    ? client.getModel().findAllSync(process.class.ProcessFunction, { type: 'convert', to: target })
+    : []
+  const projectedTypes = new Set([target])
+  if (category === 'attribute') {
+    for (const { arrayElement } of conversions) {
+      if (arrayElement !== undefined) projectedTypes.add(arrayElement)
+    }
+  }
+
+  function getProjectedAttributes (_class: Ref<Class<Doc>>, many: boolean): AnyAttribute[] {
+    const types = many ? [...projectedTypes] : [target]
+    return types.flatMap((type) => getClassAttributes(client, _class, type, 'attribute'))
+  }
+
   const nested: Record<string, NestedContext> = {}
   const relations: Record<string, RelatedContext> = {}
   const executionContext: Record<string, ProcessExecutionContext> = {}
@@ -250,7 +265,7 @@ export function getContext (
     const arrOf = (arr.type as ArrOf<Doc>).of
     if (arrOf._class !== core.class.RefTo) continue
     const to = (arrOf as RefTo<Doc>).to
-    const arrAttributes = getClassAttributes(client, to, target, 'attribute')
+    const arrAttributes = getProjectedAttributes(to, true)
     if (arrAttributes.length === 0) continue
     nested[arr.name] = {
       attribute: arr,
@@ -270,7 +285,7 @@ export function getContext (
         attributes: []
       }
     } else {
-      const refAttributes = getClassAttributes(client, rel.classB, target, 'attribute')
+      const refAttributes = getProjectedAttributes(rel.classB, isRelationToMany(rel, 'B'))
       if (refAttributes.length > 0) {
         relations[rel.nameB] = {
           name: rel.nameB,
@@ -292,7 +307,7 @@ export function getContext (
         attributes: []
       }
     } else {
-      const refAttributes = getClassAttributes(client, rel.classA, target, 'attribute')
+      const refAttributes = getProjectedAttributes(rel.classA, isRelationToMany(rel, 'A'))
       if (refAttributes.length > 0) {
         relations[rel.nameA] = {
           name: rel.nameA,
@@ -307,7 +322,10 @@ export function getContext (
   for (const key in _process.context) {
     const contextId = key as ContextId
     const value = _process.context[contextId]
-    if (client.getHierarchy().isDerived(value._class, target)) {
+    if (
+      hierarchy.isDerived(value._class, target) ||
+      (target === core.class.ArrOf && value.type?._class === core.class.ArrOf)
+    ) {
       executionContext[key] = {
         attributes: [],
         name: value.name,
@@ -329,9 +347,14 @@ export function getContext (
 
   const convertible: Array<{ func: Ref<ProcessFunction>, context: Context }> = []
   if (includeConvertible) {
-    const funcs = client.getModel().findAllSync(process.class.ProcessFunction, { type: 'convert', to: target })
-    for (const func of funcs) {
-      const convContext = getContext(client, _process, func.of, category, attr, false)
+    const arrayContexts = new Map<Ref<Class<Doc>>, Context>()
+    for (const func of conversions) {
+      const element = func.arrayElement
+      const convContext =
+        element === undefined
+          ? getContext(client, _process, func.of, category, attr, false)
+          : (arrayContexts.get(element) ?? getArrayValueContext(client, _process, element))
+      if (element !== undefined) arrayContexts.set(element, convContext)
       if (
         convContext.attributes.length > 0 ||
         Object.keys(convContext.executionContext).length > 0 ||
@@ -354,6 +377,23 @@ export function getContext (
     relations,
     executionContext,
     convertible: convertible.length > 0 ? convertible : undefined
+  }
+}
+
+function getArrayValueContext (client: Client, definition: Process, element: Ref<Class<Doc>>): Context {
+  const executionContext: Context['executionContext'] = {}
+  for (const [id, result] of Object.entries(definition.context)) {
+    if (result.type?._class === core.class.ArrOf && (result.type as ArrOf<unknown>).of._class === element) {
+      const context = id as ContextId
+      executionContext[context] = { name: result.name, context, value: result.value, attributes: [] }
+    }
+  }
+  return {
+    attributes: getClassAttributes(client, definition.masterTag, element, 'array'),
+    functions: [],
+    nested: {},
+    relations: {},
+    executionContext
   }
 }
 
@@ -465,10 +505,45 @@ export function getRelationReduceFunc (
   direction: 'A' | 'B'
 ): Func | undefined {
   const assoc = client.getModel().findObject(association)
-  if (assoc === undefined) return undefined
-  if (assoc.type === '1:1') return undefined
-  if (assoc.type === '1:N' && direction === 'A') return undefined
+  if (!isRelationToMany(assoc, direction)) return undefined
   return { func: process.function.FirstValue, props: {} }
+}
+
+export function isRelationToMany (association: Association | undefined, direction: 'A' | 'B'): boolean {
+  return association?.type === 'N:N' || (association?.type === '1:N' && direction === 'A')
+}
+
+export function getArrayAggregates (
+  client: Client,
+  arrayElement: Ref<Class<Doc>>,
+  to: Ref<Class<Doc>>
+): Ref<ProcessFunction>[] {
+  return client
+    .getModel()
+    .findAllSync(process.class.ProcessFunction, { type: 'convert', arrayElement, to })
+    .map((func) => func._id)
+}
+
+export function getDefaultArrayAggregate (client: Client, source: AnyAttribute, target: AnyAttribute): Func | undefined {
+  if (source.type._class === target.type._class) return undefined
+  const [func] = getArrayAggregates(client, source.type._class, target.type._class)
+  return func !== undefined ? { func, props: {} } : undefined
+}
+
+/** Selects one array mode while preserving the subsequent value transforms. */
+export function setArraySourceMode (
+  value: SelectedContext,
+  mode: Func,
+  aggregates: Ref<ProcessFunction>[]
+): SelectedContext {
+  if (value.sourceFunction?.func === mode.func) return { ...value, sourceFunction: mode }
+
+  const first = value.functions?.[0]
+  const transforms =
+    first !== undefined && aggregates.includes(first.func) ? value.functions?.slice(1) : value.functions
+  return aggregates.includes(mode.func)
+    ? { ...value, sourceFunction: undefined, functions: [mode, ...(transforms ?? [])] }
+    : { ...value, sourceFunction: mode, functions: transforms }
 }
 
 export function getValueReduceFunc (source: AnyAttribute, target: AnyAttribute): Func | undefined {

@@ -94,6 +94,18 @@ import {
   UnlockSection,
   UpdateCard
 } from './functions'
+import {
+  ArrayAllTrue,
+  ArrayAnyTrue,
+  ArrayAverage,
+  ArrayCountTrue,
+  ArrayEarliest,
+  ArrayLatest,
+  ArrayMax,
+  ArrayMin,
+  ArrayProduct,
+  ArraySum
+} from './aggregate'
 import { FieldChangedRollback, ToDoCancellRollback, ToDoCloseRollback } from './rollback'
 import {
   Absolute,
@@ -984,6 +996,16 @@ export default async () => ({
     UnlockField
   },
   transform: {
+    ArraySum,
+    ArrayProduct,
+    ArrayMin,
+    ArrayMax,
+    ArrayAverage,
+    ArrayEarliest,
+    ArrayLatest,
+    ArrayAllTrue,
+    ArrayAnyTrue,
+    ArrayCountTrue,
     CurrentDate,
     CurrentUser,
     ArrayLength,

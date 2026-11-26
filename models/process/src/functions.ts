@@ -18,6 +18,28 @@ import { type Builder } from '@hcengineering/model'
 import process from './plugin'
 
 export function defineFunctions (builder: Builder): void {
+  const aggregates = [
+    [process.function.ArraySum, process.string.ArraySum, core.class.TypeNumber],
+    [process.function.ArrayProduct, process.string.ArrayProduct, core.class.TypeNumber],
+    [process.function.ArrayMin, process.string.ArrayMin, core.class.TypeNumber],
+    [process.function.ArrayMax, process.string.ArrayMax, core.class.TypeNumber],
+    [process.function.ArrayAverage, process.string.ArrayAverage, core.class.TypeNumber],
+    [process.function.ArrayEarliest, process.string.ArrayEarliest, core.class.TypeDate],
+    [process.function.ArrayLatest, process.string.ArrayLatest, core.class.TypeDate],
+    [process.function.ArrayAllTrue, process.string.ArrayAllTrue, core.class.TypeBoolean],
+    [process.function.ArrayAnyTrue, process.string.ArrayAnyTrue, core.class.TypeBoolean],
+    [process.function.ArrayCountTrue, process.string.ArrayCountTrue, core.class.TypeBoolean, core.class.TypeNumber]
+  ] as const
+
+  for (const [id, label, arrayElement, to = arrayElement] of aggregates) {
+    builder.createDoc(
+      process.class.ProcessFunction,
+      core.space.Model,
+      { of: core.class.ArrOf, to, arrayElement, category: 'attribute', label, type: 'convert' },
+      id
+    )
+  }
+
   builder.createDoc(
     process.class.ProcessFunction,
     core.space.Model,
