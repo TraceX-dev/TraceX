@@ -123,7 +123,13 @@
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="flex-presenter" class:no-pointer={!clickable} use:tooltip={getPreviewPopup(person, showPreview)} on:click>
+<div
+  class="flex-presenter"
+  class:no-pointer={!clickable}
+  class:flex-no-shrink={showStatus && person && size !== 'full'}
+  use:tooltip={getPreviewPopup(person, showPreview)}
+  on:click
+>
   {#if showStatus && person}
     <div
       class="relative hulyAvatar-statusWrap"
