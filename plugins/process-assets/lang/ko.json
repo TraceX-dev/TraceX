@@ -282,6 +282,7 @@
         "AttributeNotExists": "속성이 존재하지 않습니다: {key}",
         "RelatedObjectNotFound": "관련 객체를 찾을 수 없습니다: {attr}",
         "RelationNotExists": "관계가 존재하지 않습니다: {association}",
+        "AggregateRequiresManyRelation": "집계하려면 여러 카드를 반환할 수 있는 관계 방향이 필요합니다.",
         "EmptyAttributeContextValue": "속성 값이 비어 있습니다: {attr}",
         "UserRequestedValueNotProvided": "사용자가 요청한 값이 입력되지 않았습니다: {attr}",
         "ObjectNotFound": "객체를 찾을 수 없습니다: {_id}",

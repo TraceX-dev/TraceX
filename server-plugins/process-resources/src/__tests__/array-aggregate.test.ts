@@ -133,7 +133,7 @@ describe('array aggregate values', () => {
 
 describe('aggregating projected fields', () => {
   it.each([
-    ['1:N', 'A', 'docB'],
+    ['1:N', 'B', 'docA'],
     ['N:N', 'A', 'docB'],
     ['N:N', 'B', 'docA']
   ] as const)('aggregates the linked cards of a %s association on side %s', async (type, direction, cardKey) => {
@@ -152,13 +152,34 @@ describe('aggregating projected fields', () => {
     expect(findAll).toHaveBeenNthCalledWith(2, targetClass, { _id: { $in: ['first', 'second'] } })
   })
 
-  it('passes an empty to-many association through the aggregate', async () => {
-    const { control, findAll } = makeControl('N:N')
+  it.each([
+    ['N:N', 'A'],
+    ['1:N', 'B']
+  ] as const)('passes an empty %s association on side %s through the aggregate', async (type, direction) => {
+    const { control, findAll } = makeControl(type)
     findAll.mockResolvedValueOnce([])
-    await expect(
-      getContextValue(createContext(relationSource), control as ProcessControl, execution as Execution)
-    ).resolves.toBe(0)
+    const source = createContext({ ...relationSource, direction })
+    await expect(getContextValue(source, control as ProcessControl, execution as Execution)).resolves.toBe(0)
     expect(findAll).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([undefined, { func: process.function.All, props: {} }])(
+    'rejects a many-to-one aggregate with source reducer %p',
+    async (sourceFunction) => {
+      const { control, findAll } = makeControl('1:N')
+      const source = createContext({ ...relationSource, direction: 'A', sourceFunction })
+      await expect(getContextValue(source, control as ProcessControl, execution as Execution)).rejects.toThrow(
+        process.error.AggregateRequiresManyRelation
+      )
+      expect(findAll).not.toHaveBeenCalled()
+    }
+  )
+
+  it('keeps a plain side B selector on a 1:N association scalar', async () => {
+    const { control, findAll } = makeControl('1:N')
+    findAll.mockResolvedValueOnce([{ docA: execution.card, docB: 'first' }])
+    const source = createContext({ ...relationSource, direction: 'B', functions: undefined })
+    await expect(getContextValue(source, control as ProcessControl, execution as Execution)).resolves.toBe(3)
   })
 
   it.each([

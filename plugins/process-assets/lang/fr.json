@@ -282,6 +282,7 @@
     "AttributeNotExists": "Attribut inexistant : {key}",
     "RelatedObjectNotFound": "Objet lié introuvable : {attr}",
     "RelationNotExists": "Relation inexistante : {association}",
+    "AggregateRequiresManyRelation": "L’agrégation exige un sens de relation pouvant renvoyer plusieurs cartes.",
     "EmptyAttributeContextValue": "Valeur d'attribut vide : {attr}",
     "UserRequestedValueNotProvided": "Valeur demandée par l'utilisateur non fournie : {attr}",
     "ObjectNotFound": "Objet introuvable : {_id}",

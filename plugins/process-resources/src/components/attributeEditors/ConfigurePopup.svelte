@@ -35,7 +35,7 @@
   import { AttributeCategory } from '@hcengineering/view'
   import { createEventDispatcher } from 'svelte'
   import plugin from '../../plugin'
-  import { getArrayAggregates, isRelationToMany, setArraySourceMode } from '../../utils'
+  import { canAggregateRelation, getArrayAggregates, setArraySourceMode } from '../../utils'
   import RelationVersionsEditor from '../settings/RelationVersionsEditor.svelte'
   import FallbackEditor from '../contextEditors/FallbackEditor.svelte'
   import RelationTableConfigPopup from '../contextEditors/RelationTableConfigPopup.svelte'
@@ -61,14 +61,14 @@
   function getProjection (
     value: SelectedContext,
     definition: Process
-  ): { of: Ref<Class<Doc>>, many: boolean } | undefined {
+  ): { of: Ref<Class<Doc>>, canAggregate: boolean } | undefined {
     if (value.type === 'relation') {
       const associationId = (definition.bindings?.[value.association] ?? value.association) as typeof value.association
       const association = client.getModel().findObject(associationId)
       if (association === undefined) return undefined
       return {
         of: value.direction === 'A' ? association.classA : association.classB,
-        many: isRelationToMany(association, value.direction)
+        canAggregate: canAggregateRelation(association, value.direction)
       }
     }
     if (value.type === 'nested') {
@@ -76,7 +76,7 @@
       const source = hierarchy.findAttribute(definition.masterTag, path)
       if (source?.type._class !== core.class.ArrOf) return undefined
       const element = (source.type as ArrOf<Doc>).of
-      if (element._class === core.class.RefTo) return { of: (element as RefTo<Doc>).to, many: true }
+      if (element._class === core.class.RefTo) return { of: (element as RefTo<Doc>).to, canAggregate: true }
     }
   }
 
@@ -132,7 +132,7 @@
   const reduceFuncs = getReduceFunctions()
 
   $: aggregateModes =
-    projection?.many === true && projectedField !== undefined && category === 'attribute'
+    projection?.canAggregate === true && projectedField !== undefined && category === 'attribute'
       ? getArrayAggregates(client, projectedField.type._class, attribute.type._class)
       : []
   $: sourceModes =

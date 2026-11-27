@@ -283,6 +283,7 @@
     "EmptyRelatedObjectValue": "Пустое значение {attr} для связанного объекта: {parent}",
     "RelatedObjectNotFound": "Связанный объект не найден: {attr}",
     "RelationNotExists": "Связь не существует: {association}",
+    "AggregateRequiresManyRelation": "Для агрегата нужно направление связи, которое может вернуть несколько карточек.",
     "EmptyAttributeContextValue": "Пустое значение атрибута: {attr}",
     "UserRequestedValueNotProvided": "Знвчение не предоставлено пользователем: {attr}",
     "ObjectNotFound": "Объект не найден: {_id}",

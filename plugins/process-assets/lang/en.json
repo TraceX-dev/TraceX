@@ -282,6 +282,7 @@
     "AttributeNotExists": "Attribute not exists: {key}",
     "RelatedObjectNotFound": "Related object not found: {attr}",
     "RelationNotExists": "Relation not exists: {association}",
+    "AggregateRequiresManyRelation": "An aggregate requires a relation direction that can return multiple cards.",
     "EmptyAttributeContextValue": "Empty attribute value: {attr}",
     "UserRequestedValueNotProvided": "User requested value not provided: {attr}",
     "ObjectNotFound": "Object not found: {_id}",
