@@ -305,6 +305,7 @@
     "SearchUserGroups": "搜索用户组",
     "DeleteUserGroup": "删除用户组",
     "DeleteUserGroupConfirm": "删除 {name}？除非成员直接或通过其他用户组属于这些空间，否则将失去对 {count} 个已绑定空间的访问权限。",
+    "UserGroupChangeLeavesSpacesEmpty": "以下私有空间将没有成员，任何人都无法打开：{spaces}。请先为其添加直接成员。",
     "NoUserGroups": "暂无用户组",
     "UserGroupsNotSupported": "无法将用户组绑定到此类空间",
     "SearchSpaces": "搜索空间",

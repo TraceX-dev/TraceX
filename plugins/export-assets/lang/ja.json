@@ -1,7 +1,10 @@
 {
   "string": {
+    "PrintHeaderFooter": "ヘッダーとフッターを印刷",
     "WorkspaceNamePattern": "名前は40文字以内で、空にすることはできず、特殊文字(<, >, /)を含めることはできません",
+    "ExportList": "リストをエクスポート",
     "Export": "エクスポート",
+    "ExportDots": "エクスポート…",
     "DataToExport": "エクスポートするデータ",
     "ExportDocuments": "ドキュメント",
     "ExportMilestones": "マイルストーン",
@@ -72,6 +75,9 @@
     "DocumentContentConverted": "ドキュメントを変換しました",
     "DocumentContentImportFailed": "インポートに失敗しました",
     "ReviewDocumentContentChanges": "インポートした変更を確認",
-    "ApplyDocumentContentChanges": "適用"
+    "ApplyDocumentContentChanges": "適用",
+    "Orientation": "ページの向き",
+    "PortraitMode": "縦向き",
+    "LandscapeMode": "横向き"
   }
 }

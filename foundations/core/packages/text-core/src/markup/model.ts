@@ -57,7 +57,9 @@ export enum MarkupMarkType {
   underline = 'underline',
   textColor = 'textColor',
   textStyle = 'textStyle',
-  highlight = 'highlight'
+  highlight = 'highlight',
+  subscript = 'subscript',
+  superscript = 'superscript'
 }
 
 /** @public */

@@ -1,10 +1,21 @@
 {
   "string": {
+    "Enabled": "已启用",
+    "Printing": "打印",
+    "Header": "页眉",
+    "Footer": "页脚",
+    "PrintLogo": "打印徽标",
+    "InsertField": "插入字段",
+    "InvalidPrintSettings": "无法保存打印设置。请检查字段。",
+    "PrintedObject": "打印对象",
+    "Title": "标题",
+    "Page": "页",
+    "Of": " 共 ",
+    "CreatedFromTemplate": "从模板创建：",
     "PrintToPDF": "打印为 PDF",
     "PrintingDocumentOf": "正在打印文档 {current} / {total}",
     "DownloadAll": "全部下载",
     "PrintFailed": "打印失败",
-    "PrintSettings": "Print settings",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

@@ -14,73 +14,44 @@
 // limitations under the License.
 //
 
-import { type Doc } from '@hcengineering/core'
 import { type Resources } from '@hcengineering/platform'
-import { showPopup } from '@hcengineering/ui'
 import { getPrintBaseURL } from '@hcengineering/print'
 
-import PrintToPDF from './components/PrintToPDF.svelte'
 import PrintApp from './components/PrintApp.svelte'
 import PrintBulkToPDF from './components/PrintBulkToPDF.svelte'
 import DOCXViewer from './components/DOCXViewer.svelte'
+import { exportPDF, previewPDF, exportBulkPDF, canExportPDF } from './export'
 
-export async function print (
-  object: Doc | Doc[],
-  evt: Event,
-  props: {
-    signed: boolean
-  }
-): Promise<void> {
-  const signed = props?.signed ?? false
-  const docs = Array.isArray(object) ? object : [object]
+import PrintHeader from './components/PrintHeader.svelte'
+import PrintFooter from './components/PrintFooter.svelte'
+import PrintSettings from './components/PrintSettings.svelte'
+import { printedObjectTitle } from './decorations'
+export { getPrintObject } from './print-object'
 
-  if (docs.length === 0) {
-    return
-  }
-  if (docs.length === 1) {
-    showPopup(
-      PrintToPDF,
-      {
-        object: docs[0],
-        signed
-      },
-      'float'
-    )
-    return
-  }
-  showPopup(
-    PrintBulkToPDF,
-    {
-      objects: docs,
-      signed
-    },
-    'float'
-  )
-}
-
-export async function canPrint (): Promise<boolean> {
-  let printURL = ''
-  try {
-    printURL = getPrintBaseURL()
-  } catch (err) {
-    // do nothing
-  }
-
-  return printURL?.length > 0
-}
+import PrintConfigurationPresenter from './components/PrintConfigurationPresenter.svelte'
 
 export default async (): Promise<Resources> => ({
   component: {
+    PrintHeader,
+    PrintFooter,
+    PrintSettings,
+    PrintConfigurationPresenter,
     PrintApp,
-    PrintToPDF,
     PrintBulkToPDF,
     DOCXViewer
   },
-  actionImpl: {
-    Print: print
-  },
   function: {
-    CanPrint: canPrint,
-    CanConvert: canPrint
+    PrintedObjectTitle: printedObjectTitle,
+    ExportPDF: exportPDF,
+    PreviewPDF: previewPDF,
+    ExportBulkPDF: exportBulkPDF,
+    CanExportPDF: canExportPDF,
+    CanConvert: async () => {
+      try {
+        return getPrintBaseURL() !== ''
+      } catch {
+        return false
+      }
+    }
   }
 })

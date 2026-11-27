@@ -72,7 +72,7 @@ The catalog is a discovery guide, not a duplicate API reference. Refer to the li
 | [`DropdownPopup`](../src/components/DropdownPopup.svelte) | Popup content used by a dropdown selector. |
 | [`DropdownLabels`](../src/components/DropdownLabels.svelte) | Dropdown for selecting label values; custom trigger content receives the current `selected` value. |
 | [`DropdownLabelsPopup`](../src/components/DropdownLabelsPopup.svelte) | Popup used to choose label values. |
-| [`DropdownLabelsIntl`](../src/components/DropdownLabelsIntl.svelte) | Localized dropdown with typed scalar/multiselect events; empty-string and zero IDs are valid selections. |
+| [`DropdownLabelsIntl`](../src/components/DropdownLabelsIntl.svelte) | Localized dropdown with typed scalar/multiselect events and disabled options; empty-string and zero IDs are valid selections. |
 | [`DropdownLabelsPopupIntl`](../src/components/DropdownLabelsPopupIntl.svelte) | Localized label-selection popup. |
 | [`SelectPopup`](../src/components/SelectPopup.svelte) | Generic popup for choosing one of a set of items. |
 | [`ColorPopup`](../src/components/ColorPopup.svelte) | Popup for choosing a color. |
@@ -129,7 +129,7 @@ The catalog is a discovery guide, not a duplicate API reference. Refer to the li
 
 | Component | Purpose |
 | --- | --- |
-| [`Dialog`](../src/components/Dialog.svelte) | Standard dialog content and layout, optional width/height, and wrapping footer actions. |
+| [`Dialog`](../src/components/Dialog.svelte) | Standard dialog layout with optional width/height, wrapping footer actions, and opt-in scrollable content that keeps header and footer visible. |
 | [`ModernDialog`](../src/components/ModernDialog.svelte) | Dialog variant for the modern visual language. |
 | [`Modal`](../src/components/Modal.svelte) | Modal overlay container that blocks interaction with underlying content. |
 | [`Popup`](../src/components/Popup.svelte) | General anchored or contextual popup. |

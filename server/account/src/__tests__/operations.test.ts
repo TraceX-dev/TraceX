@@ -1814,7 +1814,12 @@ describe('account operations', () => {
         ['loginAsGuest', 'loginAsGuest'],
         ['signUp', 'signUp'],
         ['signUpOtp', 'signUpOtp'],
-        ['validateOtp', 'validateOtp']
+        ['validateOtp', 'validateOtp'],
+        // Invite page (Join.svelte / AutoJoin.svelte)
+        ['join', 'join'],
+        ['signUpJoin', 'signUpJoin'],
+        ['getInviteInfo', 'getInviteInfo'],
+        ['checkAutoJoin', 'checkAutoJoin']
       ]
 
       beforeEach(() => {

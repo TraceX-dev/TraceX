@@ -48,7 +48,7 @@
 >
   <span class="flex-presenter flex-gap-2">
     {#if memberRefs.length > 0}
-      <CombineAvatars _class={contact.mixin.Employee} items={memberRefs} size="x-small" limit={3} />
+      <CombineAvatars _class={contact.mixin.Employee} items={memberRefs} size="x-small" limit={3} hideLimit />
     {/if}
     <span class="caption-color text-xs">{accounts.length}</span>
   </span>

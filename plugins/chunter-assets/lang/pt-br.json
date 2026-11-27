@@ -165,6 +165,8 @@
     "MarkAsResolved": "Marcar como resolvido",
     "ReopenDiscussion": "Reabrir discussão",
     "HideResolvedDiscussions": "Ocultar resolvidos",
+    "DiscussionResolvedMessage": "Discussão resolvida",
+    "DiscussionReopenedMessage": "Discussão reaberta",
     "ParticipantsCount": "{count, plural, one {# participante} other {# participantes}}",
     "AddAllCollaborators": "Adicionar todos os colaboradores do cartão ({count})",
     "Discussion": "Discussão",

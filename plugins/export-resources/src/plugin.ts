@@ -1,5 +1,6 @@
 //
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -26,7 +27,6 @@ export default mergeIds(exportId, exportPlugin, {
     ExportTestCases: '' as IntlString,
     ExportTestRuns: '' as IntlString,
     ExportTestPlans: '' as IntlString,
-    ExportFormat: '' as IntlString,
     ExportJSON: '' as IntlString,
     ExportCSV: '' as IntlString,
     ExportUnifiedFormat: '' as IntlString,

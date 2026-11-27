@@ -11,11 +11,13 @@
 // limitations under the License.
 
 import card from '@hcengineering/card'
-import type { AccountUuid } from '@hcengineering/core'
+import type { AccountUuid, WorkspaceUuid } from '@hcengineering/core'
 import {
   DefinitionPackageError,
   parseDefinitionPackageRelease,
   serializeDefinitionPackageRelease,
+  type CatalogPackageOrigin,
+  type CatalogPackageOriginInput,
   type CatalogPackageVisibility
 } from '@hcengineering/marketplace'
 import { getEmbeddedLabel } from '@hcengineering/platform'
@@ -23,7 +25,7 @@ import process from '@hcengineering/process'
 import cors from 'cors'
 import express, { type ErrorRequestHandler, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit'
-import type { CatalogAccount } from './auth'
+import type { CatalogAccount, CatalogWorkspace } from './auth'
 import { CatalogError } from './errors'
 import type { CatalogStore } from './store'
 
@@ -31,6 +33,7 @@ export interface CatalogServerOptions {
   store: CatalogStore
   authenticate: (token: string) => Promise<CatalogAccount>
   resolveRecipient: (token: string, email: string) => Promise<AccountUuid>
+  resolveWorkspace: (token: string, workspace: WorkspaceUuid) => Promise<CatalogWorkspace | undefined>
   onError: (error: unknown) => void
   requestLimit?: number
   publicationLimit?: number
@@ -42,6 +45,7 @@ export function createCatalogServer ({
   store,
   authenticate,
   resolveRecipient,
+  resolveWorkspace,
   onError,
   requestLimit = 300,
   publicationLimit = 20,
@@ -53,7 +57,13 @@ export function createCatalogServer ({
   app.use(
     cors({
       methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-      allowedHeaders: ['Authorization', 'Content-Type', 'X-Marketplace-Contact-Email', 'X-Marketplace-Visibility'],
+      allowedHeaders: [
+        'Authorization',
+        'Content-Type',
+        'X-Marketplace-Contact-Email',
+        'X-Marketplace-Visibility',
+        'X-Marketplace-Origin'
+      ],
       exposedHeaders: ['Retry-After', 'RateLimit', 'RateLimit-Policy']
     })
   )
@@ -128,6 +138,28 @@ export function createCatalogServer ({
       res.sendStatus(204)
     })
   )
+  app.delete(
+    '/package',
+    requestLimiter,
+    route(async (req, res, account) => {
+      await store.delete(identity(req), account.uuid)
+      res.sendStatus(204)
+    })
+  )
+  app.get(
+    '/package/origin',
+    requestLimiter,
+    route(async (req, res, account) => {
+      const target = identity(req)
+      const origin = await store.origin(
+        target,
+        account.uuid,
+        req.query.version === undefined ? undefined : text(req.query.version, 'version')
+      )
+      if (origin === undefined) throw new CatalogError(404, 'Package origin not found')
+      res.json(origin)
+    })
+  )
   app.get(
     '/package/access',
     requestLimiter,
@@ -192,8 +224,15 @@ export function createCatalogServer ({
     '/releases',
     requestLimiter,
     publicationLimiter,
-    route(async (req, res, account) => {
+    route(async (req, res, account, token) => {
       const visibility = packageVisibility(req)
+      const input = packageOrigin(req)
+      let origin: CatalogPackageOrigin | undefined
+      if (input !== undefined) {
+        const workspace = await resolveWorkspace(token, input.workspace)
+        if (workspace === undefined) throw new CatalogError(403, 'Access to the package origin workspace is required')
+        origin = { ...input, workspaceName: workspace.name, workspaceUrl: workspace.url }
+      }
       await new Promise<void>((resolve, reject) => {
         express.text({ type: ['application/yaml', 'text/yaml'], limit: '3mb' })(req, res, (error?: unknown) => {
           if (error !== undefined) reject(error)
@@ -239,6 +278,7 @@ export function createCatalogServer ({
           id: release.package.id,
           author,
           publisher: account.uuid,
+          ...(origin === undefined ? {} : { origin }),
           ...(visibility === undefined ? {} : { visibility }),
           name: names.join(', ').slice(0, 300) || release.package.id,
           description: release.package.description ?? '',
@@ -294,6 +334,44 @@ function packageVisibility (req: Request): CatalogPackageVisibility | undefined 
   return value
 }
 
+function packageOrigin (req: Request): CatalogPackageOriginInput | undefined {
+  const header = req.header('X-Marketplace-Origin')
+  if (header === undefined) return undefined
+  let value: unknown
+  try {
+    if (header.length > 12000) throw new Error('Origin is too long')
+    value = JSON.parse(decodeURIComponent(header))
+  } catch {
+    throw new CatalogError(400, 'Invalid package origin')
+  }
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    !('workspace' in value) ||
+    !('path' in value) ||
+    !('labels' in value)
+  ) {
+    throw new CatalogError(400, 'Invalid package origin')
+  }
+  const workspace = uuid(value.workspace, 'origin workspace') as WorkspaceUuid
+  const { path, labels } = value
+  if (
+    !Array.isArray(path) ||
+    ![3, 5].includes(path.length) ||
+    !path.every((part): part is string => typeof part === 'string' && part.length > 0 && part.length <= 500) ||
+    path[0] !== 'setting' ||
+    path[1] !== 'types' ||
+    (path.length === 5 && path[3] !== 'process:component:ProcessEditor') ||
+    !Array.isArray(labels) ||
+    labels.length === 0 ||
+    labels.length > 30 ||
+    !labels.every((label): label is string => typeof label === 'string' && label.length > 0 && label.length <= 500)
+  ) {
+    throw new CatalogError(400, 'Invalid package origin')
+  }
+  return { workspace, path, labels }
+}
+
 function integer (value: unknown, fallback: number, max: number, min = 0): number {
   if (value === undefined) return fallback
   if (typeof value !== 'string' || !/^\d+$/.test(value) || Number(value) < min || Number(value) > max) {
@@ -307,9 +385,13 @@ function identity (req: Request): { id: string, author: AccountUuid } {
 }
 
 function accountUuid (value: unknown, field: string): AccountUuid {
-  const account = text(value, field)
-  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(account)) throw new CatalogError(400, `Invalid ${field}`)
-  return account as AccountUuid
+  return uuid(value, field) as AccountUuid
+}
+
+function uuid (value: unknown, field: string): string {
+  const result = text(value, field)
+  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(result)) throw new CatalogError(400, `Invalid ${field}`)
+  return result
 }
 
 async function recipientEmail (req: Request, res: Response): Promise<string> {

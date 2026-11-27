@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -35,6 +36,7 @@ import 'tippy.js/animations/shift-toward.css'
 import { type Doc as YDoc, type Map as YMap } from 'yjs'
 import { SvelteRenderer } from '../node-view'
 import { hideTextEditorToolbar } from './toolbar/toolbar'
+import { tippyZIndex } from './tippy-z-index'
 
 export interface InlineCommentExtensionOptions {
   boundary?: HTMLElement
@@ -605,7 +607,7 @@ class InlineCommentView {
           this.renderer?.destroy()
         },
         appendTo: () => this.props.popupContainer ?? document.body,
-        zIndex: 10000,
+        plugins: [tippyZIndex],
         popperOptions: {
           modifiers: [
             {

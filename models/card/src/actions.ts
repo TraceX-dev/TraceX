@@ -1,4 +1,5 @@
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -144,7 +145,7 @@ export function createActions (builder: Builder): void {
       actionProps: {
         cardClass: card.class.Card
       },
-      label: exportPlugin.string.Export,
+      label: exportPlugin.string.ExportList,
       icon: exportPlugin.icon.Export,
       input: 'selection',
       category: card.category.Card,
@@ -158,32 +159,6 @@ export function createActions (builder: Builder): void {
     card.action.ExportTable
   )
 
-  // Export/import of a single card's rich-text `content` (round-tripping through Word/Markdown),
-  // sharing the same popups/logic used for controlled documents. Distinct label from ExportTable
-  // above (that one exports card fields as CSV/JSON) to avoid two ambiguous "Export" menu items.
-  createAction(
-    builder,
-    {
-      action: view.actionImpl.ShowPopup,
-      actionPopup: exportPlugin.component.DocumentExportFormatPopup,
-      actionProps: {
-        component: exportPlugin.component.DocumentExportFormatPopup,
-        element: 'top',
-        fillProps: { _object: 'value' }
-      },
-      label: exportPlugin.string.ExportDocumentContent,
-      icon: exportPlugin.icon.Export,
-      input: 'focus',
-      category: card.category.Card,
-      target: card.class.Card,
-      context: {
-        mode: ['context', 'browser'],
-        group: 'tools'
-      }
-    },
-    card.action.ExportDocumentContent
-  )
-
   createAction(
     builder,
     {
@@ -195,7 +170,7 @@ export function createActions (builder: Builder): void {
         fillProps: { _object: 'value' }
       },
       label: exportPlugin.string.ImportDocumentContent,
-      icon: exportPlugin.icon.Export,
+      icon: exportPlugin.icon.Import,
       input: 'focus',
       category: card.category.Card,
       target: card.class.Card,

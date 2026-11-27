@@ -1,10 +1,21 @@
 {
   "string": {
+    "Enabled": "Aktiviert",
+    "Printing": "Drucken",
+    "Header": "Kopfzeile",
+    "Footer": "Fußzeile",
+    "PrintLogo": "Logo drucken",
+    "InsertField": "Feld einfügen",
+    "InvalidPrintSettings": "Druckeinstellungen konnten nicht gespeichert werden. Prüfen Sie die Felder.",
+    "PrintedObject": "Gedrucktes Objekt",
+    "Title": "Titel",
+    "Page": "Seite ",
+    "Of": " von ",
+    "CreatedFromTemplate": "Erstellt aus Vorlage: ",
     "PrintToPDF": "Als PDF drucken",
     "PrintingDocumentOf": "Dokument {current} von {total} wird gedruckt",
     "DownloadAll": "Alle herunterladen",
     "PrintFailed": "Druck fehlgeschlagen",
-    "PrintSettings": "Print settings",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

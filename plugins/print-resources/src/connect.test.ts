@@ -116,8 +116,8 @@ describe('print connection', () => {
     else Reflect.deleteProperty(globalThis, 'document')
   })
 
-  it('consumes the injected token and prepares the document panel', async () => {
-    await expect(connect('Platform')).resolves.toEqual({ path: ['print', 'workspace'], fragment: 'panel' })
+  it('consumes the injected token and prepares the document panel in the workspace location', async () => {
+    await expect(connect('Platform')).resolves.toEqual({ path: ['workbench', 'workspace'], fragment: 'panel' })
     expect(removeItem).toHaveBeenCalledWith('print-token')
     expect(getAccountClient).toHaveBeenCalledWith(undefined, 'print-token')
     expect(selectWorkspace).toHaveBeenCalledWith('workspace')

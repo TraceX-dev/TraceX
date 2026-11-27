@@ -1,10 +1,21 @@
 {
     "string": {
+    "Enabled": "활성화",
+    "Printing": "인쇄",
+    "Header": "머리글",
+    "Footer": "바닥글",
+    "PrintLogo": "로고 인쇄",
+    "InsertField": "필드 삽입",
+    "InvalidPrintSettings": "인쇄 설정을 저장할 수 없습니다. 필드를 확인하세요.",
+    "PrintedObject": "인쇄 대상",
+    "Title": "제목",
+    "Page": "페이지 ",
+    "Of": " / ",
+    "CreatedFromTemplate": "템플릿에서 생성: ",
         "PrintToPDF": "PDF로 인쇄",
         "PrintingDocumentOf": "문서 {current} / {total} 인쇄 중",
         "DownloadAll": "모두 다운로드",
         "PrintFailed": "인쇄 실패",
-        "PrintSettings": "Print settings",
-        "LandscapeMode": "Landscape mode"
+        "PrintSettings": "Print settings"
     }
 }

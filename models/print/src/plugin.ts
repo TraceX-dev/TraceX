@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -13,9 +14,8 @@
 // limitations under the License.
 //
 
-import { type Doc, type Ref } from '@hcengineering/core'
+import { type Ref } from '@hcengineering/core'
 import { mergeIds } from '@hcengineering/platform'
-import { type ViewAction, type Action } from '@hcengineering/view'
 import { type FilePreviewExtension } from '@hcengineering/presentation/src/types'
 import { printId } from '@hcengineering/print'
 // This import is needed because of similar import in print plugin
@@ -25,12 +25,6 @@ import { type AnyComponent } from '@hcengineering/ui/src/types'
 import print from '@hcengineering/print-resources/src/plugin'
 
 export default mergeIds(printId, print, {
-  action: {
-    Print: '' as Ref<Action<Doc, Record<string, any>>>
-  },
-  actionImpl: {
-    Print: '' as ViewAction
-  },
   previewExtension: {
     DOCX: '' as Ref<FilePreviewExtension>
   }

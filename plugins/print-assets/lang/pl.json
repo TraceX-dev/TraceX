@@ -1,10 +1,21 @@
 {
   "string": {
+    "Enabled": "Włączone",
+    "Printing": "Drukowanie",
+    "Header": "Nagłówek",
+    "Footer": "Stopka",
+    "PrintLogo": "Drukuj logo",
+    "InsertField": "Wstaw pole",
+    "InvalidPrintSettings": "Nie można zapisać ustawień drukowania. Sprawdź pola.",
+    "PrintedObject": "Drukowany obiekt",
+    "Title": "Tytuł",
+    "Page": "Strona ",
+    "Of": " z ",
+    "CreatedFromTemplate": "Utworzony z szablonu: ",
     "PrintToPDF": "Eksportuj do PDF",
     "PrintingDocumentOf": "Drukowanie dokumentu {current} z {total}",
     "DownloadAll": "Pobierz wszystkie",
     "PrintFailed": "Wydruk nie powiódł się",
-    "PrintSettings": "Ustawienia wydruku",
-    "LandscapeMode": "Orientacja pozioma"
+    "PrintSettings": "Ustawienia wydruku"
   }
 }

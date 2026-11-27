@@ -14,7 +14,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import type { IntlString } from '@hcengineering/platform'
+  import { setPlatformStatus, unknownError, type IntlString } from '@hcengineering/platform'
   import {
     Button,
     IconClose,
@@ -31,7 +31,8 @@
 
   export let label: IntlString
   export let labelProps: any | undefined = undefined
-  export let okAction: () => Promise<void> | void
+  // Return false to keep the card open after the action completes.
+  export let okAction: () => Promise<void | boolean> | void | boolean
   export let canSave: boolean = false
   export let okLabel: IntlString = presentation.string.Create
   export let onCancel: (() => void) | undefined = undefined
@@ -51,7 +52,7 @@
   export let width: 'large' | 'medium' | 'small' | 'x-small' | 'menu' = 'large'
   export let noFade = false
 
-  const dispatch = createEventDispatcher()
+  const dispatch = createEventDispatcher<{ close: void, changeContent: void }>()
 
   const focusManager = getFocusManager()
 
@@ -64,7 +65,7 @@
     if (target) {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault()
-        handleOkClick()
+        void handleOkClick()
       } else if (event.key === 'Enter') {
         // ignore customized editable divs to not interrupt multiline behavior
         if (!target.isContentEditable && target.nodeName !== 'TEXTAREA') {
@@ -75,22 +76,17 @@
     }
   }
 
-  function handleOkClick (): void {
-    if (canSave) {
-      if (okProcessing) {
-        return
-      }
-      okProcessing = true
-      const r = okAction()
-      if (r instanceof Promise) {
-        r.then(() => {
-          okProcessing = false
-          dispatch('close')
-        })
-      } else {
-        okProcessing = false
+  async function handleOkClick (): Promise<void> {
+    if (!canSave || okProcessing) return
+    okProcessing = true
+    try {
+      if ((await okAction()) !== false) {
         dispatch('close')
       }
+    } catch (error) {
+      await setPlatformStatus(unknownError(error))
+    } finally {
+      okProcessing = false
     }
   }
 </script>

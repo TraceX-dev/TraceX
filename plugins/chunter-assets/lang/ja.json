@@ -166,6 +166,8 @@
     "MarkAsResolved": "解決済みにする",
     "ReopenDiscussion": "ディスカッションを再開",
     "HideResolvedDiscussions": "解決済みを非表示",
+    "DiscussionResolvedMessage": "ディスカッションを解決済みにしました",
+    "DiscussionReopenedMessage": "ディスカッションを再開しました",
     "ParticipantsCount": "{count, plural, other {#人の参加者}}",
     "AddAllCollaborators": "カードの共同作業者をすべて追加（{count}）",
     "Discussion": "ディスカッション",

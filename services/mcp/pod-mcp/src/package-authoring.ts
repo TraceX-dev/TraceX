@@ -16,14 +16,20 @@ import marketplace, {
   createDefinitionPackageMetadata,
   createDefinitionPackageRelease,
   parseDefinitionPackageRelease,
+  parseDefinitionPackageSource,
+  withDefinitionPackageDependencies,
+  resolveDefinitionPackageDependencies,
+  prepareDefinitionPackageTreeInstallation,
   serializeDefinitionPackageRelease,
   DefinitionPackageError,
   MarketplaceError,
   MarketplaceClient,
   type CatalogPackageIdentity,
   type DefinitionPackageRelease,
+  type DefinitionPackageInstallation,
   type DefinitionPackageDraft,
-  type DefinitionPackageManifest
+  type DefinitionPackageManifest,
+  type DefinitionPackageDependency
 } from '@hcengineering/marketplace'
 import {
   compileProcessYaml,
@@ -52,7 +58,8 @@ import {
   packageGetDraftToolId,
   packageInspectToolId,
   packageSaveDraftToolId,
-  packageValidateToolId
+  packageValidateToolId,
+  packageAddDependencyToolId
 } from './tools/package/tool-ids'
 import { meWorkspacesToolId } from './tools/me/tool-ids'
 
@@ -76,6 +83,25 @@ interface VersionDraftBase {
   draft?: DefinitionPackageDraft
 }
 
+interface AddDependencyInput {
+  workspace: string
+  draftId: string
+  expectedRevision: number
+  alias: string
+  dependency: DefinitionPackageDependency
+  review: string
+}
+
+const PACKAGE_AUTHORING_CAPABILITIES: Readonly<Record<string, boolean>> = {
+  savePrivateDrafts: true,
+  prepareInstalledProcessSlotBindings: true,
+  installPackages: false,
+  attachProcessesToCardTypes: false,
+  declareExternalPackageDependencies: true,
+  publishPackages: false,
+  executeProcesses: false
+}
+
 class PackageAuthoringError extends Error {
   constructor (
     readonly code: string,
@@ -92,9 +118,53 @@ export function validatePackageDraft (
   connection: WorkspaceConnection
 ): { source: string, definition: ProcessAuthoringResult } {
   const model = connection.client.getModel()
-  const definition = compileProcessYaml(source, model)
+  const parsed = parseDefinitionPackageSource(source)
+  const definition = compileProcessYaml(parsed.source, model)
   validateAuthoringModelOperations(definition.docs, model, connection.client.getHierarchy())
-  return { definition, source: exportAuthoringModel(definition.docs, definition.kind, getAuthoringCatalog(model)) }
+  return {
+    definition,
+    source: withDefinitionPackageDependencies(
+      exportAuthoringModel(definition.docs, definition.kind, getAuthoringCatalog(model)),
+      parsed.dependencies
+    )
+  }
+}
+
+/** Checks locked catalog access and all nested contracts before saving any private artifact. */
+async function validatePackageDependencies (
+  release: DefinitionPackageRelease,
+  connection: WorkspaceConnection,
+  marketplaceUrl?: string,
+  accountToken?: string
+): Promise<void> {
+  if (Object.keys(release.dependencies ?? {}).length === 0) return
+  if (!marketplaceUrl || !accountToken) {
+    throw new PackageDiscoveryError(
+      'marketplace_not_configured',
+      'Configure authenticated Marketplace access to resolve package dependencies'
+    )
+  }
+  const catalog = new MarketplaceClient(marketplaceUrl, accountToken)
+  const resolved = await resolveDefinitionPackageDependencies(release, async (dependency) => {
+    return (await readCatalogPackageRelease(catalog, dependency, dependency.version)).release
+  })
+  const model = connection.client.getModel()
+  const hierarchy = connection.client.getHierarchy()
+  const validate = (node: typeof resolved): void => {
+    const definition = compileProcessYaml(parseDefinitionPackageSource(node.release.source).source, model)
+    validateAuthoringModelOperations(definition.docs, model, hierarchy)
+    for (const child of Object.values(node.dependencies)) validate(child)
+  }
+  validate(resolved)
+  if (release.definition.kind === 'card') {
+    await prepareDefinitionPackageTreeInstallation(
+      resolved,
+      {},
+      generateId<DefinitionPackageInstallation>(),
+      model,
+      hierarchy
+    )
+  }
 }
 
 async function loadDraft (
@@ -114,7 +184,9 @@ async function loadDraft (
 export async function savePackageDraft (
   args: DraftInput,
   connection: WorkspaceConnection,
-  base?: VersionDraftBase
+  base?: VersionDraftBase,
+  marketplaceUrl?: string,
+  accountToken?: string
 ): Promise<Record<string, unknown>> {
   const author = connection.token.account
   const current = args.draftId === undefined ? undefined : await loadDraft(connection, author, args.draftId)
@@ -156,12 +228,12 @@ export async function savePackageDraft (
         )
       : { ...currentRelease.package, description: args.description.trim() }
   if (manifest.author !== author) throw new PackageAuthoringError('draft_author_mismatch', 'The draft author changed')
-  const release = serializeDefinitionPackageRelease(
-    await createDefinitionPackageRelease({
-      package: manifest,
-      source: validated.source
-    })
-  )
+  const artifact = await createDefinitionPackageRelease({
+    package: manifest,
+    source: validated.source
+  })
+  await validatePackageDependencies(artifact, connection, marketplaceUrl, accountToken)
+  const release = serializeDefinitionPackageRelease(artifact)
   const person = await connection.client.findOne(contact.class.Person, { personUuid: author })
   const space =
     person === undefined
@@ -263,7 +335,7 @@ export async function createPackageVersionDraft (
     }
     base = { release }
   }
-  const result = await savePackageDraft(args, connection, base)
+  const result = await savePackageDraft(args, connection, base, marketplaceUrl, accountToken)
   return {
     ...result,
     basedOn: {
@@ -320,7 +392,12 @@ export function registerPackageAuthoringTools (
           throw new PackageAuthoringError('account_mismatch', 'The workspace belongs to another account')
         }
         const output = await ctx.with('execute', {}, async () => await operation(connection))
-        return jsonStructuredText({ workspace, installation: String(auth.resource), ...output })
+        return jsonStructuredText({
+          workspace,
+          installation: String(auth.resource),
+          ...output,
+          capabilities: PACKAGE_AUTHORING_CAPABILITIES
+        })
       } catch (error) {
         if (error instanceof PackageAuthoringError || error instanceof PackageDiscoveryError) {
           return jsonText({ error: { code: error.code, message: error.message } }, true)
@@ -430,10 +507,16 @@ export function registerPackageAuthoringTools (
     async (args) =>
       await execute(packageValidateToolId, args.workspace, async (connection) => {
         const { source, definition } = validatePackageDraft(args.source, connection)
+        const artifact = await createDefinitionPackageRelease({
+          package: { id: 'validation/draft', author: connection.token.account, version: '1.0.0' },
+          source
+        })
+        await validatePackageDependencies(artifact, connection, marketplaceUrl, auth.extra.accountToken)
         return {
           valid: true,
           kind: definition.kind,
           documents: definition.docs.length,
+          dependencies: artifact.dependencies ?? {},
           source,
           installationReviewRequired: true
         }
@@ -463,6 +546,7 @@ export function registerPackageAuthoringTools (
           name: draft.name,
           review: draft.review,
           package: release.package,
+          dependencies: release.dependencies ?? {},
           source: release.source
         }
       })
@@ -519,11 +603,77 @@ export function registerPackageAuthoringTools (
       )
   )
   server.registerTool(
+    packageAddDependencyToolId,
+    {
+      title: 'Add package dependency to draft',
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+      description: `Add or update a locked Marketplace dependency in your private draft after user intent to reuse an existing package. First read ${packageGetDraftToolId} and inspect the exact dependency release with ${packageInspectToolId}. Supply its original author, ID, version, contentHash and destination bindings for every process member. Use $parent.<member> to bind to a type or model entity in the parent draft; attribute slots use stored field names. Resolves accessible nested releases, rejects cycles/version conflicts and validates card-module bindings before saving a new draft revision. Preserves each dependency's authorship and source; never copies its graph into the parent, installs, executes or publishes.`,
+      inputSchema: fromJsonSchema<AddDependencyInput>({
+        type: 'object',
+        properties: {
+          workspace,
+          draftId: { type: 'string', minLength: 1 },
+          expectedRevision: { type: 'integer', minimum: 1 },
+          alias: { type: 'string', pattern: '^[a-z][a-z0-9_-]*$', maxLength: 100 },
+          review: { type: 'string', minLength: 1, maxLength: 32000 },
+          dependency: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', minLength: 1 },
+              author: { type: 'string', minLength: 1 },
+              version: { type: 'string', minLength: 1 },
+              contentHash: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' },
+              destinations: {
+                type: 'object',
+                additionalProperties: {
+                  type: 'object',
+                  properties: {
+                    masterTag: { type: 'string', minLength: 1 },
+                    bindings: { type: 'object', additionalProperties: { type: 'string', minLength: 1 } }
+                  },
+                  required: ['masterTag', 'bindings'],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ['id', 'author', 'version', 'contentHash', 'destinations'],
+            additionalProperties: false
+          }
+        },
+        required: ['workspace', 'draftId', 'expectedRevision', 'alias', 'dependency', 'review'],
+        additionalProperties: false
+      })
+    },
+    async (args) =>
+      await execute(packageAddDependencyToolId, args.workspace, async (connection) => {
+        const draft = await loadDraft(connection, connection.token.account, args.draftId)
+        const release = await parseDefinitionPackageRelease(draft.release)
+        return await savePackageDraft(
+          {
+            workspace: args.workspace,
+            draftId: args.draftId,
+            expectedRevision: args.expectedRevision,
+            name: draft.name,
+            description: release.package.description ?? '',
+            review: args.review,
+            source: withDefinitionPackageDependencies(release.source, {
+              ...release.dependencies,
+              [args.alias]: args.dependency
+            })
+          },
+          connection,
+          undefined,
+          marketplaceUrl,
+          auth.extra.accountToken
+        )
+      })
+  )
+  server.registerTool(
     packageSaveDraftToolId,
     {
       title: 'Save package draft',
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
-      description: `Validate and save a private package draft for explicit UI review. Requires user intent to save. Search and inspect reusable packages and installed processes before creating new logic. Supply a plain YAML v2 definition and a review explaining fields, states, ordered actions, reused package identities/versions, context dependencies, bindings and manual acceptance scenarios. The authenticated account becomes the author. For edits first use ${packageGetDraftToolId} and supply draftId with expectedRevision; editing retains the release version. For a new version of an existing package use ${packageCreateVersionDraftToolId}. Never installs, executes or publishes definitions.`,
+      description: `Validate and save a private package draft for explicit UI review. Requires user intent to save. Search and inspect reusable packages before creating new logic. Source accepts a YAML v2 definition with locked Marketplace dependencies; preserve existing dependencies when editing. To add an existing package to a saved draft use ${packageAddDependencyToolId}; do not copy its graph. Read Reusing a Marketplace process in ${packageAuthoringGuideToolId}. Supply a review explaining fields, states, ordered actions, dependency identities/versions, context dependencies, bindings and manual acceptance scenarios. The authenticated account authors only the parent package. For edits first use ${packageGetDraftToolId} and supply draftId with expectedRevision; editing retains the release version. For a new version use ${packageCreateVersionDraftToolId}. Never installs, executes or publishes definitions.`,
       inputSchema: fromJsonSchema<DraftInput>({
         type: 'object',
         properties: {
@@ -543,7 +693,8 @@ export function registerPackageAuthoringTools (
       await execute(
         packageSaveDraftToolId,
         args.workspace,
-        async (connection) => await savePackageDraft(args, connection)
+        async (connection) =>
+          await savePackageDraft(args, connection, undefined, marketplaceUrl, auth.extra.accountToken)
       )
   )
 }

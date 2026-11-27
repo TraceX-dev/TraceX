@@ -165,6 +165,8 @@
     "MarkAsResolved": "Segna come risolto",
     "ReopenDiscussion": "Riapri discussione",
     "HideResolvedDiscussions": "Nascondi risolti",
+    "DiscussionResolvedMessage": "Discussione risolta",
+    "DiscussionReopenedMessage": "Discussione riaperta",
     "ParticipantsCount": "{count, plural, one {# partecipante} other {# partecipanti}}",
     "AddAllCollaborators": "Aggiungi tutti i collaboratori della scheda ({count})",
     "Discussion": "Discussione",

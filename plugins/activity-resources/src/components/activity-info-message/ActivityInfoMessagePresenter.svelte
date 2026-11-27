@@ -17,7 +17,7 @@
   import { Avatar, SystemAvatar, getPersonByPersonIdCb } from '@hcengineering/contact-resources'
   import { translateCB } from '@hcengineering/platform'
   import { HTMLViewer } from '@hcengineering/presentation'
-  import { Action, themeStore } from '@hcengineering/ui'
+  import { Action, Icon, themeStore } from '@hcengineering/ui'
 
   import ActivityMessageHeader from '../activity-message/ActivityMessageHeader.svelte'
   import ActivityMessageTemplate from '../activity-message/ActivityMessageTemplate.svelte'
@@ -64,6 +64,7 @@
   {hoverStyles}
   viewlet={undefined}
   {readonly}
+  showDatePreposition={hideLink}
   {onClick}
 >
   <svelte:fragment slot="icon">
@@ -88,6 +89,11 @@
   </svelte:fragment>
   <svelte:fragment slot="content">
     <div class="flex-row-center">
+      {#if value.contentIcon}
+        <span class="contentIcon">
+          <Icon icon={value.contentIcon} size="small" />
+        </span>
+      {/if}
       <div class="customContent">
         <HTMLViewer value={content} />
       </div>
@@ -96,6 +102,13 @@
 </ActivityMessageTemplate>
 
 <style lang="scss">
+  .contentIcon {
+    display: flex;
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+    color: var(--global-primary-TextColor);
+  }
+
   .customContent {
     display: flex;
     flex-wrap: wrap;

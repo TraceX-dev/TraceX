@@ -303,6 +303,7 @@
     "SearchUserGroups": "Hledat skupiny",
     "DeleteUserGroup": "Smazat skupinu",
     "DeleteUserGroupConfirm": "Smazat {name}? Její členové ztratí přístup k připojeným prostorům ({count}), pokud v nich nejsou přímo nebo přes jinou skupinu.",
+    "UserGroupChangeLeavesSpacesEmpty": "Tyto soukromé prostory by zůstaly bez členů a nikdo by je nemohl otevřít: {spaces}. Nejprve do nich přidejte přímé členy.",
     "NoUserGroups": "Zatím žádné skupiny",
     "UserGroupsNotSupported": "K tomuto typu prostoru nelze připojit skupiny",
     "SearchSpaces": "Hledat prostory",

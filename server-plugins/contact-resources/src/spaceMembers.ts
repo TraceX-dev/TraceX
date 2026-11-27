@@ -56,7 +56,8 @@ export async function resolveGroupMembers (
  * Accounts that are not direct members leave the roles of the space: groups give no roles yet.
  */
 export async function recomputeSpaceMembers (control: TriggerControl, space: Space): Promise<Tx[]> {
-  const direct = space.directMembers ?? space.members ?? []
+  // Every space has directMembers: the migration fills existing ones, OnSpaceMembershipChange created ones.
+  const direct = space.directMembers ?? []
   const target = new Set<AccountUuid>([...direct, ...(await resolveGroupMembers(control, space.groups ?? []))])
   const current = space.members ?? []
 
@@ -64,13 +65,6 @@ export async function recomputeSpaceMembers (control: TriggerControl, space: Spa
   const removed = Array.from(new Set(current)).filter((it) => !target.has(it))
 
   const result: Tx[] = []
-  if (space.directMembers === undefined) {
-    // Not migrated: `members` is still the direct list. Persist it before group members join `members`,
-    // otherwise the next recompute would take them for direct members and never remove them.
-    result.push(
-      control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, { directMembers: [...current] })
-    )
-  }
   if (added.length > 0) {
     result.push(
       control.txFactory.createTxUpdateDoc(space._class, space.space, space._id, {
@@ -126,7 +120,8 @@ async function findSpace (
 
 /**
  * Recomputes each affected space once per batch, including changes to bound groups.
- * Legacy creates initialize directMembers before the membership delta is applied.
+ * A space created without directMembers (server code that bypasses SpaceMembershipMiddleware: triggers, imports)
+ * gets them from its members: every space has directMembers.
  */
 export async function OnSpaceMembershipChange (txes: Tx[], control: TriggerControl): Promise<Tx[]> {
   const result: Tx[] = []

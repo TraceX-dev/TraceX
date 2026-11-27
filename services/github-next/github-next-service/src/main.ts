@@ -18,8 +18,10 @@ import { getClient as getAccountClient } from '@hcengineering/account-client'
 import { Analytics } from '@hcengineering/analytics'
 import { configureAnalytics, createOpenTelemetryMetricsContext, SplitLogger } from '@hcengineering/analytics-service'
 import core, {
+  generateId,
   newMetrics,
   systemAccountUuid,
+  WorkspaceEvent,
   type Class,
   type Doc,
   type MeasureContext,
@@ -38,12 +40,21 @@ import githubNext, {
 } from '@hcengineering/github-next'
 import { getPlatformQueue } from '@hcengineering/kafka'
 import { setMetadata } from '@hcengineering/platform'
-import { initStatisticsContext, QueueTopic, type ConsumerHandle, type PlatformQueue } from '@hcengineering/server-core'
+import {
+  initStatisticsContext,
+  QueueTopic,
+  QueueWorkspaceEvent,
+  type ConsumerHandle,
+  type PlatformQueue,
+  type QueueWorkspaceMessage
+} from '@hcengineering/server-core'
 import serverToken, { generateToken } from '@hcengineering/server-token'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { join } from 'node:path'
 import config from './config'
 import {
+  clearGithubNextWorkspaceClients,
+  invalidateGithubNextWorkspaceClient,
   isGithubNextOutboundRelevantTx,
   listGithubRepositories,
   syncGithubNextDiscussions,
@@ -52,7 +63,8 @@ import {
   syncGithubNextOutboundIssues,
   syncGithubNextOutboundPullRequests,
   syncGithubNextWorkspace,
-  validateGithubToken
+  validateGithubToken,
+  type SyncGithubNextWorkspaceResult
 } from './index'
 import { prepare } from './init'
 
@@ -245,6 +257,7 @@ async function handleSync (req: IncomingMessage, res: ServerResponse): Promise<v
   }
 
   jsonResponse(res, 200, {})
+  invalidateGithubNextWorkspaceClient(config.AccountsURL, body.workspaceUuid)
   scheduleTick()
   enqueueOutboundWorkspace(body.workspaceUuid, 'manual-sync')
 }
@@ -319,26 +332,73 @@ async function getGithubNextWorkspaces (): Promise<WorkspaceUuid[]> {
   return uniqueWorkspaces(integrations.map((integration) => integration.workspaceUuid))
 }
 
+async function traceSyncPhase (
+  ctx: MeasureContext,
+  workspaceUuid: WorkspaceUuid,
+  phase: string,
+  sync: () => Promise<SyncGithubNextWorkspaceResult>
+): Promise<SyncGithubNextWorkspaceResult> {
+  const startedOn = Date.now()
+  const startedCpuUsage = process.cpuUsage()
+  const startedMemory = process.memoryUsage()
+  let result: SyncGithubNextWorkspaceResult | undefined
+  ctx.info('GitHub Next sync phase started', { workspace: workspaceUuid, phase })
+  try {
+    result = await sync()
+    return result
+  } finally {
+    const cpuUsage = process.cpuUsage(startedCpuUsage)
+    const memory = process.memoryUsage()
+    ctx.info('GitHub Next sync phase finished', {
+      workspace: workspaceUuid,
+      phase,
+      durationMs: Date.now() - startedOn,
+      processCpuUserMs: cpuUsage.user / 1000,
+      processCpuSystemMs: cpuUsage.system / 1000,
+      rssBytes: memory.rss,
+      heapUsedBytes: memory.heapUsed,
+      heapUsedDeltaBytes: memory.heapUsed - startedMemory.heapUsed,
+      succeeded: result !== undefined,
+      result
+    })
+  }
+}
+
 async function syncInboundWorkspace (ctx: MeasureContext, workspaceUuid: WorkspaceUuid): Promise<void> {
   if (!config.SyncInbound) return
 
   inboundWorkspaces.add(workspaceUuid)
   try {
-    const issuesResult = await syncGithubNextWorkspace(ctx, config.AccountsURL, workspaceUuid)
+    const issuesResult = await traceSyncPhase(
+      ctx,
+      workspaceUuid,
+      'inbound-issues',
+      async () => await syncGithubNextWorkspace(ctx, config.AccountsURL, workspaceUuid)
+    )
     ctx.info(
       `[${config.ServiceID}] inbound issues ${workspaceUuid}: integrations=${issuesResult.integrations}, ` +
         `repositories=${issuesResult.repositories}, issues=${issuesResult.issuesSeen}, created=${issuesResult.created}, ` +
         `updated=${issuesResult.updated}, skipped=${issuesResult.skipped}`
     )
 
-    const discussionsResult = await syncGithubNextDiscussions(ctx, config.AccountsURL, workspaceUuid)
+    const discussionsResult = await traceSyncPhase(
+      ctx,
+      workspaceUuid,
+      'inbound-discussions',
+      async () => await syncGithubNextDiscussions(ctx, config.AccountsURL, workspaceUuid)
+    )
     ctx.info(
       `[${config.ServiceID}] inbound discussions ${workspaceUuid}: integrations=${discussionsResult.integrations}, ` +
         `repositories=${discussionsResult.repositories}, discussions=${discussionsResult.discussionsSeen}, ` +
         `created=${discussionsResult.created}, updated=${discussionsResult.updated}, skipped=${discussionsResult.skipped}`
     )
 
-    const pullRequestsResult = await syncGithubNextPullRequests(ctx, config.AccountsURL, workspaceUuid)
+    const pullRequestsResult = await traceSyncPhase(
+      ctx,
+      workspaceUuid,
+      'inbound-pull-requests',
+      async () => await syncGithubNextPullRequests(ctx, config.AccountsURL, workspaceUuid)
+    )
     ctx.info(
       `[${config.ServiceID}] inbound pull requests ${workspaceUuid}: integrations=${pullRequestsResult.integrations}, ` +
         `repositories=${pullRequestsResult.repositories}, pullRequests=${pullRequestsResult.pullRequestsSeen}, ` +
@@ -352,21 +412,36 @@ async function syncInboundWorkspace (ctx: MeasureContext, workspaceUuid: Workspa
 async function syncOutboundWorkspace (ctx: MeasureContext, workspaceUuid: WorkspaceUuid): Promise<void> {
   if (!config.SyncOutbound) return
 
-  const outboundIssuesResult = await syncGithubNextOutboundIssues(ctx, config.AccountsURL, workspaceUuid)
+  const outboundIssuesResult = await traceSyncPhase(
+    ctx,
+    workspaceUuid,
+    'outbound-issues',
+    async () => await syncGithubNextOutboundIssues(ctx, config.AccountsURL, workspaceUuid)
+  )
   ctx.info(
     `[${config.ServiceID}] outbound issues ${workspaceUuid}: integrations=${outboundIssuesResult.integrations}, ` +
       `repositories=${outboundIssuesResult.repositories}, issues=${outboundIssuesResult.issuesSeen}, ` +
       `updated=${outboundIssuesResult.updated}, skipped=${outboundIssuesResult.skipped}`
   )
 
-  const outboundDiscussionsResult = await syncGithubNextOutboundDiscussions(ctx, config.AccountsURL, workspaceUuid)
+  const outboundDiscussionsResult = await traceSyncPhase(
+    ctx,
+    workspaceUuid,
+    'outbound-discussions',
+    async () => await syncGithubNextOutboundDiscussions(ctx, config.AccountsURL, workspaceUuid)
+  )
   ctx.info(
     `[${config.ServiceID}] outbound discussions ${workspaceUuid}: integrations=${outboundDiscussionsResult.integrations}, ` +
       `repositories=${outboundDiscussionsResult.repositories}, discussions=${outboundDiscussionsResult.discussionsSeen}, ` +
       `updated=${outboundDiscussionsResult.updated}, skipped=${outboundDiscussionsResult.skipped}`
   )
 
-  const outboundPullRequestsResult = await syncGithubNextOutboundPullRequests(ctx, config.AccountsURL, workspaceUuid)
+  const outboundPullRequestsResult = await traceSyncPhase(
+    ctx,
+    workspaceUuid,
+    'outbound-pull-requests',
+    async () => await syncGithubNextOutboundPullRequests(ctx, config.AccountsURL, workspaceUuid)
+  )
   ctx.info(
     `[${config.ServiceID}] outbound pull requests ${workspaceUuid}: integrations=${outboundPullRequestsResult.integrations}, ` +
       `repositories=${outboundPullRequestsResult.repositories}, pullRequests=${outboundPullRequestsResult.pullRequestsSeen}, ` +
@@ -509,28 +584,43 @@ async function enqueueAllOutboundWorkspaces (reason: string): Promise<void> {
   }
 }
 
-function startOutboundQueueConsumer (ctx: MeasureContext): { close: () => Promise<void> } {
-  if (!config.SyncOutbound) {
+function startQueueConsumers (ctx: MeasureContext): { close: () => Promise<void> } {
+  if (!config.SyncOutbound && !config.SyncInbound) {
     return {
       close: async () => {}
     }
   }
 
+  let queue: PlatformQueue | undefined
+  const consumers: ConsumerHandle[] = []
   try {
-    const queue: PlatformQueue = getPlatformQueue(config.ServiceID, config.QueueRegion)
+    queue = getPlatformQueue(config.ServiceID, config.QueueRegion)
     const consumer: ConsumerHandle = queue.createConsumer<Tx>(
       ctx,
       QueueTopic.Tx,
       queue.getClientId(),
       async (ctx, msg) => {
-        const tx = (msg as any).value as Tx | undefined
-        const workspace = (msg as any).workspace as WorkspaceUuid | undefined
+        const tx = msg.value
+        const workspace = msg.workspace
+        if (
+          tx !== undefined &&
+          workspace !== undefined &&
+          (tx._class === core.class.TxModelUpgrade ||
+            tx.objectSpace === core.space.Model ||
+            (isTxWorkspaceEvent(tx) && tx.event === WorkspaceEvent.BulkUpdate))
+        ) {
+          invalidateGithubNextWorkspaceClient(config.AccountsURL, workspace)
+        }
+        if (!config.SyncOutbound) return
         const skipReason = getOutboundTxSkipReason(tx, workspace)
         if (skipReason === undefined && tx !== undefined && workspace !== undefined) {
+          const validationStartedOn = Date.now()
           const relevant = await isGithubNextOutboundRelevantTx(config.AccountsURL, workspace, tx)
+          const validationDurationMs = Date.now() - validationStartedOn
           if (!relevant) {
             ctx.info(`[${config.ServiceID}] outbound tx ignored`, {
               workspace,
+              validationDurationMs,
               reason: 'unmatched-github-next',
               txClass: tx._class,
               objectClass: isTxCUD(tx) ? tx.objectClass : undefined,
@@ -543,6 +633,7 @@ function startOutboundQueueConsumer (ctx: MeasureContext): { close: () => Promis
 
           ctx.info(`[${config.ServiceID}] outbound tx accepted`, {
             workspace,
+            validationDurationMs,
             txClass: tx._class,
             objectClass: isTxCUD(tx) ? tx.objectClass : undefined,
             objectId: isTxCUD(tx) ? tx.objectId : undefined,
@@ -567,18 +658,43 @@ function startOutboundQueueConsumer (ctx: MeasureContext): { close: () => Promis
       }
     )
 
-    ctx.info(`[${config.ServiceID}] outbound queue consumer started`)
+    consumers.push(consumer)
+    consumers.push(
+      queue.createConsumer<QueueWorkspaceMessage>(
+        ctx,
+        QueueTopic.Workspace,
+        `${queue.getClientId()}-${generateId()}`,
+        async (_ctx, msg) => {
+          if (
+            msg.value.type === QueueWorkspaceEvent.Upgraded ||
+            msg.value.type === QueueWorkspaceEvent.Restored ||
+            msg.value.type === QueueWorkspaceEvent.Deleted ||
+            msg.value.type === QueueWorkspaceEvent.Archived ||
+            msg.value.type === QueueWorkspaceEvent.Restoring
+          ) {
+            invalidateGithubNextWorkspaceClient(config.AccountsURL, msg.workspace)
+          }
+        },
+        { fromBegining: false }
+      )
+    )
 
-    return {
-      close: async () => {
-        await consumer.close()
-        await queue.shutdown()
-      }
-    }
+    ctx.info(`[${config.ServiceID}] queue consumers started`)
   } catch (err) {
-    ctx.error('failed to start outbound queue consumer', { err })
-    return {
-      close: async () => {}
+    ctx.error('failed to start queue consumers', { err })
+  }
+
+  return {
+    close: async () => {
+      try {
+        await Promise.all(
+          consumers.map(async (consumer) => {
+            await consumer.close()
+          })
+        )
+      } finally {
+        await queue?.shutdown()
+      }
     }
   }
 }
@@ -588,7 +704,7 @@ async function main (): Promise<void> {
   setMetadata(serverToken.metadata.Service, config.ServiceID)
 
   const httpServer = startHttpServer()
-  const outboundConsumer = startOutboundQueueConsumer(ctx)
+  const queueConsumers = startQueueConsumers(ctx)
   await tick()
   await enqueueAllOutboundWorkspaces('startup')
 
@@ -601,9 +717,15 @@ async function main (): Promise<void> {
     if (outboundTimer !== undefined) clearTimeout(outboundTimer)
     clearInterval(timer)
     httpServer.close()
-    void outboundConsumer.close().finally(() => {
-      process.exit(0)
-    })
+    void queueConsumers
+      .close()
+      .catch((err) => {
+        ctx.error('failed to close queue consumers', { err })
+      })
+      .finally(() => {
+        clearGithubNextWorkspaceClients()
+        process.exit(0)
+      })
   }
 
   process.once('SIGINT', shutdown)

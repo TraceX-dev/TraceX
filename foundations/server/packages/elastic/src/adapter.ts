@@ -39,14 +39,16 @@ function getIndexName (): string {
 }
 
 function getIndexVersion (): string {
-  return getMetadata(serverCore.metadata.ElasticIndexVersion) ?? 'v2'
+  // v3: word_delimiter_graph analyzer (splits codes like ABC_DEFGH-12 into searchable parts)
+  return getMetadata(serverCore.metadata.ElasticIndexVersion) ?? 'v3'
 }
 
 const mappings = {
   properties: {
     fulltextSummary: {
       type: 'text',
-      analyzer: 'rebuilt_english'
+      analyzer: 'rebuilt_english',
+      search_analyzer: 'rebuilt_english_search'
     },
     workspaceId: {
       type: 'keyword',
@@ -100,6 +102,27 @@ const mappings = {
       index: true
     }
   }
+}
+
+/**
+ * Splits compound codes into parts while keeping the original token, so
+ * `ABC_DEFGH-12` is searchable as `abc_defgh`, `abc`, `defgh` and `12`,
+ * `XYZ123` as `xyz123`, `xyz`, `123` and `FooBar` as `foobar`, `foo`, `bar`.
+ * The standard tokenizer already splits on `-`; this filter adds `_`,
+ * case changes and letter/digit boundaries. Must run before `lowercase`.
+ */
+const codeWordDelimiterFilter = {
+  type: 'word_delimiter_graph',
+  preserve_original: true,
+  generate_word_parts: true,
+  generate_number_parts: true,
+  split_on_case_change: true,
+  split_on_numerics: true,
+  catenate_words: false,
+  catenate_numbers: false,
+  catenate_all: false,
+  // Strip trailing `'s` so `John's` does not emit a stray `s` part.
+  stem_english_possessive: true
 }
 
 class ElasticAdapter implements FullTextAdapter {
@@ -164,13 +187,27 @@ class ElasticAdapter implements FullTextAdapter {
                     english_possessive_stemmer: {
                       type: 'stemmer',
                       language: 'possessive_english'
-                    }
+                    },
+                    code_word_delimiter: codeWordDelimiterFilter
                   },
                   analyzer: {
+                    // Index-time: graph filters must be flattened before indexing.
                     rebuilt_english: {
                       type: 'custom',
                       tokenizer: 'standard',
-                      filter: ['english_possessive_stemmer', 'lowercase', 'english_stemmer']
+                      filter: [
+                        'code_word_delimiter',
+                        'flatten_graph',
+                        'english_possessive_stemmer',
+                        'lowercase',
+                        'english_stemmer'
+                      ]
+                    },
+                    // Search-time: keep the token graph for correct phrase/multi-part matching.
+                    rebuilt_english_search: {
+                      type: 'custom',
+                      tokenizer: 'standard',
+                      filter: ['code_word_delimiter', 'english_possessive_stemmer', 'lowercase', 'english_stemmer']
                     }
                   }
                 }

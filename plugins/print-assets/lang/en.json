@@ -1,10 +1,21 @@
 {
   "string": {
+    "Enabled": "Enabled",
+    "Printing": "Printing",
+    "Header": "Header",
+    "Footer": "Footer",
+    "PrintLogo": "Print logo",
+    "InsertField": "Insert field",
+    "InvalidPrintSettings": "Could not save printing settings. Check the fields and try again.",
+    "PrintedObject": "Printed object",
+    "Title": "Title",
+    "Page": "Page ",
+    "Of": " of ",
+    "CreatedFromTemplate": "Created from template: ",
     "PrintToPDF": "Print to PDF",
     "PrintingDocumentOf": "Printing document {current} of {total}",
     "DownloadAll": "Download all",
     "PrintFailed": "Print failed",
-    "PrintSettings": "Print settings",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

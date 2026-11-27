@@ -171,6 +171,9 @@ async function renderDocument (
     const url = new URL(concatLink(config.FrontUrl, 'print/' + encodeURIComponent(workspace.url)))
     url.searchParams.set('objectClass', objectClass)
     url.searchParams.set('objectId', objectId)
+    if (options.printHeaderFooter !== undefined) {
+      url.searchParams.set('printHeaderFooter', String(options.printHeaderFooter))
+    }
 
     return await print(ctx, url.toString(), options, readonlyToken)
   } finally {
@@ -190,6 +193,12 @@ function parsePrintOptions (query: Request['query']): PrintOptions {
     throw new ApiError(400, `Invalid page orientation: ${orientation}`)
   }
 
+  const rawHeaderFooter = query.printHeaderFooter
+  if (rawHeaderFooter !== undefined && rawHeaderFooter !== 'true' && rawHeaderFooter !== 'false') {
+    throw new ApiError(400, 'Invalid printHeaderFooter: expected true or false')
+  }
+  const printHeaderFooter = rawHeaderFooter === undefined ? undefined : rawHeaderFooter === 'true'
+
   const rawWidth = (query.width ?? '') as string
   const rawHeight = (query.height ?? '') as string
 
@@ -207,7 +216,7 @@ function parsePrintOptions (query: Request['query']): PrintOptions {
     throw new ApiError(400, 'Both width and height must be provided')
   }
 
-  return { kind, orientation, viewport }
+  return { kind, orientation, viewport, printHeaderFooter }
 }
 
 export function createServer (

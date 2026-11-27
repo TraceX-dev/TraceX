@@ -1,10 +1,21 @@
 {
   "string": {
+    "Enabled": "Activé",
+    "Printing": "Impression",
+    "Header": "En-tête",
+    "Footer": "Pied de page",
+    "PrintLogo": "Imprimer le logo",
+    "InsertField": "Insérer un champ",
+    "InvalidPrintSettings": "Impossible d’enregistrer les paramètres d’impression. Vérifiez les champs.",
+    "PrintedObject": "Objet imprimé",
+    "Title": "Titre",
+    "Page": "Page ",
+    "Of": " de ",
+    "CreatedFromTemplate": "Créé à partir du modèle :",
     "PrintToPDF": "Imprimer en PDF",
     "PrintingDocumentOf": "Impression du document {current} sur {total}",
     "DownloadAll": "Tout télécharger",
     "PrintFailed": "Échec de l'impression",
-    "PrintSettings": "Print settings",
-    "LandscapeMode": "Landscape mode"
+    "PrintSettings": "Print settings"
   }
 }

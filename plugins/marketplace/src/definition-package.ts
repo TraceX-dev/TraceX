@@ -10,7 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { AccountUuid } from '@hcengineering/core'
+import core, { type AccountUuid } from '@hcengineering/core'
+import { getEmbeddedLabel } from '@hcengineering/platform'
 import { hash } from 'fast-sha256'
 import { dump, JSON_SCHEMA, load, YAMLException } from 'js-yaml'
 import { compileProcessYaml } from '@hcengineering/process'
@@ -19,7 +20,12 @@ import {
   authoringObject as object,
   authoringText as text
 } from '@hcengineering/process'
-import type { DefinitionPackageManifest, DefinitionPackageRelease } from './definition-package-types'
+import type {
+  DefinitionPackageDependency,
+  DefinitionPackageManifest,
+  DefinitionPackageRelease
+} from './definition-package-types'
+import type { DefinitionPackageDestination } from './types'
 
 /** Invalid release metadata, integrity or upgrade identity. */
 export class DefinitionPackageError extends Error {
@@ -35,6 +41,69 @@ export class DefinitionPackageError extends Error {
 interface ReleaseVersion {
   core: string[]
   prerelease: string[]
+}
+
+/** Separates Marketplace dependency locks from the native card/process authoring definition. */
+export function parseDefinitionPackageSource (source: string): {
+  source: string
+  dependencies: Record<string, DefinitionPackageDependency>
+} {
+  let parsed: unknown
+  try {
+    parsed = load(source, { schema: JSON_SCHEMA })
+  } catch (error) {
+    if (!(error instanceof YAMLException)) throw error
+    throw new DefinitionPackageError('source', error.message)
+  }
+  const root = object(parsed, 'source')
+  assertTree(root)
+  const { dependencies: raw, version: syntaxVersion, kind, ...body } = root
+  const dependencies: Record<string, DefinitionPackageDependency> = {}
+  for (const [alias, value] of Object.entries(raw === undefined ? {} : object(raw, 'dependencies'))) {
+    const path = `dependencies.${alias}`
+    if (!/^[a-z][a-z0-9_-]*$/.test(alias) || ['constructor', 'prototype', '__proto__'].includes(alias)) {
+      throw new DefinitionPackageError(path, 'Expected a safe dependency alias')
+    }
+    const dependency = object(value, path, ['id', 'author', 'version', 'contentHash', 'destinations'])
+    const id = text(dependency.id, `${path}.id`)
+    if (!/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*\/[a-z][a-z0-9-]*$/.test(id)) {
+      throw new DefinitionPackageError(`${path}.id`, 'Expected a publisher-qualified package identity')
+    }
+    const author = text(dependency.author, `${path}.author`) as AccountUuid
+    const version = text(dependency.version, `${path}.version`)
+    releaseVersion(version, `${path}.version`)
+    const contentHash = text(dependency.contentHash, `${path}.contentHash`)
+    if (!/^sha256:[a-f0-9]{64}$/.test(contentHash)) {
+      throw new DefinitionPackageError(`${path}.contentHash`, 'Expected the inspected SHA-256 release digest')
+    }
+    const destinations: Record<string, DefinitionPackageDestination> = {}
+    for (const [member, target] of Object.entries(object(dependency.destinations, `${path}.destinations`))) {
+      const location = `${path}.destinations.${member}`
+      const destination = object(target, location, ['masterTag', 'bindings'])
+      const bindings: Record<string, string> = {}
+      for (const [key, binding] of Object.entries(object(destination.bindings, `${location}.bindings`))) {
+        bindings[key] = text(binding, `${location}.bindings.${key}`)
+      }
+      destinations[member] = {
+        masterTag: text(destination.masterTag, `${location}.masterTag`) as DefinitionPackageDestination['masterTag'],
+        bindings
+      }
+    }
+    dependencies[alias] = { id, author, version, contentHash, destinations }
+  }
+  return { source: yaml({ version: syntaxVersion, kind, ...body }), dependencies }
+}
+
+/** Keeps dependency locks in authoring source without passing them to the process compiler. */
+export function withDefinitionPackageDependencies (
+  source: string,
+  dependencies: Readonly<Record<string, DefinitionPackageDependency>>
+): string {
+  const definition: Record<string, unknown> = { ...object(load(source, { schema: JSON_SCHEMA }), 'source') }
+  Reflect.deleteProperty(definition, 'dependencies')
+  const result = yaml({ ...definition, ...(Object.keys(dependencies).length > 0 ? { dependencies } : {}) })
+  parseDefinitionPackageSource(result)
+  return result
 }
 
 function releaseVersion (value: unknown, path: string): ReleaseVersion {
@@ -101,9 +170,9 @@ export async function createDefinitionPackageRelease (value: unknown): Promise<D
     ...(description !== undefined ? { description } : {})
   }
   const authoredSource = text(artifact.source, 'source')
-  const definition = compileProcessYaml(authoredSource)
-  const { version: syntaxVersion, kind, ...body } = object(load(authoredSource, { schema: JSON_SCHEMA }), 'source')
-  const source = yaml({ version: syntaxVersion, kind, ...body })
+  const parsed = parseDefinitionPackageSource(authoredSource)
+  const definition = compileProcessYaml(parsed.source)
+  const source = withDefinitionPackageDependencies(parsed.source, parsed.dependencies)
   const contentHash = releaseHash(manifest, source)
   if (
     artifact.contentHash !== undefined &&
@@ -112,7 +181,13 @@ export async function createDefinitionPackageRelease (value: unknown): Promise<D
   ) {
     throw new DefinitionPackageError('contentHash', 'Release content does not match its SHA-256 digest')
   }
-  return { package: manifest, source, contentHash, definition }
+  return {
+    package: manifest,
+    source,
+    contentHash,
+    definition,
+    ...(Object.keys(parsed.dependencies).length > 0 ? { dependencies: parsed.dependencies } : {})
+  }
 }
 
 function releaseHash (manifest: DefinitionPackageManifest, source: string): string {
@@ -122,6 +197,53 @@ function releaseHash (manifest: DefinitionPackageManifest, source: string): stri
 
 function yaml (value: unknown): string {
   return dump(value, { noRefs: true, noCompatMode: true, lineWidth: 120, schema: JSON_SCHEMA })
+}
+
+/** Rewrites only field labels in the original authoring blocks and recalculates the release digest. */
+export async function updateDefinitionPackageFieldLabels (
+  release: DefinitionPackageRelease,
+  labels: ReadonlyMap<string, string>,
+  manifest: DefinitionPackageManifest = release.package
+): Promise<DefinitionPackageRelease> {
+  if (release.definition.kind !== 'card') {
+    throw new DefinitionPackageError('kind', 'Only card modules contain editable field labels')
+  }
+  const source = object(load(release.source, { schema: JSON_SCHEMA }), 'source')
+  const fields = new Map<string, Record<string, unknown>>()
+  const attributes = new Set(
+    release.definition.docs.filter((doc) => doc._class === core.class.Attribute).map((doc) => doc._id)
+  )
+  for (const [id, field] of Object.entries(object(source.fields ?? {}, 'fields'))) {
+    fields.set(id, object(field, `fields.${id}`))
+  }
+  for (const section of ['cardTypes', 'tags']) {
+    for (const [ownerId, value] of Object.entries(object(source[section] ?? {}, section))) {
+      const path = `${section}.${ownerId}`
+      const owner = object(value, path)
+      for (const [id, field] of Object.entries(object(owner.fields ?? {}, `${path}.fields`))) {
+        fields.set(id, object(field, `${path}.fields.${id}`))
+      }
+    }
+  }
+  for (const [id, label] of labels) {
+    const field = fields.get(id)
+    if (field === undefined || !attributes.has(id)) {
+      throw new DefinitionPackageError(`fields.${id}`, 'Unknown package field')
+    }
+    const value = label.trim()
+    if (value.length === 0) throw new DefinitionPackageError(`fields.${id}.label`, 'Enter a field label')
+    if (field.native !== undefined) {
+      const native = object(field.native, `fields.${id}.native`)
+      delete native.label
+      if (Object.keys(native).length === 0) delete field.native
+    }
+    field.label = getEmbeddedLabel(value)
+  }
+  const updated = await createDefinitionPackageRelease({ package: manifest, source: yaml(source) })
+  if (new TextEncoder().encode(serializeDefinitionPackageRelease(updated)).byteLength > 3 * 1024 * 1024) {
+    throw new DefinitionPackageError('$', 'Release artifact exceeds 3 MiB')
+  }
+  return updated
 }
 
 /** Detects package manifests at existing file import entry points. Invalid YAML is reported to the caller. */

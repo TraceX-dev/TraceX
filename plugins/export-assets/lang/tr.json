@@ -1,7 +1,10 @@
 {
   "string": {
+    "PrintHeaderFooter": "Üst ve alt bilgileri yazdır",
     "WorkspaceNamePattern": "İsim 40 karakter veya daha kısa, boş olmamalı ve özel karakterler (<, >, /) içermemelidir",
+    "ExportList": "Listeyi dışa aktar",
     "Export": "Dışa Aktar",
+    "ExportDots": "Dışa Aktar…",
     "DataToExport": "Dışa aktarılacak veri",
     "ExportDocuments": "Dokümanlar",
     "ExportMilestones": "Kilometre Taşı",
@@ -72,6 +75,9 @@
     "DocumentContentConverted": "Belge dönüştürüldü",
     "DocumentContentImportFailed": "İçe aktarma başarısız",
     "ReviewDocumentContentChanges": "İçe aktarılan değişiklikleri gözden geçir",
-    "ApplyDocumentContentChanges": "Uygula"
+    "ApplyDocumentContentChanges": "Uygula",
+    "Orientation": "Yönlendirme",
+    "PortraitMode": "Dikey mod",
+    "LandscapeMode": "Yatay mod"
   }
 }

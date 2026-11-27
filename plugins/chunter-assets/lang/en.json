@@ -62,6 +62,8 @@
     "MarkAsResolved": "Mark as resolved",
     "ReopenDiscussion": "Reopen discussion",
     "HideResolvedDiscussions": "Hide resolved",
+    "DiscussionResolvedMessage": "Resolved the discussion",
+    "DiscussionReopenedMessage": "Reopened the discussion",
     "ParticipantsCount": "{count, plural, =1 {# participant} other {# participants}}",
     "AddToSaved": "Add to saved",
     "RemoveFromSaved": "Remove from saved",

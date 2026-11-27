@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2025 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -149,9 +150,11 @@
   <div class="hulyComponent-content__column content">
     {#if value && process}
       <Scroller align="center" padding="var(--spacing-3)" bottomPadding="var(--spacing-3)">
-        <div class="hulyComponent-content gap">
-          <div class="header flex-between">
-            <TransitionPresenter transition={value} />
+        <div class="transition-editor flex-col flex-gap-4 w-full min-w-0">
+          <div class="header flex-between flex-wrap flex-gap-2">
+            <div class="transition-title min-w-0">
+              <TransitionPresenter transition={value} />
+            </div>
             <ButtonIcon
               icon={IconDelete}
               tooltip={{ label: view.string.Delete, direction: 'bottom' }}
@@ -160,7 +163,7 @@
               on:click={handleDelete}
             />
           </div>
-          <div class="hulyComponent-content flex-col-center flex-gap-4">
+          <div class="flex-col flex-gap-4 w-full min-w-0">
             <div class="hulyTableAttr-container flex-col-center box">
               <div class="label w-full p-4">
                 <Label label={plugin.string.Trigger} />
@@ -207,9 +210,18 @@
 </div>
 
 <style lang="scss">
+  .transition-editor {
+    max-width: 48rem;
+  }
+
+  .transition-title {
+    flex: 1 1 18rem;
+    overflow-wrap: anywhere;
+  }
+
   .box {
-    width: 32rem;
-    align-self: center;
+    width: 100%;
+    min-width: 0;
 
     .label {
       font-weight: 500;
@@ -222,8 +234,7 @@
   }
 
   .header {
-    font-size: 2rem;
+    font-size: 1.5rem;
     color: var(--theme-caption-color);
-    padding-bottom: 1rem;
   }
 </style>

@@ -304,6 +304,7 @@
     "SearchUserGroups": "Search groups",
     "DeleteUserGroup": "Delete group",
     "DeleteUserGroupConfirm": "Delete {name}? Its members lose access to {count} bound spaces unless they are members there directly or through another group.",
+    "UserGroupChangeLeavesSpacesEmpty": "These private spaces would be left without members and nobody could open them: {spaces}. Add direct members to them first.",
     "NoUserGroups": "No groups yet",
     "UserGroupsNotSupported": "Groups can't be bound to this kind of space",
     "Active": "Active",

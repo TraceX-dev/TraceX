@@ -171,6 +171,7 @@ export class TActivityInfoMessage extends TActivityMessage implements ActivityIn
   props!: Record<string, any>
   icon!: Asset
   iconProps!: Record<string, any>
+  contentIcon?: Asset
 }
 
 @Model(activity.class.ActivityMessageControl, core.class.Doc, DOMAIN_MODEL)

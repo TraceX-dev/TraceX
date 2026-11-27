@@ -1,4 +1,5 @@
 <!--
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2023 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -33,7 +34,6 @@
     eventToHTMLElement,
     IconMoreV,
     navigate,
-    resolvedLocationStore,
     showPopup,
     Tab,
     Tabs
@@ -41,7 +41,7 @@
   import { showMenu } from '@hcengineering/view-resources'
   import { createEventDispatcher, onDestroy, onMount } from 'svelte'
 
-  import { createDocumentSnapshotAndEdit, createNewDraftForControlledDoc, getDocReference } from '../docutils'
+  import { createDocumentSnapshotAndEdit, createNewDraftForControlledDoc } from '../docutils'
   import { getProjectDocumentLink } from '../navigation'
   import documentRes from '../plugin'
   import {
@@ -58,7 +58,6 @@
     $controlledDocument as controlledDocument,
     controlledDocumentClosed,
     controlledDocumentOpened,
-    $controlledDocumentTemplate as controlledDocumentTemplate,
     $documentApprovalIsActive as documentApprovalIsActive,
     $documentLatestVersion as documentLatestVersion,
     $documentReviewIsActive as documentReviewIsActive,
@@ -82,8 +81,7 @@
   import DocumentRightPanel from './document/right-panel/DocumentRightPanel.svelte'
   import { scrollIntoSection } from './document/store'
   import DocumentVersionsPopup from './DocumentVersionsPopup.svelte'
-  import DocumentTemplateFooter from './print/DocumentTemplateFooter.svelte'
-  import DocumentTemplateHeader from './print/DocumentTemplateHeader.svelte'
+  import { getPrintObject } from '@hcengineering/print-resources'
   import ProjectSelector from './project/ProjectSelector.svelte'
   import SignatureDialog from './SignatureDialog.svelte'
   import TeamPopup from './TeamPopup.svelte'
@@ -295,13 +293,11 @@
     })
   }
 
+  const printObject = getPrintObject()
+  $: if ($controlledDocument != null) printObject?.set($controlledDocument)
+
   $: canShowSidebar = $editorMode !== 'comparing'
   $: sideBar = canShowSidebar ? $availableRightPanelTabs : []
-
-  $: workspace = $resolvedLocationStore.path[1].toUpperCase()
-
-  $: docReference = getDocReference($controlledDocument)
-  $: templateReference = getDocReference($controlledDocumentTemplate)
 
   $: attribute = {
     key: 'content',
@@ -446,16 +442,6 @@
         />
       </div>
     </svelte:fragment>
-
-    <svelte:component
-      this={DocumentTemplateHeader}
-      slot="page-header"
-      {workspace}
-      title={$controlledDocument.title}
-      reference={docReference}
-    />
-
-    <svelte:component this={DocumentTemplateFooter} slot="page-footer" {templateReference} />
 
     <Collaboration object={$controlledDocument} {attribute}>
       {#if $editorMode === 'comparing'}

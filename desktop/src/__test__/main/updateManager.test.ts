@@ -117,7 +117,8 @@ describe('updateManager', () => {
     expect(autoUpdater.setFeedURL).toHaveBeenCalledWith({
       provider: 'generic',
       url: 'https://dist.example',
-      channel: 'stable'
+      channel: 'stable',
+      useMultipleRangeRequest: false
     })
     expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
   })

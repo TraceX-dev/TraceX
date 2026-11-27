@@ -1,6 +1,7 @@
 <!--
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
 // Copyright © 2022, 2023, 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -14,7 +15,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import { showPopup, resizeObserver, deviceOptionsStore as deviceInfo, PopupResult } from '@hcengineering/ui'
+  import { showPopup, resizeObserver, deviceOptionsStore as deviceInfo, type PopupResult } from '@hcengineering/ui'
   import { type GuestPeopleScope } from '@hcengineering/contact'
   import { Ref, Class, Doc, Space } from '@hcengineering/core'
   import { type Editor } from '@tiptap/core'
@@ -46,7 +47,7 @@
   }
 
   let popup: HTMLDivElement
-  let dummyPopup: PopupResult
+  let dummyPopup: PopupResult | undefined
 
   onMount(() => {
     dummyPopup = showPopup(
@@ -63,7 +64,7 @@
   })
 
   onDestroy(() => {
-    dummyPopup.close()
+    dummyPopup?.close()
   })
 
   function dispatchItem (item: { id: string, label: string, objectclass: string }): void {
@@ -121,6 +122,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   class="overlay"
+  style:z-index={dummyPopup?.layer?.overlay}
   on:click={() => {
     close()
   }}
@@ -129,6 +131,7 @@
   bind:this={popup}
   class="completion"
   {style}
+  style:z-index={dummyPopup?.layer?.content}
   use:resizeObserver={(element) => {
     wPopup = element.clientWidth
     updateStyle()
@@ -153,7 +156,6 @@
     left: 0;
     bottom: 0;
     right: 0;
-    z-index: 1999;
   }
 
   .completion {
@@ -162,7 +164,6 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
-    z-index: 10001;
 
     @media screen and (max-width: 480px) {
       position: fixed;

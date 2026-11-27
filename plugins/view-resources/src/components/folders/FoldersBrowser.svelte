@@ -68,7 +68,7 @@
   })
 
   const q = createQuery()
-  $: sortByRank = reorderable && plainList && client.getHierarchy().getAllAttributes(_class).has('rank')
+  $: sortByRank = reorderable && client.getHierarchy().getAllAttributes(_class).has('rank')
   $: q.query(_class, query ?? {}, updateFolders, {
     sort: {
       [sortByRank ? 'rank' : 'name']: SortingOrder.Ascending
@@ -77,7 +77,7 @@
 
   async function updateFolders (result: Doc[]): Promise<void> {
     foldersManager.setFolders(result)
-    if (plainList && foldersState.folders.length > 0 && selected === undefined) {
+    if ((plainList || noParentId === undefined) && foldersState.folders.length > 0 && selected === undefined) {
       await handleFolderSelected(foldersState.folders[0])
     }
   }

@@ -14,9 +14,15 @@
 
 import type { Class, Doc, DocumentQuery, Ref } from '@hcengineering/core'
 import type { CopyAsMarkdownTableProps } from '@hcengineering/converter'
+import { getClient } from '@hcengineering/presentation'
 import { showPopup } from '@hcengineering/ui'
 import type { BuildModelKey, TableSource, Viewlet } from '@hcengineering/view'
-import { getTableFilterSource, viewletContextStore, type ViewletContext } from '@hcengineering/view-resources'
+import {
+  getTableFilterSource,
+  selectionStore,
+  viewletContextStore,
+  type ViewletContext
+} from '@hcengineering/view-resources'
 import { get } from 'svelte/store'
 import CopyTableDialog from './components/CopyTableDialog.svelte'
 import { repeatableOptions } from './trackedTable'
@@ -26,7 +32,7 @@ export interface CopyTableRequest {
   query?: DocumentQuery<Doc>
   viewlet?: Viewlet
   config?: Array<string | BuildModelKey>
-  /** Documents the action was invoked on; empty for the whole-view button. */
+  /** Documents the action was invoked on, or the rows selected in the view for the header button. */
   selected?: Doc[]
 }
 
@@ -42,6 +48,22 @@ function matchingContext (request: CopyTableRequest): ViewletContext | undefined
   const selected = request.selected ?? []
   if (selected.length > 0) return selected.every((doc) => ids.has(doc._id)) ? context : undefined
   return context._class === undefined || context._class === request.cardClass ? context : undefined
+}
+
+/**
+ * Rows currently selected in the view showing `cardClass`, for entry points that are not invoked on
+ * rows (the view header button). A selection left over from another view is ignored: its documents
+ * must be of `cardClass` and loaded in the last viewlet context.
+ */
+export function currentViewSelection (cardClass: Ref<Class<Doc>>): Doc[] {
+  const docs = get(selectionStore).docs ?? []
+  if (docs.length === 0) return []
+  const hierarchy = getClient().getHierarchy()
+  const context = get(viewletContextStore).getLastContext()
+  const objects = context?.relationshipTableData?.objects ?? context?.objects
+  if (objects === undefined) return []
+  const ids = new Set(objects.map((doc) => doc._id))
+  return docs.filter((doc) => ids.has(doc._id) && hierarchy.isDerived(doc._class, cardClass))
 }
 
 function commonClass (docs: Doc[] | undefined): Ref<Class<Doc>> | undefined {

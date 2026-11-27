@@ -10,7 +10,7 @@
   import type { Class, Doc, DocumentQuery, Ref } from '@hcengineering/core'
   import { Button, IconCopy } from '@hcengineering/ui'
   import view, { type BuildModelKey } from '@hcengineering/view'
-  import { openCopyTableDialog } from '../copyTable'
+  import { currentViewSelection, openCopyTableDialog } from '../copyTable'
 
   export let _class: Ref<Class<Doc>>
   export let query: DocumentQuery<Doc> = {}
@@ -24,7 +24,7 @@
     icon={IconCopy}
     showTooltip={{ label: view.string.CopyAsMarkdownTable }}
     on:click={() => {
-      openCopyTableDialog({ cardClass: _class, query, config })
+      openCopyTableDialog({ cardClass: _class, query, config, selected: currentViewSelection(_class) })
     }}
   />
 {/if}

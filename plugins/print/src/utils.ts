@@ -17,7 +17,8 @@
 import { getMetadata } from '@hcengineering/platform'
 
 import print from './plugin'
-import type { Doc } from '@hcengineering/core'
+import { type Doc } from '@hcengineering/core'
+import type { PrintToPDFOptions } from './types'
 
 export function getPrintBaseURL (): string {
   const endpoint = getMetadata(print.metadata.PrintURL)
@@ -27,12 +28,6 @@ export function getPrintBaseURL (): string {
   }
 
   return endpoint
-}
-
-export type PrintPageOrientation = 'portrait' | 'landscape'
-
-export interface PrintToPDFOptions {
-  orientation?: PrintPageOrientation
 }
 
 export async function printToPDF (
@@ -54,6 +49,10 @@ export async function printToPDF (
   url.searchParams.append('kind', 'pdf')
   if (options?.orientation !== undefined) {
     url.searchParams.append('orientation', options.orientation)
+  }
+
+  if (options?.printHeaderFooter !== undefined) {
+    url.searchParams.set('printHeaderFooter', String(options.printHeaderFooter))
   }
 
   const response = await fetch(url, {

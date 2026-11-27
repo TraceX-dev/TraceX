@@ -19,15 +19,25 @@
 import attachment from '@hcengineering/attachment'
 import { getClient as getCollaboratorClient } from '@hcengineering/collaborator-client'
 import { type Doc, makeDocCollabId } from '@hcengineering/core'
-import exportPlugin from '@hcengineering/export'
+import exportPlugin, { hasDocumentContent } from '@hcengineering/export'
+import type {
+  DocumentContentTarget,
+  DocumentExportFormat,
+  DocumentExportOptions,
+  DocumentExporterOptions,
+  DocumentExportResult
+} from '@hcengineering/export'
+export type { DocumentContentTarget } from '@hcengineering/export'
 import { getMetadata, getResource, setPlatformStatus, translate, unknownError } from '@hcengineering/platform'
-import presentation from '@hcengineering/presentation'
+import presentation, { getClient } from '@hcengineering/presentation'
 import { jsonToMarkup, type MarkupNode } from '@hcengineering/text'
-import { showPopup, withProgress } from '@hcengineering/ui'
+import { addNotification, NotificationSeverity, showPopup, withProgress } from '@hcengineering/ui'
 import { getCurrentLanguage } from '@hcengineering/theme'
+import { getDocTitle } from '@hcengineering/view-resources'
 
 import { downloadBlob, fileNameFromResponse } from '../download'
 import DocumentImportDiffPopup from './components/DocumentImportDiffPopup.svelte'
+import ExportNotification from '../components/ExportNotification.svelte'
 
 function getExportBaseUrl (): string {
   const url = getMetadata(exportPlugin.metadata.ExportUrl)
@@ -53,40 +63,64 @@ async function readErrorMessage (response: Response): Promise<string | undefined
   return typeof body?.message === 'string' && body.message.length > 0 ? body.message : undefined
 }
 
-/** Any object with a collaborative `content` blob field, addressable as a doc (Card, ControlledDocument, ...). */
-export type DocumentContentTarget = Pick<Doc, '_class' | '_id'> & { title?: string }
+/** Convert editor content without starting a download or opening a popup. */
+async function prepareDocumentContent (
+  doc: DocumentContentTarget,
+  format: DocumentExportFormat,
+  options?: DocumentExportOptions
+): Promise<DocumentExportResult> {
+  const response = await fetch(`${getExportBaseUrl()}/document-export`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ _class: doc._class, _id: doc._id, format, ...options })
+  })
+  if (!response.ok) {
+    const message = await readErrorMessage(response)
+    throw new Error(message ?? `Failed to export document (${response.status})`)
+  }
 
-/** Export a doc's `content` field in the given format ('docx' | 'md') and download it. */
-export async function exportDocumentContent (doc: DocumentContentTarget, format: string): Promise<void> {
-  const lang = getCurrentLanguage()
+  const blob = await response.blob()
+  const title = options?.title?.trim() || doc.title?.trim()
+  const filename = fileNameFromResponse(response, title ? `${title}.${format}` : '')
+  if (filename === '') throw new Error('Document title is required for export')
+  return { file: blob, name: filename, contentType: blob.type }
+}
+
+/** Model exporter for the Word and Markdown content formats. */
+export async function exportContent (doc: Doc, options: DocumentExporterOptions): Promise<DocumentExportResult> {
+  if (options.format !== 'docx' && options.format !== 'md') {
+    throw new Error(`Unsupported content format: ${options.format}`)
+  }
+  const title = await getDocTitle(getClient(), doc._id, doc._class, doc)
+  return await prepareDocumentContent(doc, options.format, { orientation: options.orientation, title })
+}
+
+export async function canExportContent (doc: Doc): Promise<boolean> {
+  return (
+    (getMetadata(exportPlugin.metadata.ExportUrl) ?? '') !== '' && hasDocumentContent(getClient().getHierarchy(), doc)
+  )
+}
+
+/** Export a doc's editor content and download it for direct callers. */
+export async function exportDocumentContent (
+  doc: DocumentContentTarget,
+  format: DocumentExportFormat,
+  options?: DocumentExportOptions
+): Promise<boolean> {
   try {
-    // The conversion can take a while with no incremental progress, so a shared
-    // long-running-task toast shows a spinner until it settles and surfaces failures
-    // (e.g. content the exporter can't convert) instead of silently doing nothing.
-    await withProgress(
-      {
-        title: await translate(exportPlugin.string.ExportingDocumentContent, {}, lang),
-        done: await translate(exportPlugin.string.DocumentContentExported, {}, lang),
-        failed: await translate(exportPlugin.string.DocumentContentExportFailed, {}, lang)
-      },
-      async () => {
-        const response = await fetch(`${getExportBaseUrl()}/document-export`, {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ _class: doc._class, _id: doc._id, format })
-        })
-        if (!response.ok) {
-          const message = await readErrorMessage(response)
-          throw new Error(message ?? `Failed to export document (${response.status})`)
-        }
-
-        const blob = await response.blob()
-        const filename = fileNameFromResponse(response, `${doc.title ?? 'document'}.${format}`)
-        downloadBlob(blob, filename)
-      }
+    const result = await prepareDocumentContent(doc, format, options)
+    if (typeof result.file === 'string') throw new Error('Expected converted document data')
+    downloadBlob(result.file, result.name)
+    return true
+  } catch (error) {
+    addNotification(
+      await translate(exportPlugin.string.DocumentContentExportFailed, {}, getCurrentLanguage()),
+      error instanceof Error ? error.message : String(error),
+      ExportNotification,
+      undefined,
+      NotificationSeverity.Error
     )
-  } catch {
-    // The progress toast already surfaced the failure.
+    return false
   }
 }
 

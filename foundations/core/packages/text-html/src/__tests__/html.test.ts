@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-import { MarkupNode } from '@hcengineering/text-core'
+import { MarkupMarkType, MarkupNode, MarkupNodeType } from '@hcengineering/text-core'
 import { htmlToMarkup, markupToHtml } from '..'
 
 const tests: Array<{ name: string, markup: object, html: string }> = [
@@ -629,5 +629,59 @@ describe('htmlToMarkup', () => {
         expect(serialized).toEqual(html)
       })
     })
+  })
+})
+
+describe('htmlToMarkup: tags without a markup rule', () => {
+  it('parses <sup> as the superscript mark and serializes it back', () => {
+    const html = '<p>E=mc<sup>2</sup></p>'
+    const markup = htmlToMarkup(html)
+    expect(markup.content?.[0].content).toEqual([
+      { type: 'text', text: 'E=mc' },
+      { type: 'text', text: '2', marks: [{ type: 'superscript' }] }
+    ])
+    expect(markupToHtml(markup)).toEqual(html)
+  })
+
+  it('serializes the subscript mark as <sub>', () => {
+    const markup: MarkupNode = {
+      type: MarkupNodeType.doc,
+      content: [
+        {
+          type: MarkupNodeType.paragraph,
+          content: [
+            { type: MarkupNodeType.text, text: 'H' },
+            { type: MarkupNodeType.text, text: '2', marks: [{ type: MarkupMarkType.subscript }] },
+            { type: MarkupNodeType.text, text: 'O' }
+          ]
+        }
+      ]
+    }
+    expect(markupToHtml(markup)).toEqual('<p>H<sub>2</sub>O</p>')
+  })
+
+  it('keeps an unknown tag as raw text and parses the rest of the document', () => {
+    const markup = htmlToMarkup('<p>a <foo>x<b>y</b></foo> b</p><p>next</p>')
+    expect(markup).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { textAlign: null },
+          content: [
+            { type: 'text', text: 'a ' },
+            { type: 'text', text: '<foo>x<b>y</b></foo>' },
+            { type: 'text', text: ' b' }
+          ]
+        },
+        { type: 'paragraph', attrs: { textAlign: null }, content: [{ type: 'text', text: 'next' }] }
+      ]
+    })
+  })
+
+  it('keeps an unknown void tag as raw text', () => {
+    const markup = htmlToMarkup('<p>a<input type="checkbox" />b</p><p>next</p>')
+    expect(markup.content).toHaveLength(2)
+    expect(markup.content?.[0].content?.map((node) => node.text)).toEqual(['a', '<input type="checkbox" />', 'b'])
   })
 })

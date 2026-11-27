@@ -44,7 +44,16 @@ const G2 = 'acc-g2' as AccountUuid
 const factory = new TxFactory(core.account.System)
 
 function group (_id: string, members: AccountUuid[]): UserGroup {
-  return { _id, _class: core.class.UserGroup, name: _id, members } as unknown as UserGroup
+  const value: UserGroup = {
+    _id: _id as Ref<UserGroup>,
+    _class: core.class.UserGroup,
+    space: core.space.Workspace,
+    modifiedOn: 0,
+    modifiedBy: core.account.System,
+    name: _id,
+    members
+  }
+  return value
 }
 
 function space (fields: Partial<Space> & Record<string, any>): Space {
@@ -118,15 +127,6 @@ describe('OnSpaceMembershipChange', () => {
     const control = createControl([stored], [group('g1', [A, G1]), group('g2', [G2])])
     const res = await OnSpaceMembershipChange([update({ $pull: { groups: 'g2' } })], control)
     expect(applyMembers(stored.members, res)).toEqual([A, B, G1].sort())
-  })
-
-  it('persists directMembers of a space that is not migrated before adding group members', async () => {
-    // Without it, the next recompute takes G1 for a direct member and never removes it.
-    const stored = space({ members: [A], groups: ['g1' as Ref<UserGroup>] })
-    const control = createControl([stored], [group('g1', [G1])])
-    const res = await OnSpaceMembershipChange([update({ $push: { groups: 'g1' } })], control)
-    expect((res[0] as TxUpdateDoc<Space>).operations).toEqual({ directMembers: [A] })
-    expect(applyMembers(stored.members, res)).toEqual([A, G1].sort())
   })
 
   it('removes a direct member without other basis', async () => {

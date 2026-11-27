@@ -32,10 +32,14 @@
   import { ListSelectionProvider, restrictionStore, updateFocus } from '@hcengineering/view-resources'
   import { tick } from 'svelte'
   import { readable } from 'svelte/store'
+  import { providePrintObject } from '../print-object'
+  import PrintHeader from './PrintHeader.svelte'
+  import PrintFooter from './PrintFooter.svelte'
 
   export let target: Location
 
   const client = getClient()
+  const printObject = providePrintObject()
   const printContext = getPrintContext()
   const pendingResources = printContext?.pendingResources ?? readable(0)
   const printError = printContext?.error ?? readable<Error | undefined>(undefined)
@@ -56,6 +60,7 @@
       const _class = props[2] as Ref<Class<Doc>>
       const doc = await client.findOne(_class, { _id })
       if (doc === undefined) throw new Error('Document is not accessible')
+      printObject.set(doc)
       const provider = ListSelectionProvider.Find(doc._id)
       updateFocus({ provider, focus: doc })
       showPanel(props[0] as AnyComponent, _id, _class, props[3] as PopupAlignment, props[4] as AnyComponent, false)
@@ -77,6 +82,16 @@
       ? 'loading'
       : loadState}
 >
+  {#if $printObject !== undefined}
+    {#key $printObject}
+      <div data-print-header style="position: fixed; visibility: hidden; width: 100%;">
+        <PrintHeader object={$printObject} />
+      </div>
+      <div data-print-footer style="position: fixed; visibility: hidden; width: 100%;">
+        <PrintFooter object={$printObject} />
+      </div>
+    {/key}
+  {/if}
   {#await load() then}
     <div class="workbench-container">
       <div class="workbench-container inner">

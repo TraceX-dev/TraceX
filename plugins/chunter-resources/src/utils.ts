@@ -66,7 +66,13 @@ import {
 import { type Asset, getMetadata, translate } from '@hcengineering/platform'
 import { MessageBox, getClient } from '@hcengineering/presentation'
 import { type AnySvelteComponent, languageStore, showPopup } from '@hcengineering/ui'
-import { classIcon, confirmLeaveSpace, getDocLinkTitle, getDocTitle } from '@hcengineering/view-resources'
+import {
+  classIcon,
+  confirmLeaveSpace,
+  decideLeaveSpace,
+  getDocLinkTitle,
+  getDocTitle
+} from '@hcengineering/view-resources'
 import type { ApplicationNotificationState } from '@hcengineering/workbench'
 import { derived, get, type Readable, type Unsubscriber, writable } from 'svelte/store'
 
@@ -669,9 +675,12 @@ export async function leaveChannelAction (
   if (channel === undefined) {
     return
   }
-  if (!(await confirmLeaveSpace(channel))) return
+  const decision = await decideLeaveSpace(channel)
+  if (!decision.leave) return
 
   await leaveChannel(channel, getCurrentAccount().uuid)
+  // A member through bound groups keeps the channel: keep it in the navigator as well.
+  if (decision.keepsAccess) return
   await client.remove(context)
   await resetChunterLocIfEqual(channel._id, channel._class, channel)
 }
