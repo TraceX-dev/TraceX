@@ -158,6 +158,7 @@
     "AnonymousGuestAccessWorkspaceOffNote": "Anonymní přístup hostů je pro tento pracovní prostor vypnutý",
     "AnonymousGuestAccessOwnerOnlyNote": "Toto nastavení mohou měnit pouze vlastníci",
     "PublicBadge": "Veřejné",
-    "SpaceMembershipGroup": "Členství"
+    "SpaceMembershipGroup": "Členství",
+    "MembersThroughGroups": "Členové přes skupiny"
   }
 }

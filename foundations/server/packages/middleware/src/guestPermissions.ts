@@ -635,7 +635,7 @@ export class GuestPermissionsMiddleware extends BaseMiddleware implements Middle
     if (tx._class === core.class.TxUpdateDoc) {
       const updateTx = tx as TxUpdateDoc<Space>
       const ops = updateTx.operations
-      const keys = ['members', 'private', 'archived', 'owners', 'autoJoin']
+      const keys = ['members', 'directMembers', 'groups', 'private', 'archived', 'owners', 'autoJoin']
       if (keys.some((key) => (ops as any)[key] !== undefined)) {
         return true
       }

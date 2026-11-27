@@ -22,6 +22,7 @@ loadMetadata(setting.icon, {
   History: `${icons}#history`,
   AccountSettings: `${icons}#accountSettings`,
   Members: `${icons}#members`,
+  UserGroups: `${icons}#userGroups`,
   Password: `${icons}#password`,
   Setting: `${icons}#settings`,
   Integrations: `${icons}#integration`,

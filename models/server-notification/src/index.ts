@@ -1,5 +1,6 @@
 //
 // Copyright © 2020, 2021 Anticrm Platform Contributors.
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2021, 2022 Hardcore Engineering Inc.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -78,6 +79,14 @@ export function createModel (builder: Builder): void {
     trigger: serverNotification.trigger.OnDocRemove,
     txMatch: {
       _class: core.class.TxRemoveDoc
+    }
+  })
+
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverNotification.trigger.OnSpaceMembersRemoved,
+    txMatch: {
+      objectClass: core.class.Space,
+      _class: core.class.TxUpdateDoc
     }
   })
 

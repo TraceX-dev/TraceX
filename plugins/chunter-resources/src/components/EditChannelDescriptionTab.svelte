@@ -18,6 +18,7 @@
   import { getCurrentAccount } from '@hcengineering/core'
   import { getClient } from '@hcengineering/presentation'
   import { Button, EditBox } from '@hcengineering/ui'
+  import { confirmLeaveSpace } from '@hcengineering/view-resources'
   import { createEventDispatcher } from 'svelte'
   import chunter from '../plugin'
   import EditChannelDescriptionAttachments from './EditChannelDescriptionAttachments.svelte'
@@ -48,6 +49,7 @@
   }
 
   async function leaveChannel (): Promise<void> {
+    if (!(await confirmLeaveSpace(channel))) return
     await client.update(channel, {
       $pull: { members: getCurrentAccount().uuid }
     })

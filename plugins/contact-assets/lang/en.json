@@ -158,6 +158,7 @@
     "AnonymousGuestAccessWorkspaceOffNote": "Anonymous guest access is turned off for this workspace",
     "AnonymousGuestAccessOwnerOnlyNote": "Only owners can change this setting",
     "PublicBadge": "Public",
-    "SpaceMembershipGroup": "Membership"
+    "SpaceMembershipGroup": "Membership",
+    "MembersThroughGroups": "Members through groups"
   }
 }

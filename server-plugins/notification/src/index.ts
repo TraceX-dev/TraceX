@@ -124,6 +124,7 @@ export default plugin(serverNotificationId, {
     OnAttributeUpdate: '' as Resource<TriggerFunc>,
     OnReactionChanged: '' as Resource<TriggerFunc>,
     OnDocRemove: '' as Resource<TriggerFunc>,
+    OnSpaceMembersRemoved: '' as Resource<TriggerFunc>,
     OnDemandNotificationSend: '' as Resource<TriggerFunc>,
     OnEmployeeDeactivate: '' as Resource<TriggerFunc>,
     PushNotificationsHandler: '' as Resource<TriggerFunc>,

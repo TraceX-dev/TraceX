@@ -22,6 +22,7 @@ import core, {
   DOMAIN_SPACE,
   DOMAIN_STATUS,
   DOMAIN_TX,
+  DOMAIN_USER_GROUP,
   generateId,
   groupByArray,
   makeCollabJsonId,
@@ -44,13 +45,15 @@ import core, {
   type Role,
   type SocialKey,
   type Space,
+  type SystemSpace,
   type SpaceType,
   type Status,
   type TxCreateDoc,
   type TxCUD,
   type TxMixin,
   type TxUpdateDoc,
-  type TypedSpace
+  type TypedSpace,
+  type UserGroup
 } from '@hcengineering/core'
 import {
   createDefaultSpace,
@@ -989,6 +992,14 @@ export const coreOperation: MigrateOperation = {
         func: async (client) => {
           await client.fullReindex()
         }
+      },
+      {
+        state: 'space-direct-members',
+        func: migrateSpaceDirectMembers
+      },
+      {
+        state: 'user-groups-space',
+        func: migrateUserGroupsSpace
       }
       // ,
       // {
@@ -1020,9 +1031,80 @@ export const coreOperation: MigrateOperation = {
           await createDefaultSpace(client, core.space.Configuration, { name: 'Space for config' })
           await createDefaultSpace(client, core.space.Workspace, { name: 'Space for common things' })
         }
+      },
+      {
+        state: 'user-groups-space',
+        func: async (client) => {
+          // A system space: visible to every account except guests (see guestHiddenSpaces).
+          await createDefaultSpace(client, core.space.UserGroups, { name: 'Space for user groups' })
+        }
       }
     ])
   }
+}
+
+/**
+ * Fills `Space.directMembers` from `members` for every space without them, so `members` keeps its value once the
+ * server computes it from `directMembers` and groups. The server relies on every space having `directMembers`.
+ * Idempotent: spaces that have them are skipped.
+ */
+export async function migrateSpaceDirectMembers (client: MigrationClient): Promise<void> {
+  let processed = 0
+  const iterator = await client.traverse<Space>(
+    DOMAIN_SPACE,
+    { directMembers: { $exists: false } },
+    { projection: { _id: 1, members: 1 } }
+  )
+  try {
+    while (true) {
+      const spaces = await iterator.next(1000)
+      if (spaces === null || spaces.length === 0) break
+      await client.bulk<Space>(
+        DOMAIN_SPACE,
+        spaces.map((space) => ({
+          filter: { _id: space._id },
+          update: { directMembers: space.members ?? [] }
+        }))
+      )
+      processed += spaces.length
+    }
+  } finally {
+    await iterator.close()
+  }
+  if (processed > 0) {
+    console.log('space-direct-members: spaces migrated', processed)
+  }
+}
+
+/**
+ * Moves user groups, and the transactions that carry their names and members, from the common workspace space to
+ * `core.space.UserGroups`, which guests can not read.
+ */
+export async function migrateUserGroupsSpace (client: MigrationClient): Promise<void> {
+  // The space must exist before the groups move: access to documents of a system space is checked against it, so
+  // until the upgrade step creates it nobody would see the groups. That step then finds it and leaves it as is.
+  const existing = await client.find<Space>(DOMAIN_SPACE, { _id: core.space.UserGroups }, { limit: 1 })
+  if (existing.length === 0) {
+    const space: SystemSpace = {
+      _id: core.space.UserGroups,
+      _class: core.class.SystemSpace,
+      space: core.space.Space,
+      name: 'Space for user groups',
+      description: '',
+      private: false,
+      archived: false,
+      members: [],
+      modifiedBy: core.account.System,
+      modifiedOn: Date.now()
+    }
+    await client.create(DOMAIN_SPACE, space)
+  }
+  await client.update<UserGroup>(DOMAIN_USER_GROUP, { space: core.space.Workspace }, { space: core.space.UserGroups })
+  await client.update<TxCUD<UserGroup>>(
+    DOMAIN_TX,
+    { objectClass: core.class.UserGroup, objectSpace: core.space.Workspace },
+    { objectSpace: core.space.UserGroups }
+  )
 }
 
 async function retry<T> (retries: number, op: () => Promise<T>): Promise<T> {

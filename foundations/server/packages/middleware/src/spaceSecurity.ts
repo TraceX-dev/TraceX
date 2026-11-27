@@ -28,6 +28,9 @@ import core, {
   type FindResult,
   generateId,
   getClassCollaborators,
+  guestHiddenSpaces,
+  isGuestHiddenSpacesRole,
+  isSpaceHiddenFromGuests,
   type LookupData,
   type MeasureContext,
   type ObjQueryType,
@@ -484,6 +487,15 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       const cud = tx as TxCUD<Doc>
       if (cud.objectClass === undefined) return undefined
 
+      // Spaces hidden from guests: every account except guests.
+      if (isSpaceHiddenFromGuests(tx.objectSpace)) {
+        const guests = new Set<AccountUuid>()
+        for (const val of ctx.contextData.socialStringsToUsers.values()) {
+          if (isGuestHiddenSpacesRole(val.role)) guests.add(val.accontUuid)
+        }
+        return guests.size > 0 ? { exclude: Array.from(guests) } : undefined
+      }
+
       // For system and main spaces broadcast to all users except guests that are not collaborators for objects with collab security enabled
       if (this.systemSpaces.has(tx.objectSpace) || this.mainSpaces.has(tx.objectSpace)) {
         const collabSec = getClassCollaborators(this.context.modelDb, this.context.hierarchy, cud.objectClass)
@@ -561,7 +573,10 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       res = [...res, ...this.systemSpaces]
     }
     const ignorePublicSpaces = isData || account.role === AccountRole.ReadOnlyGuest
-    const unfilteredRes = ignorePublicSpaces ? res : [...res, ...this.publicSpaces]
+    let unfilteredRes = ignorePublicSpaces ? res : [...res, ...this.publicSpaces]
+    if (isGuestHiddenSpacesRole(account.role)) {
+      unfilteredRes = unfilteredRes.filter((p) => !isSpaceHiddenFromGuests(p))
+    }
     if (showArchived) {
       return unfilteredRes
     }
@@ -720,7 +735,13 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
 
-    let findResult = await this.provideFindAll(ctx, _class, !this.skipFindCheck ? newQuery : query, options)
+    let effectiveQuery = !this.skipFindCheck ? newQuery : query
+    // Spaces hidden from guests stay hidden also when the storage checks access itself (adapter security).
+    const hideFromGuest = isGuestHiddenSpacesRole(account.role) && !isSystem(account, ctx) && domain !== DOMAIN_MODEL
+    if (hideFromGuest) {
+      effectiveQuery = excludeGuestHiddenSpaces(effectiveQuery === query ? clone(query) : effectiveQuery, field)
+    }
+    let findResult = await this.provideFindAll(ctx, _class, effectiveQuery, options)
     if (clientFilterSpaces !== undefined) {
       const cfs = clientFilterSpaces
       findResult = toFindResult(
@@ -739,7 +760,60 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
         )
       }
     }
+    if (hideFromGuest) {
+      findResult = this.withoutGuestHidden(findResult)
+    }
     return findResult
+  }
+
+  /** Drops documents of spaces hidden from guests from lookups, associations and the lookup map, at any depth. */
+  private withoutGuestHidden<T extends Doc>(result: FindResult<T>): FindResult<T> {
+    const nested = result.some((doc) => doc.$lookup !== undefined || doc.$associations !== undefined)
+    if (!nested && result.lookupMap === undefined) return result
+    const lookupMap =
+      result.lookupMap !== undefined
+        ? Object.fromEntries(Object.entries(result.lookupMap).filter(([, doc]) => !this.isGuestHiddenDoc(doc)))
+        : undefined
+    return toFindResult(
+      result.map((doc) => this.withoutGuestHiddenNested(doc)),
+      result.total,
+      lookupMap
+    )
+  }
+
+  // Copy nested results because concurrent queries may share documents.
+  private withoutGuestHiddenNested<T extends Doc>(doc: WithLookup<T>): WithLookup<T> {
+    if (doc.$lookup === undefined && doc.$associations === undefined) return doc
+    const result = { ...doc }
+    if (doc.$lookup !== undefined) {
+      const lookup: Record<string, any> = {}
+      for (const [key, value] of Object.entries(doc.$lookup as Record<string, any>)) {
+        if (Array.isArray(value)) {
+          lookup[key] = value
+            .filter((it) => !this.isGuestHiddenDoc(it))
+            .map((it) => (isDocValue(it) ? this.withoutGuestHiddenNested(it) : it))
+        } else if (value !== undefined && !this.isGuestHiddenDoc(value)) {
+          lookup[key] = isDocValue(value) ? this.withoutGuestHiddenNested(value) : value
+        }
+      }
+      result.$lookup = lookup as any
+    }
+    if (doc.$associations !== undefined) {
+      const associations: Record<string, Doc[]> = {}
+      for (const [key, targets] of Object.entries(doc.$associations)) {
+        associations[key] = targets
+          .filter((it) => !this.isGuestHiddenDoc(it))
+          .map((it) => this.withoutGuestHiddenNested(it))
+      }
+      result.$associations = associations
+    }
+    return result
+  }
+
+  private isGuestHiddenDoc (value: unknown): boolean {
+    if (!isDocValue(value)) return false
+    const isSpace = value._class !== undefined && this.context.hierarchy.isDerived(value._class, core.class.Space)
+    return isSpaceHiddenFromGuests(isSpace ? (value._id as Ref<Space>) : value.space)
   }
 
   // Copy nested results because concurrent queries may share documents.
@@ -871,4 +945,29 @@ export class SpaceSecurityMiddleware extends BaseMiddleware implements Middlewar
       }
     }
   }
+}
+
+function isDocValue (value: unknown): value is Doc {
+  return typeof value === 'object' && value !== null && '_id' in value
+}
+
+/** The query without documents of spaces hidden from guests: `field` is the space key of the domain. */
+export function excludeGuestHiddenSpaces<T extends Doc> (query: DocumentQuery<T>, field: string): DocumentQuery<T> {
+  const hidden: string[] = Array.from(guestHiddenSpaces)
+  const isHidden = (space: string): boolean => hidden.includes(space)
+  const q = query as Record<string, any>
+  const value = q[field]
+  // The condition object may be shared with the caller's query: replace it, never change it in place.
+  if (value === undefined || value === null) {
+    q[field] = { $nin: hidden }
+  } else if (typeof value === 'string') {
+    if (isHidden(value)) q[field] = { $in: [] }
+  } else if (typeof value === 'object') {
+    if (Array.isArray(value.$in)) {
+      q[field] = { ...value, $in: value.$in.filter((it: string) => !isHidden(it)) }
+    } else {
+      q[field] = { ...value, $nin: Array.from(new Set([...(Array.isArray(value.$nin) ? value.$nin : []), ...hidden])) }
+    }
+  }
+  return query
 }

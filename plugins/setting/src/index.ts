@@ -373,6 +373,7 @@ export default plugin(settingId, {
     History: '' as Asset,
     AccountSettings: '' as Asset,
     Members: '' as Asset,
+    UserGroups: '' as Asset,
     Password: '' as Asset,
     Setting: '' as Asset,
     Integrations: '' as Asset,

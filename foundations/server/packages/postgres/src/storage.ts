@@ -16,6 +16,8 @@
 
 import core, {
   AccountRole,
+  guestHiddenSpaces,
+  isGuestHiddenSpacesRole,
   type AnyAttribute,
   type AssociationQuery,
   type Class,
@@ -649,9 +651,17 @@ abstract class PostgresAdapterBase implements DbAdapter {
         if (acc.role === AccountRole.DocGuest || acc.uuid === systemAccountUuid) {
           return
         }
+        const key = domain === DOMAIN_SPACE ? '_id' : domain === DOMAIN_TX ? '"objectSpace"' : 'space'
+        // Spaces hidden from guests. Built only where it is returned: every added variable must appear in the
+        // statement.
+        const hiddenCheck = (): string =>
+          isGuestHiddenSpacesRole(acc.role)
+            ? ` AND (${tableAlias}.${key} IS NULL OR ${tableAlias}.${key} NOT IN (${Array.from(guestHiddenSpaces)
+                .map((it) => vars.add(it, '::text'))
+                .join(', ')}))`
+            : ''
         if (query.space === acc.uuid) return // TODO: was it for private spaces? If so, need to fix it as they are not identified by acc.uuid now
         if (domain === DOMAIN_SPACE && isOwner(acc) && showArchived) return
-        const key = domain === DOMAIN_SPACE ? '_id' : domain === DOMAIN_TX ? '"objectSpace"' : 'space'
         const privateCheck = domain === DOMAIN_SPACE ? ' OR sec.private = false' : ''
         const archivedCheck = showArchived ? '' : ' AND sec.archived = false'
         const q = `(sec._id = '${core.space.Space}' OR sec."_class" = '${core.class.SystemSpace}' OR sec.members @> '{"${acc.uuid}"}'${privateCheck})${archivedCheck}`
@@ -667,7 +677,7 @@ abstract class PostgresAdapterBase implements DbAdapter {
             collabRes += ` OR EXISTS (SELECT 1 FROM ${translateDomain(DOMAIN_COLLABORATOR)} collab_sec WHERE collab_sec."workspaceId" = ${vars.add(this.workspaceId, '::uuid')} AND collab_sec."attachedTo" = ${tableAlias}."attachedTo" AND collab_sec.collaborator = '${acc.uuid}')`
           }
         }
-        return `AND (${res}${collabRes})`
+        return `AND (${res}${collabRes})${hiddenCheck()}`
       }
     }
   }

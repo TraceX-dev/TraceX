@@ -119,6 +119,17 @@ export function createModel (builder: Builder): void {
     }
   })
 
+  // Space.members = unique(directMembers ∪ members of groups). The single place that writes members after a change of
+  // direct members, bound groups or group members (SpaceMembershipMiddleware only turns client writes of members into
+  // writes of directMembers); it also removes roles of accounts that are not direct.
+  builder.createDoc(serverCore.class.Trigger, core.space.Model, {
+    trigger: serverContact.trigger.OnSpaceMembershipChange,
+    txMatch: {
+      objectClass: { $in: [core.class.Space, core.class.UserGroup] },
+      _class: { $in: [core.class.TxCreateDoc, core.class.TxUpdateDoc, core.class.TxRemoveDoc] }
+    }
+  })
+
   builder.createDoc(serverCore.class.Trigger, core.space.Model, {
     trigger: serverContact.trigger.OnSpaceTypeMembers,
     txMatch: {
