@@ -450,6 +450,7 @@ export default plugin(processId, {
     EmptyRelatedObjectValue: '' as IntlString,
     RelatedObjectNotFound: '' as IntlString,
     RelationNotExists: '' as IntlString,
+    AggregateRequiresManyRelation: '' as IntlString,
     EmptyAttributeContextValue: '' as IntlString,
     ObjectNotFound: '' as IntlString,
     AttributeNotExists: '' as IntlString,

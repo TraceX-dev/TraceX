@@ -282,6 +282,7 @@
     "AttributeNotExists": "Atributo no existe: {key}",
     "RelatedObjectNotFound": "Objeto relacionado no encontrado: {attr}",
     "RelationNotExists": "Relación no existe: {association}",
+    "AggregateRequiresManyRelation": "La agregación requiere una dirección de relación que pueda devolver varias tarjetas.",
     "EmptyAttributeContextValue": "Valor de atributo vacío: {attr}",
     "UserRequestedValueNotProvided": "Valor solicitado por el usuario no proporcionado: {attr}",
     "ObjectNotFound": "Objeto no encontrado: {_id}",

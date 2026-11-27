@@ -52,6 +52,11 @@ export default defineConfig(({ envMode }) => {
         svelteLoaderOptions: {
           emitCss: true,
           hotReload: !production,
+          // Accessibility is not supported across the project yet, so a11y warnings are hidden.
+          onwarn: (warning, handleWarning) => {
+            if (warning.code?.startsWith('a11y')) return
+            handleWarning(warning)
+          },
           preprocess: sveltePreprocess({
             postcss: true,
             sourceMap: true,
