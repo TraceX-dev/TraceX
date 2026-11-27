@@ -777,6 +777,7 @@ describe('TSessionManager', () => {
         maintenance: false,
         sessions: new Map(),
         closing: undefined,
+        tickHandlers: new Map(),
         close: jest.fn().mockResolvedValue(undefined),
         context: { end: jest.fn() }
       }
@@ -808,6 +809,7 @@ describe('TSessionManager', () => {
         maintenance: false,
         sessions: new Map(),
         closing: undefined,
+        tickHandlers: new Map(),
         close: jest.fn().mockResolvedValue(undefined),
         context: { end: jest.fn() }
       }
@@ -1093,6 +1095,7 @@ describe('TSessionManager', () => {
         wsId: { uuid: workspaceId, url: 'concurrent-workspace' },
         maintenance: false,
         sessions: new Map(),
+        tickHandlers: new Map(),
         close: jest.fn().mockResolvedValue(undefined),
         context: { end: jest.fn() }
       }
@@ -1125,7 +1128,7 @@ describe('TSessionManager', () => {
       jest.spyOn(sessionManager, 'getLoginWithWorkspaceInfo').mockResolvedValue(account as any)
       jest.spyOn(sessionManager, 'getWorkspace').mockResolvedValue({ workspace } as any)
       mockUsersProducer.send.mockRejectedValue(new Error('queue down'))
-      const socket = { id: 'sock-1', send: jest.fn() }
+      const socket = { id: 'sock-1', send: jest.fn(), isClosed: false, checkState: () => true }
       const token: Token = { account: user, workspace: workspaceUuid }
 
       await expect(sessionManager.addSession(mockContext, socket as any, token, 'raw', undefined)).rejects.toThrow(
