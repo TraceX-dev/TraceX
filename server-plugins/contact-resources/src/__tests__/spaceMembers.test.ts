@@ -146,9 +146,14 @@ describe('OnSpaceMembershipChange', () => {
   it('recomputes a space once when its sources and a group change together', async () => {
     const stored = space({ members: [A], directMembers: [A, B], groups: ['g1' as Ref<UserGroup>] })
     const control = createControl([stored], [group('g1', [G1])])
-    const changedGroup = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>, {
-      members: [G1]
-    })
+    const changedGroup = factory.createTxUpdateDoc(
+      core.class.UserGroup,
+      core.space.UserGroups,
+      'g1' as Ref<UserGroup>,
+      {
+        members: [G1]
+      }
+    )
     const res = await OnSpaceMembershipChange([update({ directMembers: [A, B] }), changedGroup], control)
     expect(applyMembers(stored.members, res)).toEqual([A, B, G1].sort())
   })
@@ -257,7 +262,7 @@ describe('OnSpaceMembershipChange: user group changes', () => {
     const other = space({ _id: 's3' as Ref<Space>, members: [B], directMembers: [B] })
     // G1 was replaced by G2 in the group.
     const control = createControl([s1, s2, other], [group('g1', [G2])])
-    const tx = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>, {
+    const tx = factory.createTxUpdateDoc(core.class.UserGroup, core.space.UserGroups, 'g1' as Ref<UserGroup>, {
       members: [G2]
     })
     const res = await OnSpaceMembershipChange([tx], control)
@@ -280,7 +285,9 @@ describe('OnSpaceMembershipChange: user group changes', () => {
     const stored = space({ members: [A], directMembers: [A], groups: ['g1', 'g2'] as Array<Ref<UserGroup>> })
     const control = createControl([stored], [group('g1', [G1]), group('g2', [G2])])
     const txes = ['g1', 'g2'].map((id) =>
-      factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, id as Ref<UserGroup>, { members: [G1, G2] })
+      factory.createTxUpdateDoc(core.class.UserGroup, core.space.UserGroups, id as Ref<UserGroup>, {
+        members: [G1, G2]
+      })
     )
     const res = await OnSpaceMembershipChange(txes, control)
     expect(applyMembers(stored.members, res)).toEqual([A, G1, G2].sort())
@@ -290,8 +297,8 @@ describe('OnSpaceMembershipChange: user group changes', () => {
     const stored = space({ members: [A, G1], directMembers: [A], groups: ['g1', 'g2'] as Array<Ref<UserGroup>> })
     const control = createControl([stored], [group('g2', [G2])])
     const txes = [
-      factory.createTxRemoveDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>),
-      factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g2' as Ref<UserGroup>, { members: [G2] })
+      factory.createTxRemoveDoc(core.class.UserGroup, core.space.UserGroups, 'g1' as Ref<UserGroup>),
+      factory.createTxUpdateDoc(core.class.UserGroup, core.space.UserGroups, 'g2' as Ref<UserGroup>, { members: [G2] })
     ]
     const res = await OnSpaceMembershipChange(txes, control)
     expect(applyMembers(stored.members, res)).toEqual([A, G2].sort())
@@ -302,7 +309,7 @@ describe('OnSpaceMembershipChange: user group changes', () => {
     const stored = space({ members: [A, G1, G2], directMembers: [A], groups: ['g1', 'g2'] as Array<Ref<UserGroup>> })
     const control = createControl([stored], [])
     const txes = ['g1', 'g2'].map((id) =>
-      factory.createTxRemoveDoc(core.class.UserGroup, core.space.Workspace, id as Ref<UserGroup>)
+      factory.createTxRemoveDoc(core.class.UserGroup, core.space.UserGroups, id as Ref<UserGroup>)
     )
     const res = await OnSpaceMembershipChange(txes, control)
     expect(res).toHaveLength(3)
@@ -311,7 +318,7 @@ describe('OnSpaceMembershipChange: user group changes', () => {
 
   it('revokes group membership when the group members are unset', async () => {
     const stored = space({ members: [A, G1], directMembers: [A], groups: ['g1'] as Array<Ref<UserGroup>> })
-    const tx = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>, {
+    const tx = factory.createTxUpdateDoc(core.class.UserGroup, core.space.UserGroups, 'g1' as Ref<UserGroup>, {
       $unset: { members: true }
     })
     const res = await OnSpaceMembershipChange([tx], createControl([stored], [group('g1', [])]))
@@ -321,7 +328,7 @@ describe('OnSpaceMembershipChange: user group changes', () => {
   it('ignores group updates that do not touch members', async () => {
     const s1 = space({ members: [G1], directMembers: [], groups: ['g1' as Ref<UserGroup>] })
     const control = createControl([s1], [group('g1', [])])
-    const tx = factory.createTxUpdateDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>, {
+    const tx = factory.createTxUpdateDoc(core.class.UserGroup, core.space.UserGroups, 'g1' as Ref<UserGroup>, {
       name: 'renamed'
     })
     expect(await OnSpaceMembershipChange([tx], control)).toEqual([])
@@ -330,7 +337,7 @@ describe('OnSpaceMembershipChange: user group changes', () => {
   it('unbinds a removed group from its spaces', async () => {
     const s1 = space({ members: [G1], directMembers: [], groups: ['g1' as Ref<UserGroup>] })
     const control = createControl([s1], [])
-    const tx = factory.createTxRemoveDoc(core.class.UserGroup, core.space.Workspace, 'g1' as Ref<UserGroup>)
+    const tx = factory.createTxRemoveDoc(core.class.UserGroup, core.space.UserGroups, 'g1' as Ref<UserGroup>)
     const res = await OnSpaceMembershipChange([tx], control)
     expect(res).toHaveLength(2)
     expect((res[0] as TxUpdateDoc<Space>).operations).toEqual({ $pull: { groups: 'g1' } })

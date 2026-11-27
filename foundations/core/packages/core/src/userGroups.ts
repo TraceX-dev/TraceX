@@ -13,9 +13,25 @@
 // limitations under the License.
 //
 
-import type { AccountUuid, Class, Doc, Ref, Space, UserGroup } from './classes'
+import { AccountRole, type AccountUuid, type Class, type Doc, type Ref, type Space, type UserGroup } from './classes'
 import core from './component'
 import type { Hierarchy } from './hierarchy'
+
+/**
+ * System spaces that guests can not read (see `isGuestHiddenSpacesRole`): space security leaves them out of the
+ * spaces a guest may see, so documents there and their transactions reach neither guest queries, lookups,
+ * associations, full-text search nor broadcasts. Other accounts see them as any system space.
+ */
+export const guestHiddenSpaces: ReadonlySet<Ref<Space>> = new Set([core.space.UserGroups])
+
+export function isSpaceHiddenFromGuests (space: Ref<Space> | undefined): boolean {
+  return space !== undefined && guestHiddenSpaces.has(space)
+}
+
+/** Roles that do not read `guestHiddenSpaces`: guests and read-only guests. Document guests are not covered yet. */
+export function isGuestHiddenSpacesRole (role: AccountRole | undefined): boolean {
+  return role === AccountRole.Guest || role === AccountRole.ReadOnlyGuest
+}
 
 // Spelled out: core does not depend on the chunter plugin.
 const CHANNEL = 'chunter:class:Channel' as Ref<Class<Space>>

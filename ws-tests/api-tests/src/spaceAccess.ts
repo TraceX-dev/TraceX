@@ -43,6 +43,11 @@ import core, {
   type TxOperations
 } from '@hcengineering/core'
 
+/** Stable order of account lists in assertions. */
+function compareAccounts (left: string, right: string): number {
+  return left.localeCompare(right)
+}
+
 export const SERVER_URL = 'http://tracex.local:8083'
 export const WS_NAME = 'api-tests'
 export const PASSWORD = '1234'
@@ -146,19 +151,19 @@ export class SpaceProbe {
   }
 
   async storedMembers (space: Ref<Space>): Promise<AccountUuid[]> {
-    return [...((await this.storedSpace(space)).members ?? [])].sort()
+    return [...((await this.storedSpace(space)).members ?? [])].sort(compareAccounts)
   }
 
   async storedDirectMembers (space: Ref<Space>): Promise<AccountUuid[]> {
-    return [...((await this.storedSpace(space)).directMembers ?? [])].sort()
+    return [...((await this.storedSpace(space)).directMembers ?? [])].sort(compareAccounts)
   }
 
   async expectMembers (space: Ref<Space>, expected: AccountUuid[]): Promise<void> {
-    expect(await this.storedMembers(space)).toEqual([...new Set(expected)].sort())
+    expect(await this.storedMembers(space)).toEqual([...new Set(expected)].sort(compareAccounts))
   }
 
   async expectDirectMembers (space: Ref<Space>, expected: AccountUuid[]): Promise<void> {
-    expect(await this.storedDirectMembers(space)).toEqual([...new Set(expected)].sort())
+    expect(await this.storedDirectMembers(space)).toEqual([...new Set(expected)].sort(compareAccounts))
   }
 
   /**

@@ -38,7 +38,7 @@
     if (trimmedName === '' || creating) return
     creating = true
     try {
-      await client.createDoc(core.class.UserGroup, core.space.Workspace, { name: trimmedName, members })
+      await client.createDoc(core.class.UserGroup, core.space.UserGroups, { name: trimmedName, members })
       dispatch('close')
     } catch (error) {
       handleError(error)

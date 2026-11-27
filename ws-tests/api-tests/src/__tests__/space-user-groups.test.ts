@@ -80,7 +80,7 @@ describe('space-user-groups', () => {
   // ---------------------------------------------------------------- helpers
 
   async function createGroup (members: AccountUuid[]): Promise<Ref<UserGroup>> {
-    const id = await maintainer.ops.createDoc(core.class.UserGroup, core.space.Workspace, {
+    const id = await maintainer.ops.createDoc(core.class.UserGroup, core.space.UserGroups, {
       name: `group-${generateId()}`,
       members
     })
@@ -308,10 +308,13 @@ describe('space-user-groups', () => {
       const group = await createGroup([member.account])
 
       await expect(
-        member.ops.createDoc(core.class.UserGroup, core.space.Workspace, { name: 'by user', members: [member.account] })
+        member.ops.createDoc(core.class.UserGroup, core.space.UserGroups, {
+          name: 'by user',
+          members: [member.account]
+        })
       ).rejects.toThrow()
       await expect(
-        member.ops.updateDoc(core.class.UserGroup, core.space.Workspace, group, { $push: { members: other.account } })
+        member.ops.updateDoc(core.class.UserGroup, core.space.UserGroups, group, { $push: { members: other.account } })
       ).rejects.toThrow()
       expect((await getGroup(group)).members).toEqual([member.account])
 
@@ -340,7 +343,7 @@ describe('space-user-groups', () => {
     'the anonymous guest can not be a group member',
     async () => {
       await expect(
-        maintainer.ops.createDoc(core.class.UserGroup, core.space.Workspace, {
+        maintainer.ops.createDoc(core.class.UserGroup, core.space.UserGroups, {
           name: `anonymous-${generateId()}`,
           members: [readOnlyGuestAccountUuid]
         })

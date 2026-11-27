@@ -143,7 +143,7 @@ export async function OnSpaceMembershipChange (txes: Tx[], control: TriggerContr
       ) {
         continue
       }
-      const spaces = await control.findAll(control.ctx, core.class.Space, { groups: cud.objectId as Ref<UserGroup> })
+      const spaces = await control.findAll(control.ctx, core.class.Space, { groups: cud.objectId })
       for (const space of spaces) affected.set(space._id, space)
       continue
     }

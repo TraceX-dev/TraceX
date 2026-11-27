@@ -155,3 +155,68 @@ describe('PostgreSQL association access', () => {
     expect(execute.mock.calls[0][0]).not.toContain('EXISTS')
   })
 })
+
+describe('PostgreSQL spaces hidden from guests', () => {
+  /** Every placeholder of the statement has a value and every value is used. */
+  function expectConsistentParams (sql: string, params: unknown[]): void {
+    const used = new Set(Array.from(sql.matchAll(/\$(\d+)/g)).map((it) => Number(it[1])))
+    expect(used.size).toBe(params.length)
+    expect(Math.max(0, ...used)).toBe(params.length)
+  }
+
+  it.each([AccountRole.Guest, AccountRole.ReadOnlyGuest])(
+    '%s does not read documents of hidden spaces',
+    async (role) => {
+      const { adapter, ctx, execute } = await makeAdapter(role)
+
+      await adapter.findAll(ctx, taskPlugin.class.Task, {})
+
+      const [sql, params] = execute.mock.calls[0] as [string, unknown[]]
+      expect(sql).toContain('sec.members @>')
+      expect(sql).toMatch(/NOT IN \(\$\d+::text\)/)
+      expect(params).toContain(core.space.UserGroups)
+      expectConsistentParams(sql, params)
+    }
+  )
+
+  it('document guests keep skipping space checks: hidden spaces are not covered for them yet', async () => {
+    const { adapter, ctx, execute } = await makeAdapter(AccountRole.DocGuest)
+
+    await adapter.findAll(ctx, taskPlugin.class.Task, {})
+
+    const [sql, params] = execute.mock.calls[0] as [string, unknown[]]
+    expect(sql).not.toContain('sec.members @>')
+    expect(sql).not.toContain('NOT IN')
+    expect(params).not.toContain(core.space.UserGroups)
+  })
+
+  it('other accounts read hidden spaces as any system space', async () => {
+    const { adapter, ctx, execute } = await makeAdapter(AccountRole.User)
+
+    await adapter.findAll(ctx, taskPlugin.class.Task, {})
+
+    const [sql, params] = execute.mock.calls[0] as [string, unknown[]]
+    expect(sql).not.toContain('NOT IN')
+    expect(params).not.toContain(core.space.UserGroups)
+  })
+
+  it('adds no unused parameters when the guest check returns early', async () => {
+    const { adapter, ctx, execute } = await makeAdapter(AccountRole.Guest)
+
+    await adapter.findAll(ctx, taskPlugin.class.Task, { space: 'test:account:user' as any })
+
+    const [sql, params] = execute.mock.calls[0] as [string, unknown[]]
+    expect(sql).not.toContain('NOT IN')
+    expectConsistentParams(sql, params)
+  })
+
+  it('applies to association targets of guests', async () => {
+    const { adapter, ctx, association, execute } = await makeAdapter(AccountRole.Guest)
+
+    await adapter.fetchAssociations(ctx, parentMap(), [[association._id, 1]])
+
+    const [sql, params] = execute.mock.calls[0] as [string, unknown[]]
+    expect(sql).toMatch(/assoc\.space NOT IN \(\$\d+::text\)/)
+    expectConsistentParams(sql, params)
+  })
+})

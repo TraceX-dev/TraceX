@@ -224,7 +224,9 @@ export default plugin(coreId, {
     Space: '' as Ref<TypedSpace>,
     Configuration: '' as Ref<Space>,
     Workspace: '' as Ref<Space>,
-    Domain: '' as Ref<Space>
+    Domain: '' as Ref<Space>,
+    /** Holds user groups. A system space that guests can not read (see `guestHiddenSpaces`). */
+    UserGroups: '' as Ref<Space>
   },
   employee: {
     System: '' as Ref<any> // An system employee reference.
