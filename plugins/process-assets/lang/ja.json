@@ -281,6 +281,7 @@
     "AttributeNotExists": "属性が存在しません: {key}",
     "RelatedObjectNotFound": "関連オブジェクトが見つかりません: {attr}",
     "RelationNotExists": "関連が存在しません: {association}",
+    "AggregateRequiresManyRelation": "集計には、複数のカードを返せる関連の方向が必要です。",
     "EmptyAttributeContextValue": "属性の値が空です: {attr}",
     "UserRequestedValueNotProvided": "ユーザーが要求した値が提供されていません: {attr}",
     "ObjectNotFound": "オブジェクトが見つかりません: {_id}",

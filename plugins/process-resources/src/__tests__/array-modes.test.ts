@@ -30,18 +30,18 @@ const definition: Pick<Process, 'masterTag' | 'context'> = { masterTag: card.cla
 const links: Partial<Association> = {
   _id: association,
   _class: core.class.Association,
-  classA: lineItem,
-  classB: definition.masterTag,
+  classA: definition.masterTag,
+  classB: lineItem,
   type: '1:N',
-  nameA: 'Line items'
+  nameB: 'Line items'
 }
 const parent: Partial<Association> = {
   _id: generateId<Association>(),
   _class: core.class.Association,
-  classA: definition.masterTag,
-  classB: lineItem,
+  classA: lineItem,
+  classB: definition.masterTag,
   type: '1:N',
-  nameB: 'Parent'
+  nameA: 'Parent'
 }
 const numberType: Type<number> = { _class: core.class.TypeNumber, label: core.string.Number }
 const arrayType: ArrOf<number> = { _class: core.class.ArrOf, label: core.string.Array, of: numberType }
@@ -125,16 +125,15 @@ describe('projected array modes in the value editor', () => {
 
   it('switches between a source reduction and a value aggregation and retains later transforms', () => {
     const client = makeClient()
-    const first = getRelationReduceFunc(client as Client, association, 'A')
+    const first = getRelationReduceFunc(client as Client, association)
     expect(first?.func).toBe(processPlugin.function.FirstValue)
-    expect(getRelationReduceFunc(client as Client, association, 'B')).toBeUndefined()
     const round: Func = { func: processPlugin.function.Round, props: {} }
     const last: Func = { func: processPlugin.function.LastValue, props: {} }
     const value: SelectedRelation = {
       type: 'relation',
       key: 'amount',
       association,
-      direction: 'A',
+      direction: 'B',
       name: 'Line items',
       sourceFunction: first,
       functions: [round]

@@ -277,6 +277,7 @@
     "AttributeNotExists": "Atribut neexistuje: {key}",
     "RelatedObjectNotFound": "Související objekt nenalezen: {attr}",
     "RelationNotExists": "Relace neexistuje: {association}",
+    "AggregateRequiresManyRelation": "Agregace vyžaduje směr vazby, který může vrátit více karet.",
     "EmptyAttributeContextValue": "Prázdná hodnota atributu: {attr}",
     "UserRequestedValueNotProvided": "Hodnota požadovaná uživatelem nebyla poskytnuta: {attr}",
     "ObjectNotFound": "Objekt nenalezen: {_id}",

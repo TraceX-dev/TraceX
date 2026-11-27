@@ -46,7 +46,7 @@
   }
 
   function onAttribute (attr: AnyAttribute): void {
-    const reduceFunc = getRelationReduceFunc(client, context.association, context.direction)
+    const reduceFunc = getRelationReduceFunc(client, context.association)
     const aggregate = reduceFunc !== undefined ? getDefaultArrayAggregate(client, attr, target) : undefined
     const valueFunc = aggregate ?? getValueReduceFunc(attr, target)
     onSelect({

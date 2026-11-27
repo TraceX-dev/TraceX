@@ -282,6 +282,7 @@
     "AttributeNotExists": "Attributo non esiste: {key}",
     "RelatedObjectNotFound": "Oggetto correlato non trovato: {attr}",
     "RelationNotExists": "Relazione non esiste: {association}",
+    "AggregateRequiresManyRelation": "L’aggregazione richiede una direzione della relazione che possa restituire più schede.",
     "EmptyAttributeContextValue": "Valore attributo vuoto: {attr}",
     "UserRequestedValueNotProvided": "Valore richiesto dall'utente non fornito: {attr}",
     "ObjectNotFound": "Oggetto non trovato: {_id}",

@@ -15,7 +15,7 @@
 // limitations under the License.
 //
 
-import core, { ArrOf, checkMixinKey, Doc, getObjectValue, RefTo } from '@hcengineering/core'
+import core, { ArrOf, checkMixinKey, Doc, getObjectValue, type ModelDb, RefTo } from '@hcengineering/core'
 import { getEmbeddedLabel, getResource } from '@hcengineering/platform'
 import process, {
   Execution,
@@ -149,6 +149,10 @@ async function fillValue (
   return value
 }
 
+function hasArrayAggregate (context: SelectedContext, model: ModelDb): boolean {
+  return context.functions?.some(({ func }) => model.findObject(func)?.arrayElement !== undefined) === true
+}
+
 async function getNestedValue (control: ProcessControl, execution: Execution, context: SelectedNested): Promise<any> {
   const card = control.cache.get(execution.card)
   if (card === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.card }, {}, true)
@@ -164,7 +168,7 @@ async function getNestedValue (control: ProcessControl, execution: Execution, co
     attr.type._class === core.class.ArrOf &&
     context.sourceFunction === undefined &&
     (nestedValue == null || (Array.isArray(nestedValue) && nestedValue.length === 0)) &&
-    context.functions?.some(({ func }) => model.findObject(func)?.arrayElement !== undefined) === true
+    hasArrayAggregate(context, model)
   ) {
     return []
   }
@@ -216,16 +220,22 @@ async function getRelationValue (
   execution: Execution,
   context: SelectedRelation
 ): Promise<any> {
-  const _process = control.client.getModel().findObject(execution.process)
+  const model = control.client.getModel()
+  const _process = model.findObject(execution.process)
   if (_process === undefined) throw processError(process.error.ObjectNotFound, { _id: execution.process })
   const realAssociation = resolveAttributeId(_process, context.association)
-  const assoc = control.client.getModel().findObject(realAssociation)
+  const assoc = model.findObject(realAssociation)
   if (assoc === undefined) throw processError(process.error.RelationNotExists, {})
+  const aggregate = assoc.type === '1:N' && hasArrayAggregate(context, model)
+  if (aggregate && context.direction === 'A') {
+    throw processError(process.error.AggregateRequiresManyRelation)
+  }
   const targetClass = context.direction === 'A' ? assoc.classA : assoc.classB
   const q = context.direction === 'A' ? { docB: execution.card } : { docA: execution.card }
   const relations = await control.client.findAll(core.class.Relation, { association: assoc._id, ...q })
   const name = context.direction === 'A' ? assoc.nameA : assoc.nameB
-  const shouldBeArray = assoc.type === 'N:N' || (assoc.type === '1:N' && context.direction === 'A')
+  // Plain 1:N selectors retain their historical result shape.
+  const shouldBeArray = assoc.type === 'N:N' || (assoc.type === '1:N' && (aggregate || context.direction === 'A'))
   if (relations.length === 0) {
     if (shouldBeArray) return []
     throw processError(process.error.RelatedObjectNotFound, { attr: name })
@@ -240,7 +250,7 @@ async function getRelationValue (
   const attr = realKey !== '' ? hierarchy.findAttribute(targetClass, realKey) : undefined
   const key = checkMixinKey(realKey, targetClass, hierarchy)
   if (context.sourceFunction !== undefined) {
-    const transform = control.client.getModel().findObject(context.sourceFunction.func)
+    const transform = model.findObject(context.sourceFunction.func)
     if (transform === undefined) {
       throw processError(process.error.MethodNotFound, { methodId: context.sourceFunction.func }, {}, true)
     }

@@ -372,7 +372,7 @@ Use a literal source for constants: `expr: {from: {literal: 5}, pipe: [{Multiply
 
 #### Aggregating arrays and related fields
 
-For a field reached through an array of card references or the many side of a `1:N` or `N:N` association, select the relationship and field in the value picker. Open the selected value's settings and choose an aggregation from the same menu as **First value**, **Last value**, and **Random**. For a standalone array field or a typed array result in the execution context, choose an aggregation in the value picker and then select the array.
+For a field reached through an array of card references or a to-many association, select the relationship and field in the value picker. Open the selected value's settings and choose an aggregation from the same menu as **First value**, **Last value**, and **Random**. For `1:N`, use direction `B` from a card of `classA` to its linked `classB` cards. For `N:N`, either direction can be aggregated. An aggregate without a source reduction reads all linked values on the selected side. For a standalone array field or a typed array result in the execution context, choose an aggregation in the value picker and then select the array.
 
 Aggregations are `pipe` functions. They receive the array of field values after selection. Each function takes no properties and skips missing values and values of a different type. Numbers must be finite. Date functions accept date values and numeric timestamps and return a timestamp in milliseconds. Boolean functions use literal `true` and `false`.
 
@@ -391,11 +391,11 @@ expr:
   pipe: [ArraySum]
 ```
 
-Here `line_items` is an array of card references and `amount` is a field on each referenced card. For an association, the value picker stores the native relation selector, which also works as an expression source. This example reads `amount` on side `A` of the association bound to the declared `line_items_relation` slot.
+Here `line_items` is an array of card references and `amount` is a field on each referenced card. For an association, the value picker stores the native relation selector, which also works as an expression source. This example reads `amount` on side `B` of the association bound to the declared `line_items_relation` slot.
 
 ```yaml
 expr:
-  from: '${$relation(__SLOT_line_items_relation__,A,amount,Line items)}'
+  from: '${$relation(__SLOT_line_items_relation__,B,amount,Line items)}'
   pipe: [ArraySum]
 ```
 

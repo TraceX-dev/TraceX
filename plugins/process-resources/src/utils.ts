@@ -241,8 +241,8 @@ export function getContext (
     }
   }
 
-  function getProjectedAttributes (_class: Ref<Class<Doc>>, many: boolean): AnyAttribute[] {
-    const types = many ? [...projectedTypes] : [target]
+  function getProjectedAttributes (_class: Ref<Class<Doc>>, canAggregate: boolean): AnyAttribute[] {
+    const types = canAggregate ? [...projectedTypes] : [target]
     return types.flatMap((type) => getClassAttributes(client, _class, type, 'attribute'))
   }
 
@@ -285,7 +285,7 @@ export function getContext (
         attributes: []
       }
     } else {
-      const refAttributes = getProjectedAttributes(rel.classB, isRelationToMany(rel, 'B'))
+      const refAttributes = getProjectedAttributes(rel.classB, canAggregateRelation(rel, 'B'))
       if (refAttributes.length > 0) {
         relations[rel.nameB] = {
           name: rel.nameB,
@@ -307,7 +307,7 @@ export function getContext (
         attributes: []
       }
     } else {
-      const refAttributes = getProjectedAttributes(rel.classA, isRelationToMany(rel, 'A'))
+      const refAttributes = getProjectedAttributes(rel.classA, canAggregateRelation(rel, 'A'))
       if (refAttributes.length > 0) {
         relations[rel.nameA] = {
           name: rel.nameA,
@@ -499,18 +499,14 @@ export function getRelationObjectReduceFunc (
   return { func: process.function.FirstValue, props: {} }
 }
 
-export function getRelationReduceFunc (
-  client: Client,
-  association: Ref<Association>,
-  direction: 'A' | 'B'
-): Func | undefined {
+export function getRelationReduceFunc (client: Client, association: Ref<Association>): Func | undefined {
   const assoc = client.getModel().findObject(association)
-  if (!isRelationToMany(assoc, direction)) return undefined
+  if (assoc === undefined || assoc.type === '1:1') return undefined
   return { func: process.function.FirstValue, props: {} }
 }
 
-export function isRelationToMany (association: Association | undefined, direction: 'A' | 'B'): boolean {
-  return association?.type === 'N:N' || (association?.type === '1:N' && direction === 'A')
+export function canAggregateRelation (association: Association, direction: 'A' | 'B'): boolean {
+  return association.type === 'N:N' || (association.type === '1:N' && direction === 'B')
 }
 
 export function getArrayAggregates (

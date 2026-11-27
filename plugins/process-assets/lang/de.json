@@ -277,6 +277,7 @@
     "AttributeNotExists": "Attribut existiert nicht: {key}",
     "RelatedObjectNotFound": "Verwandtes Objekt nicht gefunden: {attr}",
     "RelationNotExists": "Beziehung existiert nicht: {association}",
+    "AggregateRequiresManyRelation": "Eine Aggregation erfordert eine Verknüpfungsrichtung, die mehrere Karten zurückgeben kann.",
     "EmptyAttributeContextValue": "Leerer Attributwert: {attr}",
     "UserRequestedValueNotProvided": "Benutzer angeforderter Wert nicht bereitgestellt: {attr}",
     "ObjectNotFound": "Objekt nicht gefunden: {_id}",

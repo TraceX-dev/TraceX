@@ -277,6 +277,7 @@
     "AttributeNotExists": "Öznitelik mevcut değil: {key}",
     "RelatedObjectNotFound": "İlişkili nesne bulunamadı: {attr}",
     "RelationNotExists": "İlişki mevcut değil: {association}",
+    "AggregateRequiresManyRelation": "Toplama işlemi, birden fazla kart döndürebilen bir ilişki yönü gerektirir.",
     "EmptyAttributeContextValue": "Boş öznitelik değeri: {attr}",
     "UserRequestedValueNotProvided": "Kullanıcı talep edilen değer sağlanmadı: {attr}",
     "ObjectNotFound": "Nesne bulunamadı: {_id}",

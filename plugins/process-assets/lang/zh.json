@@ -282,6 +282,7 @@
     "AttributeNotExists": "属性不存在：{key}",
     "RelatedObjectNotFound": "找不到相关对象：{attr}",
     "RelationNotExists": "关系不存在：{association}",
+    "AggregateRequiresManyRelation": "聚合需要选择可以返回多张卡片的关联方向。",
     "EmptyAttributeContextValue": "空属性上下文值：{attr}",
     "UserRequestedValueNotProvided": "用户请求的值未提供：{attr}",
     "ObjectNotFound": "找不到对象：{_id}",
