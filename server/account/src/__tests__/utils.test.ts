@@ -76,7 +76,7 @@ import {
   setWorkspaceMemberUnread
 } from '../utils'
 import platform, { getMetadata, PlatformError, Severity, Status } from '@hcengineering/platform'
-import { decodeTokenVerbose, generateToken, TokenError } from '@hcengineering/server-token'
+import { decodeTokenVerbose, generateToken, TokenError, type Token } from '@hcengineering/server-token'
 import { randomBytes } from 'crypto'
 
 import { type AccountDB, type AccountEvent, AccountEventType, type Workspace } from '../types'
@@ -1408,6 +1408,9 @@ describe('account utils', () => {
       workspaceStatus: {
         findOne: jest.fn() as jest.MockedFunction<AccountDB['workspaceStatus']['findOne']>
       },
+      socialId: {
+        findOne: jest.fn()
+      },
       getWorkspaceRole: jest.fn() as jest.MockedFunction<AccountDB['getWorkspaceRole']>,
       person: {
         findOne: jest.fn() as jest.MockedFunction<AccountDB['person']['findOne']>
@@ -1526,6 +1529,7 @@ describe('account utils', () => {
       const workspaceUrl = 'test-workspace'
       const mockWorkspace = {
         uuid: 'workspace-uuid' as WorkspaceUuid,
+        name: 'Test workspace',
         url: workspaceUrl,
         region: 'us',
         dataId: 'test-data-id'
@@ -1560,6 +1564,8 @@ describe('account utils', () => {
           endpoint: expect.any(String),
           workspace: mockWorkspace.uuid,
           workspaceUrl: mockWorkspace.url,
+          workspaceName: mockWorkspace.name,
+          workspaceAvailable: true,
           workspaceDataId: mockWorkspace.dataId,
           role: AccountRole.User
         })
@@ -1609,6 +1615,103 @@ describe('account utils', () => {
         )
 
         expect(mockCtx.error).toHaveBeenCalledWith('Selecting a disabled workspace', expect.any(Object))
+      })
+    })
+
+    describe('external author credentials', () => {
+      const workspaceId = '00000000-0000-4000-8000-000000000002' as WorkspaceUuid
+      const accountId = '00000000-0000-4000-8000-000000000001' as AccountUuid
+      const params = { workspaceUrl: 'target', kind: 'internal' as const }
+      const workspace: Partial<Workspace> = {
+        uuid: workspaceId,
+        name: 'Target workspace',
+        url: 'target',
+        region: 'us',
+        allowReadOnlyGuest: true
+      }
+      const claims: Record<string, string> = {
+        externalSocialId: 'author',
+        externalSource: 'codex',
+        admin: 'true'
+      }
+
+      beforeEach(() => {
+        const delegation: Partial<Token> = {
+          account: accountId,
+          extra: { ...claims },
+          exp: 1_800_000_000
+        }
+        jest.mocked(decodeTokenVerbose).mockReturnValue(delegation as Token)
+        ;(getMetadata as jest.Mock).mockReturnValue('http://internal:3000;http://external:3000;us')
+        ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue(workspace)
+        ;(mockDb.workspaceStatus.findOne as jest.Mock).mockResolvedValue({ mode: 'active', isDisabled: false })
+        ;(mockDb.account.findOne as jest.Mock).mockResolvedValue({ uuid: accountId })
+        ;(mockDb.person.findOne as jest.Mock).mockResolvedValue({ uuid: accountId })
+        ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue({ _id: 'author' })
+        ;(mockDb.getWorkspaceRole as jest.Mock).mockResolvedValue(AccountRole.User)
+      })
+
+      it('returns the route, metadata and delegated token for the workspace URL', async () => {
+        const result = await selectWorkspace(mockCtx, mockDb, mockBranding, 'external-token', params)
+        expect(mockDb.workspace.findOne).toHaveBeenCalledWith({ url: 'target' })
+        expect(mockDb.getWorkspaceRole).toHaveBeenCalledWith(accountId, workspaceId)
+        expect(result).toMatchObject({
+          endpoint: 'http://internal:3000',
+          workspace: workspaceId,
+          workspaceName: 'Target workspace',
+          workspaceAvailable: true,
+          workspaceUrl: 'target',
+          token: 'new-token',
+          socialId: 'author'
+        })
+        expect(generateToken).toHaveBeenCalledWith(
+          accountId,
+          workspaceId,
+          claims,
+          undefined,
+          expect.objectContaining({ exp: 1_800_000_000 })
+        )
+      })
+
+      it('looks up only the supplied URL for an account-level delegation', async () => {
+        ;(mockDb.workspace.findOne as jest.Mock).mockResolvedValue(null)
+        await expect(selectWorkspace(mockCtx, mockDb, mockBranding, 'external-token', params)).rejects.toThrow(
+          new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, { workspaceUrl: 'target' }))
+        )
+        expect(mockDb.workspace.findOne).toHaveBeenCalledTimes(1)
+        expect(generateToken).not.toHaveBeenCalled()
+      })
+
+      it('preserves guest fallback for a removed member with an admin claim', async () => {
+        ;(mockDb.getWorkspaceRole as jest.Mock)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(AccountRole.ReadOnlyGuest)
+        await expect(selectWorkspace(mockCtx, mockDb, mockBranding, 'external-token', params)).resolves.toMatchObject({
+          account: readOnlyGuestAccountUuid,
+          role: AccountRole.ReadOnlyGuest
+        })
+        expect(mockDb.getWorkspaceRole).toHaveBeenLastCalledWith(readOnlyGuestAccountUuid, workspaceId)
+        expect(mockDb.socialId.findOne).not.toHaveBeenCalled()
+      })
+
+      it.each([{ mode: 'deleting', isDisabled: false }, null])(
+        'reports an unavailable workspace with status %j',
+        async (status) => {
+          ;(mockDb.workspaceStatus.findOne as jest.Mock).mockResolvedValue(status)
+          await expect(selectWorkspace(mockCtx, mockDb, mockBranding, 'external-token', params)).resolves.toMatchObject(
+            {
+              workspaceAvailable: false
+            }
+          )
+        }
+      )
+
+      it('denies a delegation whose external author was removed', async () => {
+        ;(mockDb.socialId.findOne as jest.Mock).mockResolvedValue(null)
+        await expect(selectWorkspace(mockCtx, mockDb, mockBranding, 'external-token', params)).rejects.toThrow(
+          new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
+        )
+        expect(generateToken).not.toHaveBeenCalled()
       })
     })
   })

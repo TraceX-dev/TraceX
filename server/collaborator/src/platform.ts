@@ -14,16 +14,7 @@
 // limitations under the License.
 //
 
-import core, {
-  AccountUuid,
-  Client,
-  PersonId,
-  SocialId,
-  pickPrimarySocialId,
-  systemAccountUuid,
-  TxOperations,
-  WorkspaceUuid
-} from '@hcengineering/core'
+import core, { Client, PersonId, systemAccountUuid, TxOperations, WorkspaceUuid } from '@hcengineering/core'
 import { createClient, getTransactorEndpoint } from '@hcengineering/server-client'
 import { Token, generateToken } from '@hcengineering/server-token'
 import { getClient as getAccountClient } from '@hcengineering/account-client'
@@ -35,23 +26,25 @@ async function connect (token: string): Promise<Client> {
   return await createClient(endpoint, token)
 }
 
-async function getAccountSocialIds (account: AccountUuid): Promise<SocialId[]> {
-  const token = generateToken(account, undefined, { service: 'collaborator' })
-  const accountClient = getAccountClient(config.AccountsUrl, token)
-  return await accountClient.getSocialIds()
-}
-
-async function getTxOperations (client: Client, token: Token, isDerived: boolean = false): Promise<TxOperations> {
-  let primarySocialString: PersonId
+async function getTxOperations (
+  client: Client,
+  rawToken: string,
+  token: Token,
+  isDerived: boolean = false
+): Promise<TxOperations> {
+  let socialId: PersonId
 
   if (token.account === systemAccountUuid) {
-    primarySocialString = core.account.System
+    socialId = core.account.System
   } else {
-    const socialIds = await getAccountSocialIds(token.account)
-    primarySocialString = pickPrimarySocialId(socialIds)._id
+    const info = await getAccountClient(config.AccountsUrl, rawToken).getLoginInfoByToken()
+    if (info === null || 'request' in info || info.socialId === undefined) {
+      throw new Error('Account has no acting social identity')
+    }
+    socialId = info.socialId
   }
 
-  return new TxOperations(client, primarySocialString, isDerived)
+  return new TxOperations(client, socialId, isDerived)
 }
 
 /**
@@ -71,7 +64,7 @@ export function userClientFactory (rawToken: string, token: Token): ClientFactor
   return async (params?: ClientFactoryParams) => {
     const client = await connect(rawToken)
     try {
-      return await getTxOperations(client, token, params?.derived ?? false)
+      return await getTxOperations(client, rawToken, token, params?.derived ?? false)
     } catch (error: unknown) {
       await client.close()
       throw error
@@ -82,22 +75,27 @@ export function userClientFactory (rawToken: string, token: Token): ClientFactor
 /**
  * @public
  */
-export function simpleClientFactory (token: Token): ClientFactory {
+export function simpleClientFactory (rawToken: string, token: Token): ClientFactory {
   return async (params?: ClientFactoryParams) => {
     const derived = params?.derived ?? false
     const client = await connect(generateToken(systemAccountUuid, token.workspace, { service: 'collaborator' }))
-    return await getTxOperations(client, token, derived)
+    try {
+      return await getTxOperations(client, rawToken, token, derived)
+    } catch (error: unknown) {
+      await client.close()
+      throw error
+    }
   }
 }
 
 /**
  * @public
  */
-export function reusableClientFactory (token: Token, controller: Controller): ClientFactory {
+export function reusableClientFactory (rawToken: string, token: Token, controller: Controller): ClientFactory {
   return async (params?: ClientFactoryParams) => {
     const derived = params?.derived ?? false
     const workspaceClient = await controller.get(token.workspace)
-    return await getTxOperations(workspaceClient.client, token, derived)
+    return await getTxOperations(workspaceClient.client, rawToken, token, derived)
   }
 }
 

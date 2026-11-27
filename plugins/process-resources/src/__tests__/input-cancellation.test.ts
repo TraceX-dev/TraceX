@@ -150,7 +150,7 @@ function eventTx (): TxCreateDoc<ProcessCustomEvent> {
 beforeEach(() => {
   jest.clearAllMocks()
   execution.context = { __contextId: true }
-  const account: Partial<Account> = { primarySocialId: core.account.System }
+  const account: Partial<Account> = { socialId: core.account.System, primarySocialId: core.account.System }
   setCurrentAccount(account as Account)
   jest.mocked(getClient).mockReturnValue(client as ReturnType<typeof getClient>)
   findObject.mockImplementation((id: string) => (id === execution.process ? definition : {}))

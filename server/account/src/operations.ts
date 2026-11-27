@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+import { resolveExternalSocialId } from './external-identity'
 import { Analytics } from '@hcengineering/analytics'
 import {
   type AccountInfo,
@@ -25,13 +26,12 @@ import {
   generateId,
   concatLink,
   isActiveMode,
-  isDeletingMode,
-  isWorkspaceCreating,
   loginSocialTypes,
   type MeasureContext,
   type Person,
   type PersonId,
   type PersonUuid,
+  pickPrimarySocialId,
   SocialIdType,
   systemAccount,
   systemAccountEmail,
@@ -39,8 +39,7 @@ import {
   readOnlyGuestAccountUuid,
   type WorkspaceConfiguration,
   type WorkspaceMemberInfo,
-  type WorkspaceUuid,
-  type IntegrationKind
+  type WorkspaceUuid
 } from '@hcengineering/core'
 import platform, { getMetadata, PlatformError, Severity, Status, translate } from '@hcengineering/platform'
 import {
@@ -125,6 +124,7 @@ import {
   verifyOtpAttempt,
   normalizeValue,
   doReleaseSocialId,
+  isWorkspaceAvailable,
   selectWorkspace,
   sendEmail,
   sendEmailConfirmation,
@@ -2262,9 +2262,7 @@ export async function getUserWorkspaces (
   const { account } = decodeTokenVerbose(ctx, token)
 
   return (await db.getAccountWorkspaces(account)).filter(
-    (ws) =>
-      (account !== readOnlyGuestAccountUuid || ws.allowReadOnlyGuest) &&
-      (isWorkspaceCreating(ws.status.mode) || !(isDeletingMode(ws.status.mode) || ws.status.isDisabled))
+    (ws) => (account !== readOnlyGuestAccountUuid || ws.allowReadOnlyGuest) && isWorkspaceAvailable(ws.status)
   )
 }
 
@@ -2552,20 +2550,18 @@ export async function getLoginInfoByToken (
     }
   }
 
-  let socialId: SocialId | null = null
-
+  const externalSocialId = apiKeyId == null ? await resolveExternalSocialId(db, accountUuid, extra) : undefined
+  let socialIds: SocialId[] = []
   if (isSystem) {
-    socialId = getSystemSocialId()
+    socialIds = [getSystemSocialId()]
   } else if (!isDocGuest) {
-    // Any confirmed social ID will do
-    socialId = (await getSocialIds(ctx, db, branding, token, { confirmed: true, includeDeleted: false }))[0]
-    if (socialId == null) {
+    socialIds = await getSocialIds(ctx, db, branding, token, { confirmed: true, includeDeleted: false })
+    if (socialIds.length === 0) {
       // Confirmation needed
-      return {
-        account: accountUuid
-      }
+      return { account: accountUuid }
     }
   }
+  const primarySocialId = socialIds.length === 0 ? undefined : pickPrimarySocialId(socialIds)._id
 
   let person: Person | null
   if (isDocGuest) {
@@ -2588,10 +2584,11 @@ export async function getLoginInfoByToken (
     throw new PlatformError(new Status(Severity.ERROR, platform.status.InternalServerError, {}))
   }
 
-  const loginInfo = {
+  const loginInfo: LoginInfo = {
     account: accountUuid,
     name: getPersonName(person),
-    socialId: socialId?._id,
+    primarySocialId,
+    socialId: externalSocialId ?? socialIds.find((identity) => identity.type !== SocialIdType.EXTERNAL)?._id,
     token: generateToken(accountUuid, workspaceUuid, extra, undefined, { grant, nbf, exp, sub })
   }
 
@@ -2685,6 +2682,7 @@ export async function getLoginWithWorkspaceInfo (
       throw new PlatformError(new Status(Severity.ERROR, platform.status.Unauthorized, {}))
     }
   }
+  const externalSocialId = apiKeyId == null ? await resolveExternalSocialId(db, accountUuid, extra) : undefined
 
   const isDocGuest = accountUuid === docGuestAccountUuid && extra?.guest === 'true'
   const isSystem = accountUuid === systemAccountUuid
@@ -2730,11 +2728,13 @@ export async function getLoginWithWorkspaceInfo (
   )
   const roles: Map<WorkspaceUuid, AccountRole | null> = await getWorkspaceRoles(db, accountUuid)
 
+  const primarySocialId = socialIds.length === 0 ? undefined : pickPrimarySocialId(socialIds)._id
   const info = getEndpointInfo()
   const loginInfo: LoginInfoWithWorkspaces = {
     account: accountUuid,
     name: getPersonName(person),
-    socialId: socialIds[0]?._id,
+    primarySocialId,
+    socialId: externalSocialId ?? socialIds.find((identity) => identity.type !== SocialIdType.EXTERNAL)?._id,
     token,
     workspaces: Object.fromEntries(
       isSystem || isDocGuest
@@ -3033,7 +3033,7 @@ async function getApiKeyOwner (
   if (workspace == null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.WorkspaceNotFound, {}))
   }
-  if (extra?.apiKey != null) {
+  if (extra?.apiKey != null || extra?.externalSocialId != null) {
     throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
   }
 
@@ -3349,60 +3349,6 @@ async function addEmailSocialId (
   return otpInfo
 }
 
-async function addHulyAssistantSocialId (
-  ctx: MeasureContext,
-  db: AccountDB,
-  branding: Branding | null,
-  token: string
-): Promise<PersonId> {
-  const { account } = decodeTokenVerbose(ctx, token)
-
-  const socialId = await addSocialIdBase(db, account, SocialIdType.HULY_ASSISTANT, account, true)
-  await auditAccountEvent(ctx, { event: 'account.assistant.add', socialId }, token)
-  return socialId
-}
-
-export async function refreshHulyAssistantToken (
-  ctx: MeasureContext,
-  db: AccountDB,
-  branding: Branding | null,
-  token: string
-): Promise<void> {
-  const { account } = decodeTokenVerbose(ctx, token)
-
-  const assistantSocialId = await db.socialId.findOne({ type: SocialIdType.HULY_ASSISTANT, personUuid: account })
-  if (assistantSocialId == null) {
-    throw new PlatformError(
-      new Status(Severity.ERROR, platform.status.SocialIdNotFound, {
-        value: account,
-        type: SocialIdType.HULY_ASSISTANT
-      })
-    )
-  }
-
-  const key = 'access_token'
-  const integrationSecretKey = {
-    socialId: assistantSocialId._id,
-    kind: 'ai-assistant' as IntegrationKind,
-    workspaceUuid: null,
-    key
-  }
-
-  const secret = generateToken(account, undefined, { userAiAssistant: 'true' })
-
-  const existingToken = await db.integrationSecret.findOne(integrationSecretKey)
-
-  if (existingToken == null) {
-    await db.integrationSecret.insertOne({
-      ...integrationSecretKey,
-      secret
-    })
-  } else {
-    await db.integrationSecret.update(integrationSecretKey, { secret })
-  }
-  await auditAccountEvent(ctx, { event: 'account.assistant.token.refresh', socialId: assistantSocialId._id }, token)
-}
-
 export async function releaseSocialId (
   ctx: MeasureContext,
   db: AccountDB,
@@ -3410,6 +3356,9 @@ export async function releaseSocialId (
   token: string,
   params: { personUuid?: PersonUuid, type: SocialIdType, value: string, deleteIntegrations?: boolean }
 ): Promise<SocialId> {
+  if (params.type === SocialIdType.EXTERNAL) {
+    throw new PlatformError(new Status(Severity.ERROR, platform.status.Forbidden, {}))
+  }
   const { account, extra } = decodeTokenVerbose(ctx, token)
   let { personUuid } = params
   const { type, value, deleteIntegrations } = params
@@ -4065,8 +4014,6 @@ export type AccountMethods =
   | 'getAccountInfo'
   | 'isReadOnlyGuest'
   | 'addEmailSocialId'
-  | 'addHulyAssistantSocialId'
-  | 'refreshHulyAssistantToken'
   | 'releaseSocialId'
   | 'deleteAccount'
   | 'canMergeSpecifiedPersons'
@@ -4143,8 +4090,6 @@ export function getMethods (hasSignUp: boolean = true): Partial<Record<AccountMe
     ensurePerson: wrap(ensurePerson),
     exchangeGuestToken: wrap(exchangeGuestToken, { guest: 'bypass' }),
     addEmailSocialId: wrap(addEmailSocialId, { guest: 'personalGuest' }),
-    addHulyAssistantSocialId: wrap(addHulyAssistantSocialId),
-    refreshHulyAssistantToken: wrap(refreshHulyAssistantToken),
     releaseSocialId: wrap(releaseSocialId, { guest: 'personalGuest' }),
     deleteAccount: wrap(deleteAccount),
     canMergeSpecifiedPersons: wrap(canMergeSpecifiedPersons),

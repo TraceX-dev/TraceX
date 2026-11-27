@@ -13,12 +13,40 @@
 // limitations under the License.
 //
 
+import type { MeasureContext } from '@hcengineering/measurements'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import postgres, { type Sql } from 'postgres'
 import { getMigrations } from './migrations'
 import { hash } from './protocol'
 import type { OAuthConnection, PublicConnection, RegisteredClient } from './types'
+
+interface ConnectionRow {
+  id: string
+  account: string
+  client_id: string
+  client_name: string
+  source: string
+  resource: string
+  account_token: string
+  workspace_id: string | null
+  created_on: string
+}
+
+interface AccessTokenRow extends Pick<ConnectionRow, 'id' | 'account' | 'client_id' | 'resource' | 'workspace_id'> {
+  expires_on: string
+  token: string
+}
+
+interface ResolvedAccessToken {
+  connectionId: string
+  account: string
+  clientId: string
+  resource: string
+  workspaceId: string | null
+  expiresAt: number
+  accountToken: string
+}
 
 /** Persistent issuer storage. Secrets are encrypted and bearer tokens never appear in database keys. */
 export class OAuthStore {
@@ -35,14 +63,22 @@ export class OAuthStore {
     return this.transaction.getStore() ?? this.database
   }
 
-  async init (): Promise<void> {
-    // Keep this lock key stable across schema versions and rolling deployments.
-    await this.withLock('openauth:schema:v1', async () => {
-      await this.initializeSchema()
-    })
+  async init (ctx: MeasureContext): Promise<void> {
+    await ctx.with(
+      'openauth.storage.init',
+      {},
+      async (ctx) => {
+        // Keep this lock key stable across schema versions and rolling deployments.
+        await this.withLock(ctx, 'openauth:schema:v1', async (ctx) => {
+          await this.initializeSchema(ctx)
+        })
+      },
+      undefined,
+      { suspendErrors: true }
+    )
   }
 
-  private async initializeSchema (): Promise<void> {
+  private async initializeSchema (ctx: MeasureContext): Promise<void> {
     await this.sql`CREATE SCHEMA IF NOT EXISTS openauth`
     await this.sql`CREATE TABLE IF NOT EXISTS openauth.migrations (
       name TEXT PRIMARY KEY, created_on TIMESTAMP NOT NULL DEFAULT now()
@@ -52,125 +88,143 @@ export class OAuthStore {
     )
     for (const [name, query] of getMigrations()) {
       if (applied.has(name)) continue
-      try {
-        await this.sql.unsafe(query)
-        await this.sql`INSERT INTO openauth.migrations (name) VALUES (${name})`
-      } catch (error: unknown) {
-        throw new Error(`Failed to apply OAuth schema migration: ${name}`, { cause: error })
-      }
+      await ctx.with(
+        'openauth.storage.apply-migration',
+        { migration: name },
+        async () => {
+          try {
+            await this.sql.unsafe(query)
+            await this.sql`INSERT INTO openauth.migrations (name) VALUES (${name})`
+          } catch (error: unknown) {
+            throw new Error(`Failed to apply OAuth schema migration: ${name}`, { cause: error })
+          }
+        },
+        undefined,
+        { suspendErrors: true }
+      )
     }
   }
 
-  private encrypt (value: unknown): string {
-    const iv = randomBytes(12)
-    const cipher = createCipheriv('aes-256-gcm', this.encryptionKey, iv)
-    const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()])
-    return Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64')
+  private encrypt (ctx: MeasureContext, value: unknown): string {
+    return ctx.withSync(
+      'openauth.storage.encrypt',
+      {},
+      () => {
+        const iv = randomBytes(12)
+        const cipher = createCipheriv('aes-256-gcm', this.encryptionKey, iv)
+        const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()])
+        return Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64')
+      },
+      undefined,
+      { suspendErrors: true }
+    )
   }
 
-  private decrypt<T>(value: string): T {
-    const data = Buffer.from(value, 'base64')
-    const decipher = createDecipheriv('aes-256-gcm', this.encryptionKey, data.subarray(0, 12))
-    decipher.setAuthTag(data.subarray(12, 28))
-    return JSON.parse(Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]).toString('utf8')) as T
+  private decrypt<T>(ctx: MeasureContext, value: string): T {
+    return ctx.withSync(
+      'openauth.storage.decrypt',
+      {},
+      () => {
+        const data = Buffer.from(value, 'base64')
+        const decipher = createDecipheriv('aes-256-gcm', this.encryptionKey, data.subarray(0, 12))
+        decipher.setAuthTag(data.subarray(12, 28))
+        return JSON.parse(Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]).toString('utf8')) as T
+      },
+      undefined,
+      { suspendErrors: true }
+    )
   }
 
-  async get (key: string[]): Promise<Record<string, unknown> | undefined> {
+  async get (ctx: MeasureContext, key: string[]): Promise<Record<string, unknown> | undefined> {
     const rows = await this.sql<{ value: string }[]>`
       SELECT value FROM openauth.storage WHERE key = ${hash(JSON.stringify(key))}
       AND (expires_on IS NULL OR expires_on > ${Date.now()})`
-    return rows[0] === undefined ? undefined : this.decrypt<{ value: Record<string, unknown> }>(rows[0].value).value
+    return rows[0] === undefined
+      ? undefined
+      : this.decrypt<{ value: Record<string, unknown> }>(ctx, rows[0].value).value
   }
 
-  async set (key: string[], value: unknown, expiry?: Date): Promise<void> {
+  async set (ctx: MeasureContext, key: string[], value: unknown, expiry?: Date): Promise<void> {
     const prefixes = key.map((_, index) => hash(JSON.stringify(key.slice(0, index + 1))))
-    const encrypted = this.encrypt({ key, value })
+    const encrypted = this.encrypt(ctx, { key, value })
     await this.sql`INSERT INTO openauth.storage (key, prefixes, value, expires_on)
       VALUES (${hash(JSON.stringify(key))}, ${this.sql.array(prefixes)}, ${encrypted}, ${expiry?.getTime() ?? null})
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, expires_on = EXCLUDED.expires_on`
   }
 
-  async remove (key: string[]): Promise<void> {
+  async remove (_ctx: MeasureContext, key: string[]): Promise<void> {
     await this.sql`DELETE FROM openauth.storage WHERE key = ${hash(JSON.stringify(key))}`
   }
 
-  async *scan (prefix: string[]): AsyncIterable<[string[], Record<string, unknown>]> {
+  async *scan (ctx: MeasureContext, prefix: string[]): AsyncIterable<[string[], Record<string, unknown>]> {
     const rows = await this.sql<{ value: string }[]>`SELECT value FROM openauth.storage
       WHERE ${hash(JSON.stringify(prefix))} = ANY(prefixes) AND (expires_on IS NULL OR expires_on > ${Date.now()})`
     for (const row of rows) {
-      const entry = this.decrypt<{ key: string[], value: Record<string, unknown> }>(row.value)
+      const entry = this.decrypt<{ key: string[], value: Record<string, unknown> }>(ctx, row.value)
       yield [entry.key, entry.value]
     }
   }
 
   /** Serializes authorization-code consumption and refresh rotation across issuer replicas. */
-  async withLock<T>(key: string, action: () => Promise<T>): Promise<T> {
+  async withLock<T>(ctx: MeasureContext, key: string, action: (ctx: MeasureContext) => Promise<T>): Promise<T> {
     return (await this.database.begin(async (transaction) => {
       // TransactionSql exposes the same query interface, without pool-management methods.
       const sql = transaction as unknown as Sql
       await sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`
-      return await this.transaction.run(sql, action)
+      return await this.transaction.run(sql, action, ctx)
     })) as T
   }
 
-  async registerClient (client: RegisteredClient): Promise<void> {
+  async registerClient (_ctx: MeasureContext, client: RegisteredClient): Promise<void> {
     await this.sql`INSERT INTO openauth.client (id, data) VALUES (${client.id}, ${this.sql.json({ ...client })})`
   }
 
-  async getClient (id: string): Promise<RegisteredClient | undefined> {
+  async getClient (_ctx: MeasureContext, id: string): Promise<RegisteredClient | undefined> {
     const rows = await this.sql<{ data: RegisteredClient }[]>`SELECT data FROM openauth.client WHERE id = ${id}`
     return rows[0]?.data
   }
 
-  async createConnection (connection: OAuthConnection): Promise<void> {
+  async createConnection (ctx: MeasureContext, connection: OAuthConnection): Promise<void> {
     await this.sql`INSERT INTO openauth.connection
-      (id, account, client_id, client_name, resource, account_token, created_on, workspace_id)
+      (id, account, client_id, client_name, resource, account_token, created_on, workspace_id, source)
       VALUES (${connection.id}, ${connection.account}, ${connection.clientId}, ${connection.clientName},
-      ${connection.resource}, ${this.encrypt(connection.accountToken)}, ${connection.createdOn}, ${connection.workspaceId})`
+      ${connection.resource}, ${this.encrypt(ctx, connection.accountToken)}, ${connection.createdOn}, ${connection.workspaceId}, ${connection.source ?? 'external'})`
   }
 
-  async getConnection (id: string): Promise<OAuthConnection | undefined> {
-    const rows = await this.sql<
-      {
-        id: string
-        account: string
-        client_id: string
-        client_name: string
-        resource: string
-        account_token: string
-        workspace_id: string | null
-        created_on: string
-        revoked_on: string | null
-      }[]
-    >`SELECT * FROM openauth.connection WHERE id = ${id} AND revoked_on IS NULL`
+  async getConnection (ctx: MeasureContext, id: string): Promise<OAuthConnection | undefined> {
+    const rows = await this.sql<ConnectionRow[]>`
+      SELECT * FROM openauth.connection WHERE id = ${id} AND revoked_on IS NULL`
     const row = rows[0]
-    return row === undefined
-      ? undefined
-      : {
-          id: row.id,
-          account: row.account,
-          clientId: row.client_id,
-          clientName: row.client_name,
-          resource: row.resource,
-          accountToken: this.decrypt<string>(row.account_token),
-          workspaceId: row.workspace_id,
-          createdOn: Number(row.created_on)
-        }
+    if (row === undefined) return undefined
+    return {
+      id: row.id,
+      account: row.account,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      source: row.source ?? 'external',
+      resource: row.resource,
+      accountToken: this.decrypt<string>(ctx, row.account_token),
+      workspaceId: row.workspace_id,
+      createdOn: Number(row.created_on)
+    }
   }
 
-  async listConnections (account: string, resource: string): Promise<PublicConnection[]> {
-    const rows = await this.sql<{ id: string, client_name: string, created_on: string, workspace_id: string | null }[]>`
-      SELECT id, client_name, created_on, workspace_id FROM openauth.connection
+  async listConnections (_ctx: MeasureContext, account: string, resource: string): Promise<PublicConnection[]> {
+    const rows = await this.sql<
+      { id: string, client_name: string, source: string, created_on: string, workspace_id: string | null }[]
+    >`
+      SELECT id, client_name, source, created_on, workspace_id FROM openauth.connection
       WHERE account = ${account} AND resource = ${resource} AND revoked_on IS NULL ORDER BY created_on DESC`
     return rows.map((row) => ({
       id: row.id,
       clientName: row.client_name,
+      source: row.source ?? 'external',
       createdOn: Number(row.created_on),
       workspaceId: row.workspace_id
     }))
   }
 
-  async revokeConnection (id: string, account: string, resource: string): Promise<void> {
+  async revokeConnection (_ctx: MeasureContext, id: string, account: string, resource: string): Promise<void> {
     await this.sql`UPDATE openauth.connection SET revoked_on = ${Date.now()}, account_token = ''
       WHERE id = ${id} AND account = ${account} AND resource = ${resource} AND revoked_on IS NULL`
     // An already-issued access token is also checked against the connection on every request.
@@ -179,27 +233,61 @@ export class OAuthStore {
       AND resource = ${resource} AND revoked_on IS NOT NULL)`
   }
 
-  async issueAccessToken (token: string, connection: string, expiresOn: number): Promise<void> {
-    await this.sql`INSERT INTO openauth.access_token (hash, connection_id, expires_on)
-      VALUES (${hash(token)}, ${connection}, ${expiresOn})`
+  async issueAccessToken (
+    ctx: MeasureContext,
+    accessToken: string,
+    connection: string,
+    expiresOn: number,
+    token: string
+  ): Promise<void> {
+    const encryptedToken = this.encrypt(ctx, token)
+    await this.sql`INSERT INTO openauth.access_token (hash, connection_id, expires_on, token)
+      VALUES (${hash(accessToken)}, ${connection}, ${expiresOn}, ${encryptedToken})`
   }
 
-  async resolveAccessToken (token: string): Promise<{ connection: OAuthConnection, expiresOn: number } | undefined> {
-    const rows = await this.sql<{ connection_id: string, expires_on: string }[]>`
-      SELECT connection_id, expires_on FROM openauth.access_token
-      WHERE hash = ${hash(token)} AND expires_on > ${Date.now()}`
+  async resolveAccessToken (ctx: MeasureContext, token: string): Promise<ResolvedAccessToken | undefined> {
+    const rows = await this.sql<AccessTokenRow[]>`
+      SELECT c.id, c.account, c.client_id, c.resource, c.workspace_id, t.expires_on, t.token
+      FROM openauth.access_token t JOIN openauth.connection c ON c.id = t.connection_id
+      WHERE t.hash = ${hash(token)} AND t.expires_on > ${Date.now()} AND c.revoked_on IS NULL
+      AND t.token IS NOT NULL`
     const row = rows[0]
     if (row === undefined) return undefined
-    const connection = await this.getConnection(row.connection_id)
-    return connection === undefined ? undefined : { connection, expiresOn: Number(row.expires_on) }
+    return {
+      connectionId: row.id,
+      account: row.account,
+      clientId: row.client_id,
+      resource: row.resource,
+      workspaceId: row.workspace_id,
+      expiresAt: Math.floor(Number(row.expires_on) / 1000),
+      accountToken: this.decrypt<string>(ctx, row.token)
+    }
   }
 
-  async cleanup (): Promise<void> {
-    await this.sql`DELETE FROM openauth.storage WHERE expires_on IS NOT NULL AND expires_on <= ${Date.now()}`
-    await this.sql`DELETE FROM openauth.access_token WHERE expires_on <= ${Date.now()}`
+  async cleanup (ctx: MeasureContext): Promise<void> {
+    await ctx.with(
+      'openauth.storage.cleanup',
+      {},
+      async () => {
+        await this.sql`DELETE FROM openauth.storage WHERE expires_on IS NOT NULL AND expires_on <= ${Date.now()}`
+        await this.sql`DELETE FROM openauth.access_token WHERE expires_on <= ${Date.now()}`
+      },
+      undefined,
+      { suspendErrors: true }
+    )
   }
 
-  async close (): Promise<void> {
-    await this.database.end({ timeout: 5 })
+  async close (ctx: MeasureContext): Promise<void> {
+    await ctx.with(
+      'openauth.storage.close',
+      {},
+      async () => {
+        await this.database.end({ timeout: 5 })
+      },
+      undefined,
+      {
+        suspendErrors: true
+      }
+    )
   }
 }

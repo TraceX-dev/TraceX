@@ -154,6 +154,7 @@ function createAccount (role: AccountRole, uuid: string = 'account'): Account {
     uuid: uuid as AccountUuid,
     role,
     primarySocialId: `${uuid}:primary` as PersonId,
+    socialId: `${uuid}:primary` as PersonId,
     socialIds: [`${uuid}:primary` as PersonId],
     fullSocialIds: []
   }

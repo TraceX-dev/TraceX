@@ -302,6 +302,10 @@ trace IDs or call OpenTelemetry propagation APIs. Local and no-metrics contexts 
 - SDK initialization is shared within the process. Configure it before creating roots. The current
   HTTP exporters append `/v1/traces`, `/v1/metrics`, or `/v1/logs`; a common base endpoint is appropriate.
   The current periodic metrics reader collects every 15 seconds. Trace sampling follows SDK settings.
+- Services that own a shutdown sequence can pass an asynchronous callback to the initial
+  `initOpenTelemetrySDK` call. On `SIGTERM` or `SIGINT`, the adapter waits for that callback before
+  shutting down the SDK and flushing telemetry. Services using the factory alone use its default
+  `SIGTERM` handling. With the local context fallback, the application owns signal handling.
 - Context log export is enabled only with `OTEL_LOGGER_ENABLED=true`. This flag does not disable
   traces or separate analytics reporting hooks. See the adapter for the exact environment contract
   rather than introducing service-specific SDK setup.

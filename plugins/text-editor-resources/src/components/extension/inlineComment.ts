@@ -770,7 +770,7 @@ function updateThreadComment (
           _id: generateId(),
           _class: core.class.Obj,
           thread: patch.thread,
-          createdBy: account.primarySocialId,
+          createdBy: account.socialId,
           createdOn: Date.now(),
           message: patch.message
         }

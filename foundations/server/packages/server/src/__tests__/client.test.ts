@@ -33,7 +33,13 @@ const modelDbStub = {}
 
 function makeSession (): ClientSession {
   const token: any = { account: 'user-1', workspace: 'ws-1', extra: {} }
-  const account: any = { uuid: 'user-1', role: 'USER', primarySocialId: 'social-1', socialIds: ['social-1'] }
+  const account: any = {
+    uuid: 'user-1',
+    role: 'USER',
+    socialId: 'social-1',
+    primarySocialId: 'social-1',
+    socialIds: ['social-1']
+  }
   const info: any = { socialIds: [], workspaces: {} }
   return new ClientSession(token, { uuid: 'ws-1', url: 'ws' } as any, account, info, true)
 }

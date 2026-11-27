@@ -506,7 +506,7 @@ export class TSessionManager implements SessionManager {
         role = AccountRole.DocGuest
         break
       default:
-        primarySocialId = pickPrimarySocialId(info.socialIds)._id
+        primarySocialId = info.primarySocialId ?? pickPrimarySocialId(info.socialIds)._id
     }
 
     return new ClientSession(
@@ -516,6 +516,7 @@ export class TSessionManager implements SessionManager {
         uuid: info.account,
         socialIds: info.socialIds.map((it) => it._id),
         primarySocialId,
+        socialId: info.socialId ?? primarySocialId,
         fullSocialIds: info.socialIds,
         role
       },
@@ -1218,7 +1219,7 @@ export class TSessionManager implements SessionManager {
           const byUser = new Map(existing.map((st) => [st.user, st]))
           const txes: Tx[] = []
           for (const [user, { session, online }] of entries) {
-            const txFactory = new TxFactory(session.getRawAccount().primarySocialId, true)
+            const txFactory = new TxFactory(session.getRawAccount().socialId, true)
             const cur = byUser.get(user)
             if (cur === undefined) {
               if (online) {
@@ -1645,7 +1646,7 @@ export class TSessionManager implements SessionManager {
           },
           {
             user: service.getUser(),
-            socialId: service.getRawAccount().primarySocialId,
+            socialId: service.getRawAccount().socialId,
             workspace: workspace.wsId.uuid
           },
           { meta: request.meta }
@@ -1719,7 +1720,7 @@ export class TSessionManager implements SessionManager {
           },
           {
             user: service.getUser(),
-            socialId: service.getRawAccount().primarySocialId,
+            socialId: service.getRawAccount().socialId,
             workspace: workspace.wsId.uuid
           }
         )

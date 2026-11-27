@@ -13,11 +13,14 @@
 // limitations under the License.
 //
 
-import { serve } from '@hono/node-server'
 import { getClient } from '@hcengineering/account-client'
-import { readOnlyGuestAccountUuid, systemAccountUuid } from '@hcengineering/core'
-import { decodeToken, generateToken } from '@hcengineering/server-token'
+import { systemAccountUuid } from '@hcengineering/core'
+import type { MeasureContext } from '@hcengineering/measurements'
+import { createOpenTelemetryMetricsContext, initOpenTelemetrySDK } from '@hcengineering/measurements-otlp'
+import { decodeToken } from '@hcengineering/server-token'
+import { serve } from '@hono/node-server'
 import { createOAuthApp } from './app'
+import { authenticateOAuthSession, exchangeExternalAccess } from './external-token'
 import { OAuthStore } from './store'
 
 function requiredEnv (name: string): string {
@@ -39,7 +42,10 @@ function publicUrl (name: string): string {
   return url.toString().replace(/\/$/, '')
 }
 
-async function main (): Promise<void> {
+async function initialize (
+  ctx: MeasureContext,
+  startupCtx: MeasureContext
+): Promise<{ app: ReturnType<typeof createOAuthApp>, store: OAuthStore }> {
   if (process.env.OPENAUTH_STORAGE !== undefined) {
     throw new Error('OPENAUTH_STORAGE must not override persistent issuer storage')
   }
@@ -54,75 +60,111 @@ async function main (): Promise<void> {
   }
   const accountsUrl = requiredEnv('ACCOUNTS_URL')
   const store = new OAuthStore(requiredEnv('OPENAUTH_DATABASE_URL'), config.serverSecret)
-  await store.init()
-  const app = createOAuthApp(config, store, {
-    getWorkspaces: async (token) => {
-      const workspaces = await getClient(accountsUrl, token).getUserWorkspaces()
-      return workspaces.map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
-    },
-    authenticate: async (token, requireAccountToken) => {
-      const decoded = decodeToken(token, true, config.serverSecret)
-      if (
-        decoded.account === systemAccountUuid ||
-        decoded.account === readOnlyGuestAccountUuid ||
-        decoded.grant !== undefined ||
-        decoded.sub !== undefined ||
-        decoded.extra?.apiKey !== undefined ||
-        decoded.extra?.service !== undefined ||
-        decoded.extra?.restoreEmail !== undefined ||
-        decoded.extra?.confirmEmail !== undefined ||
-        decoded.extra?.tfaAccount !== undefined ||
-        decoded.extra?.guest !== undefined
-      ) {
-        throw new Error('An authenticated TraceX account session is required')
-      }
-      const login = await getClient(accountsUrl, token).getLoginInfoByToken()
-      if (login === null || 'request' in login || login.account !== decoded.account || login.tfaRequired === true) {
-        throw new Error('TraceX account authentication is incomplete')
-      }
-      // Same normalization as accounts PUT /cookie: ordinary session tokens can be used without a workspace.
-      const accountToken =
-        requireAccountToken && decoded.workspace !== undefined
-          ? generateToken(decoded.account, undefined, decoded.extra, config.serverSecret, {
-              exp: decoded.exp,
-              nbf: decoded.nbf
-            })
-          : token
-      return { account: decoded.account, token: accountToken }
-    },
-    isServiceToken: (token) => {
-      try {
-        const decoded = decodeToken(token, true, config.serverSecret)
-        return (
-          decoded.account === systemAccountUuid &&
-          decoded.extra?.service === 'mcp-oauth' &&
-          decoded.exp !== undefined &&
-          decoded.exp > Math.floor(Date.now() / 1000)
-        )
-      } catch {
-        return false
-      }
-    }
+  await store.init(startupCtx)
+  const app = createOAuthApp(ctx, config, store, {
+    delegate: async (ctx, connection, expiresAt) =>
+      await exchangeExternalAccess(ctx, accountsUrl, config.serverSecret, connection, expiresAt),
+    getWorkspaces: async (ctx, token) =>
+      await ctx.with(
+        'openauth.accounts.get-workspaces',
+        {},
+        async () => {
+          const workspaces = await getClient(accountsUrl, token).getUserWorkspaces()
+          return workspaces.map((workspace) => ({ id: workspace.uuid, name: workspace.name, url: workspace.url }))
+        },
+        undefined,
+        { suspendErrors: true }
+      ),
+    authenticate: async (ctx, token, requireAccountToken) =>
+      await authenticateOAuthSession(ctx, accountsUrl, config.serverSecret, token, requireAccountToken),
+    isServiceToken: (ctx, token) =>
+      ctx.withSync(
+        'openauth.accounts.verify-service-token',
+        {},
+        () => {
+          try {
+            const decoded = decodeToken(token, true, config.serverSecret)
+            return (
+              decoded.account === systemAccountUuid &&
+              decoded.extra?.service === 'mcp-oauth' &&
+              decoded.exp !== undefined &&
+              decoded.exp > Math.floor(Date.now() / 1000)
+            )
+          } catch {
+            return false
+          }
+        },
+        undefined,
+        { suspendErrors: true }
+      )
   })
-  const server = serve({ fetch: app.fetch, port: Number.parseInt(process.env.PORT ?? '3001', 10) })
-  const cleanup = setInterval(() => {
-    void store.cleanup().catch(() => {
-      console.error('OAuth storage cleanup failed')
-    })
-  }, 60_000)
-  const close = (): void => {
-    clearInterval(cleanup)
-    server.close(() => {
-      void store.close().catch(() => {
-        process.exitCode = 1
-      })
-    })
-  }
-  process.on('SIGTERM', close)
-  process.on('SIGINT', close)
+  return { app, store }
 }
 
-void main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : 'OAuth service failed to start')
-  process.exitCode = 1
-})
+async function main (ctx: MeasureContext): Promise<() => Promise<void>> {
+  const { app, store } = await ctx.with(
+    'openauth.startup',
+    {},
+    async (startupCtx) => await initialize(ctx, startupCtx),
+    undefined,
+    { suspendErrors: true }
+  )
+  const server = serve({ fetch: app.fetch, port: Number.parseInt(process.env.PORT ?? '3001', 10) })
+  const cleanup = setInterval(() => {
+    void store.cleanup(ctx).catch(() => {
+      ctx.error('OAuth storage cleanup failed')
+    })
+  }, 60_000)
+  return async () => {
+    clearInterval(cleanup)
+    try {
+      await ctx.with(
+        'openauth.shutdown',
+        {},
+        async (shutdownCtx) => {
+          await new Promise<void>((resolve) => {
+            server.close(() => {
+              resolve()
+            })
+          })
+          await store.close(shutdownCtx)
+        },
+        undefined,
+        { suspendErrors: true }
+      )
+    } catch {
+      ctx.error('OAuth service shutdown failed')
+      process.exitCode = 1
+    }
+  }
+}
+
+// HTTP auto-instrumentation can capture authorization query strings or request headers.
+process.env.OTEL_NODE_DISABLED_INSTRUMENTATIONS = ['http', 'undici', process.env.OTEL_NODE_DISABLED_INSTRUMENTATIONS]
+  .filter(Boolean)
+  .join(',')
+const version = process.env.VERSION ?? ''
+const startup = async (): Promise<(() => Promise<void>) | undefined> => {
+  const ctx = createOpenTelemetryMetricsContext('openauth', {}, undefined, undefined, undefined, version)
+  try {
+    return await main(ctx)
+  } catch (error) {
+    ctx.error(error instanceof Error ? error.message : 'OAuth service failed to start')
+    process.exitCode = 1
+    return undefined
+  }
+}
+
+let draining: Promise<void> | undefined
+const drain = async (): Promise<void> => {
+  await (draining ??= ready.then(async (close) => await close?.()))
+}
+const tracingEnabled = initOpenTelemetrySDK('openauth', version, drain)
+const ready = startup()
+if (!tracingEnabled) {
+  const stop = (): void => {
+    void drain()
+  }
+  process.once('SIGTERM', stop)
+  process.once('SIGINT', stop)
+}

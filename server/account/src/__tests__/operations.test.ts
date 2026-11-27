@@ -789,6 +789,7 @@ describe('account operations', () => {
       expect(result).toEqual({
         account: systemAccountUuid,
         name: 'System User',
+        primarySocialId: systemAccount.primarySocialId,
         socialId: systemAccount.primarySocialId,
         token: expect.any(String),
         workspace: mockWorkspace.uuid,
@@ -842,6 +843,7 @@ describe('account operations', () => {
         expect(result).toEqual({
           account: mockPersonId,
           name: 'John Doe',
+          primarySocialId: 'social-id-1',
           socialId: 'social-id-1',
           token: 'mocked-token-test-person-id-workspace-uuid-{}-{}',
           workspace: mockWorkspaceEu.uuid,
@@ -872,6 +874,7 @@ describe('account operations', () => {
         expect(result).toEqual({
           account: mockPersonId,
           name: 'John Doe',
+          primarySocialId: 'social-id-1',
           socialId: 'social-id-1',
           token: 'mocked-token-test-person-id-workspace-uuid-{}-{}',
           workspace: mockWorkspaceUs.uuid,
@@ -889,6 +892,7 @@ describe('account operations', () => {
         expect(result).toEqual({
           account: mockPersonId,
           name: 'John Doe',
+          primarySocialId: 'social-id-1',
           socialId: 'social-id-1',
           token: 'mocked-token-test-person-id-workspace-uuid-{}-{}',
           workspace: mockWorkspaceEu.uuid,
@@ -919,6 +923,7 @@ describe('account operations', () => {
       expect(result).toEqual({
         account: mockPersonId,
         name: 'John Doe',
+        primarySocialId: 'social-id-1',
         socialId: 'social-id-1',
         token: 'mocked-token-test-person-id-{}-{}'
       })
@@ -971,6 +976,7 @@ describe('account operations', () => {
       expect(result).toEqual({
         account: subAccount, // Should use sub instead of account
         name: 'Sub User',
+        primarySocialId: 'social-id-1',
         socialId: 'social-id-1',
         token: expect.stringContaining(`"sub":"${subAccount}"`),
         workspace: mockWorkspace.uuid,
@@ -1029,6 +1035,7 @@ describe('account operations', () => {
           workspace: grantWorkspace.uuid,
           workspaceUrl: grantWorkspace.url,
           endpoint: expect.any(String),
+          primarySocialId: 'social-id-1',
           socialId: 'social-id-1',
           role: grantRole
         })
@@ -1067,6 +1074,7 @@ describe('account operations', () => {
           account: grantAccount,
           name: `${grantFirstName} ${grantLastName}`,
           token: expect.stringContaining(grantAccount),
+          primarySocialId: 'social-id-1',
           socialId: 'social-id-1',
           workspace: grantWorkspace.uuid,
           workspaceUrl: grantWorkspace.url,
@@ -1118,6 +1126,7 @@ describe('account operations', () => {
         expect(result).toEqual({
           account: generatedUuid,
           name: 'John Doe',
+          primarySocialId: 'social-id-1',
           socialId: 'social-id-1',
           token: expect.stringContaining(`"sub":"${generatedUuid}"`),
           workspace: mockWorkspace.uuid,
@@ -1157,6 +1166,7 @@ describe('account operations', () => {
         expect(result).toEqual({
           account: existingUuid,
           name: 'John Doe',
+          primarySocialId: 'social-id-1',
           socialId: 'social-id-1',
           token: expect.stringContaining(`"sub":"${existingUuid}"`),
           workspace: mockWorkspace.uuid,
@@ -1230,6 +1240,7 @@ describe('account operations', () => {
       expect(result).toEqual({
         account: mockAccount.uuid,
         name: 'John Doe',
+        primarySocialId: 'social-id-1',
         socialId: 'social-id-1',
         token: expect.stringContaining(`"nbf":${notBefore},"exp":${expiration}`),
         workspace: mockWorkspace.uuid,

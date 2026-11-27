@@ -1,5 +1,6 @@
 //
 // Copyright © 2026 TraceX
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the PolyForm Shield License 1.0.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -41,6 +42,7 @@ import core, {
   TxOperations,
   type ApplyOperations,
   type AnyAttribute,
+  type Account,
   type Class,
   type Client,
   type Doc,
@@ -50,7 +52,6 @@ import core, {
   type FindResult,
   type MarkupBlobRef,
   type OperationDomain,
-  type PersonId,
   type Ref,
   type RefTo,
   type Space,
@@ -84,7 +85,7 @@ import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown
 export function createV2ClientSession (
   client: Client,
   workspaceId: string,
-  primarySocialId: PersonId
+  account: Pick<Account, 'primarySocialId' | 'socialId'>
 ): {
   ctx: ClientSessionCtx
   session: Session
@@ -94,7 +95,7 @@ export function createV2ClientSession (
   } as unknown as ClientSessionCtx
   const session = {
     workspace: { uuid: workspaceId },
-    getRawAccount: () => ({ primarySocialId }),
+    getRawAccount: () => account,
     findAllRaw: async <T extends Doc>(
       _ctx: ClientSessionCtx,
       _class: Ref<Class<T>>,
@@ -1250,7 +1251,7 @@ function createSessionOperations (ctx: ClientSessionCtx, session: Session): TxOp
     },
     close: async (): Promise<void> => {}
   }
-  return new TxOperations(sessionClient as unknown as Client, session.getRawAccount().primarySocialId)
+  return new TxOperations(sessionClient as unknown as Client, session.getRawAccount().socialId)
 }
 
 async function resolveV2Target (

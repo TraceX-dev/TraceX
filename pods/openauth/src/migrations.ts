@@ -15,10 +15,10 @@
 
 /** Ordered schema migrations for the issuer's private PostgreSQL schema. */
 export function getMigrations (): [string, string][] {
-  return [getV1Migration()]
+  return [getV1Migration(), getV2Migration(), getV3Migration()]
 }
 
-// Never modify an existing migration. Add a new migration when changing the schema.
+// Never modify a released migration. Add a new migration when changing the schema.
 function getV1Migration (): [string, string] {
   return [
     'openauth_db_v1_init',
@@ -47,4 +47,15 @@ function getV1Migration (): [string, string] {
     );
     `
   ]
+}
+
+function getV2Migration (): [string, string] {
+  return [
+    'openauth_db_v2_external_source',
+    "ALTER TABLE openauth.connection ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'external';"
+  ]
+}
+
+function getV3Migration (): [string, string] {
+  return ['openauth_db_v3_token', 'ALTER TABLE openauth.access_token ADD COLUMN IF NOT EXISTS token TEXT;']
 }

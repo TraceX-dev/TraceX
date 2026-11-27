@@ -1,5 +1,6 @@
 //
 // Copyright © 2023 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -57,7 +58,7 @@ class SupportClientImpl implements SupportClient {
       query.query(
         support.class.SupportConversation,
         {
-          createdBy: this.config.account.primarySocialId
+          createdBy: this.config.account.socialId
         },
         (res) => {
           this.hasUnreadMessages = res.some((p) => p.hasUnreadMessages)

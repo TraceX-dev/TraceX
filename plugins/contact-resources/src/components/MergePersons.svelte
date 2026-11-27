@@ -243,9 +243,7 @@
     })
 
   $: resultSocialIdentities = [...sourceSocialIdentities, ...targetSocialIdentities]
-  $: visibleResultSocialIdentities = resultSocialIdentities.filter(
-    (it) => it.type !== SocialIdType.HULY && it.type !== SocialIdType.HULY_ASSISTANT
-  )
+  $: visibleResultSocialIdentities = resultSocialIdentities.filter((it) => it.type !== SocialIdType.HULY)
 
   const attributes = hierarchy.getAllAttributes(contact.mixin.Employee, core.class.Doc)
   const ignoreKeys = ['name', 'avatar', 'createdOn']

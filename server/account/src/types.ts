@@ -481,6 +481,8 @@ export type WorkspaceOperation = 'create' | 'upgrade' | 'all' | 'all+backup'
 export interface LoginInfo {
   account: AccountUuid
   name?: string
+  /** The account's preferred personal identity; absent when no confirmed identity exists. */
+  primarySocialId?: PersonId
   socialId?: PersonId
   token?: string
   tfaRequired?: boolean
@@ -518,6 +520,8 @@ export interface LoginInfoWithWorkspaces extends LoginInfo {
 export interface WorkspaceLoginInfo extends LoginInfo {
   workspace: WorkspaceUuid
   workspaceUrl: string
+  workspaceName?: string
+  workspaceAvailable?: boolean
   workspaceDataId?: WorkspaceDataId
   endpoint: string
   role: AccountRole

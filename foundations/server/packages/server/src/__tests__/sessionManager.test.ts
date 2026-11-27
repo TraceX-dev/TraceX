@@ -1630,7 +1630,7 @@ describe('TSessionManager', () => {
       const mockPipeline = {} as any
       const mockSession = {
         getUser: jest.fn().mockReturnValue('user-1'),
-        getRawAccount: jest.fn().mockReturnValue({ primarySocialId: 'social-1' as any }),
+        getRawAccount: jest.fn().mockReturnValue({ socialId: 'social-1' as any, primarySocialId: 'social-1' as any }),
         workspace: { uuid: 'ws-1' as WorkspaceUuid },
         binaryMode: true,
         useCompression: true,
@@ -1672,7 +1672,7 @@ describe('TSessionManager', () => {
       } as any
       const mockSession = {
         getUser: jest.fn().mockReturnValue('user-1'),
-        getRawAccount: jest.fn().mockReturnValue({ primarySocialId: 'social-1' as any }),
+        getRawAccount: jest.fn().mockReturnValue({ socialId: 'social-1' as any, primarySocialId: 'social-1' as any }),
         workspace: { uuid: 'ws-1' as WorkspaceUuid },
         requests: new Map()
       } as any
@@ -1861,7 +1861,7 @@ describe('TSessionManager', () => {
       const warn = jest.spyOn(mockContext, 'warn').mockImplementation(() => {})
       const session = {
         getUser: () => 'user-rpc',
-        getRawAccount: () => ({ primarySocialId: 'person-rpc' }),
+        getRawAccount: () => ({ socialId: 'person-rpc', primarySocialId: 'person-rpc' }),
         token: { extra: { service: 'love' } },
         lastRequest: now,
         lastPing: now,

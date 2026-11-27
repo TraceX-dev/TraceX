@@ -34,6 +34,8 @@ export type { WorkspaceConfiguration } from '@hcengineering/core'
 export interface LoginInfo {
   account: AccountUuid
   name?: string
+  /** The account's preferred personal identity; absent when no confirmed identity exists. */
+  primarySocialId?: PersonId
   socialId?: PersonId
   token?: string
   tfaRequired?: boolean
@@ -78,6 +80,8 @@ export interface WorkspaceLoginInfo extends LoginInfo {
   workspace: WorkspaceUuid // worspace uuid
   workspaceDataId?: WorkspaceDataId
   workspaceUrl: string
+  workspaceName?: string
+  workspaceAvailable?: boolean
   endpoint: string
   token: string
   role: AccountRole

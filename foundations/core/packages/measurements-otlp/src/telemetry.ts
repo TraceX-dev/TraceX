@@ -301,7 +301,11 @@ let sdkServiceName: string | undefined
 let sdkServiceVersion: string | undefined
 let loggerProvider: LoggerProvider | undefined
 
-export function initOpenTelemetrySDK (serviceName: string, version: string): boolean {
+export function initOpenTelemetrySDK (
+  serviceName: string,
+  version: string,
+  beforeShutdown?: () => Promise<void>
+): boolean {
   if (sdk !== undefined) {
     return true
   }
@@ -388,18 +392,27 @@ export function initOpenTelemetrySDK (serviceName: string, version: string): boo
   // NodeSDK registers this provider and owns its processors and shutdown.
   loggerProvider = logs.getLoggerProvider()
 
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
-    sdk
-      ?.shutdown()
+  let shuttingDown = false
+  const shutdown = (): void => {
+    if (shuttingDown) return
+    shuttingDown = true
+    void Promise.resolve()
+      .then(beforeShutdown)
+      .catch((error: unknown) => {
+        console.log('Error terminating application', error)
+        process.exitCode = 1
+      })
+      .then(async () => await sdk?.shutdown())
       .then(() => {
         console.log('Tracing terminated')
       })
       .catch((error) => {
         console.log('Error terminating tracing', error)
       })
-      .finally(() => process.exit(0))
-  })
+      .finally(() => process.exit(beforeShutdown === undefined ? 0 : (process.exitCode ?? 0)))
+  }
+  process.on('SIGTERM', shutdown)
+  if (beforeShutdown !== undefined) process.on('SIGINT', shutdown)
   console.log('Using open telemetry metrics context', {
     traceEndpoint: tracesUrl,
     tracerHeadersSet: Array.from(Object.keys(traceHeaders)),

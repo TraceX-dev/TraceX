@@ -57,6 +57,7 @@ function makeAccount (role: AccountRole): Account {
     uuid: generateId() as any,
     role,
     primarySocialId: 'test' as PersonId,
+    socialId: 'test' as PersonId,
     socialIds: ['test' as PersonId],
     fullSocialIds: []
   }
@@ -408,6 +409,7 @@ describe('GuestPermissionsMiddleware', () => {
         uuid: generateId() as any,
         role: AccountRole.Guest,
         primarySocialId: GUEST_SOCIAL,
+        socialId: GUEST_SOCIAL,
         socialIds: [GUEST_SOCIAL],
         fullSocialIds: []
       }

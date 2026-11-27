@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -114,7 +115,7 @@ const syncTabLoc = reduceCalls(async (): Promise<void> => {
       attachedTo: me.uuid,
       isPinned: false,
       modifiedOn: Date.now(),
-      modifiedBy: me.primarySocialId
+      modifiedBy: me.socialId
     }
     console.log('Creating new tab when pinned location changed', { newLocation: url, pinnedLocation: tab.location })
     await getClient().createDoc(workbench.class.WorkbenchTab, core.space.Workspace, newTab, newTab._id)

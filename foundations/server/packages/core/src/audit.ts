@@ -249,9 +249,15 @@ export function auditActorFromToken (token: string | undefined): AuditDetails {
     return {
       actorAccountUuid: account,
       workspaceUuid: workspace,
-      actorService: typeof extra?.service === 'string' ? extra.service : undefined,
+      actorService:
+        extra?.apiKey == null && typeof extra?.externalSource === 'string'
+          ? extra.externalSource
+          : typeof extra?.service === 'string'
+            ? extra.service
+            : undefined,
       actorIsAdmin: extra?.admin === 'true',
-      actorUsesApiKey: extra?.apiKey != null
+      actorUsesApiKey: extra?.apiKey != null,
+      authenticationSubjectUuid: typeof extra?.tfaAccount === 'string' ? extra.tfaAccount : undefined
     }
   } catch {
     return {}

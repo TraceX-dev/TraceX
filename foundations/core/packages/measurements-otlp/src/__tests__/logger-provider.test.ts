@@ -29,6 +29,14 @@ jest.mock('@opentelemetry/auto-instrumentations-node', () => ({
 it('uses shared SDK providers for logs and dimensioned lifecycle metrics', async () => {
   const previousEnv = { ...process.env }
   const previousHandlers = new Set(process.listeners('SIGTERM'))
+  const previousInterruptHandlers = new Set(process.listeners('SIGINT'))
+  let completeApplicationClose = (): void => {}
+  const applicationClosed = new Promise<void>((resolve) => {
+    completeApplicationClose = resolve
+  })
+  const beforeShutdown = jest.fn(async () => {
+    await applicationClosed
+  })
   const bodies: unknown[] = []
   const metricExports: ResourceMetrics[] = []
   const exportLogs = jest.spyOn(OTLPLogExporter.prototype, 'export').mockImplementation((records, onResult) => {
@@ -40,6 +48,7 @@ it('uses shared SDK providers for logs and dimensioned lifecycle metrics', async
     onResult({ code: 0 })
   })
   const start = jest.spyOn(NodeSDK.prototype, 'start')
+  const sdkShutdown = jest.spyOn(NodeSDK.prototype, 'shutdown')
   const shutdown = jest.spyOn(BatchLogRecordProcessor.prototype, 'shutdown')
   jest.spyOn(console, 'log').mockImplementation(() => {})
   process.env.OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4318'
@@ -49,7 +58,7 @@ it('uses shared SDK providers for logs and dimensioned lifecycle metrics', async
   delete process.env.OTEL_SDK_DISABLED
 
   try {
-    expect(initOpenTelemetrySDK('logger-test', '1.0')).toBe(true)
+    expect(initOpenTelemetrySDK('logger-test', '1.0', beforeShutdown)).toBe(true)
     expect(initOpenTelemetrySDK('logger-test', '1.0')).toBe(true)
     expect(start).toHaveBeenCalledTimes(1)
     const provider = logs.getLoggerProvider() as LoggerProvider
@@ -113,13 +122,35 @@ it('uses shared SDK providers for logs and dimensioned lifecycle metrics', async
     await provider.forceFlush()
     expect(bodies).toEqual(['info message', 'error message'])
     expect(exportLogs).toHaveBeenCalledTimes(1)
+
+    const terminate = process.listeners('SIGTERM').find((handler) => !previousHandlers.has(handler))
+    const interrupt = process.listeners('SIGINT').find((handler) => !previousInterruptHandlers.has(handler))
+    if (terminate === undefined || interrupt === undefined) throw new Error('Missing telemetry shutdown handlers')
+    const exited = new Promise<void>((resolve) => {
+      jest.spyOn(process, 'exit').mockImplementation(() => {
+        resolve()
+        return undefined as never
+      })
+    })
+    terminate('SIGTERM')
+    interrupt('SIGINT')
+    await Promise.resolve()
+    const shutdownsBeforeClose = sdkShutdown.mock.calls.length
+    completeApplicationClose()
+    await exited
+    expect(beforeShutdown).toHaveBeenCalledTimes(1)
+    expect(shutdownsBeforeClose).toBe(0)
+    expect(sdkShutdown).toHaveBeenCalledTimes(1)
   } finally {
     const sdk = start.mock.contexts[0] as NodeSDK | undefined
-    if (sdk !== undefined) {
+    if (sdk !== undefined && sdkShutdown.mock.calls.length === 0) {
       await sdk.shutdown()
     }
     for (const handler of process.listeners('SIGTERM')) {
       if (!previousHandlers.has(handler)) process.removeListener('SIGTERM', handler)
+    }
+    for (const handler of process.listeners('SIGINT')) {
+      if (!previousInterruptHandlers.has(handler)) process.removeListener('SIGINT', handler)
     }
     logs.disable()
     trace.disable()

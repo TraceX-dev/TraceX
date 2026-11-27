@@ -41,15 +41,6 @@ importers:
       '@hcengineering/admin-resources':
         specifier: workspace:^0.7.0
         version: link:../plugins/admin-resources
-      '@hcengineering/ai-assistant':
-        specifier: workspace:^0.7.0
-        version: link:../plugins/ai-assistant
-      '@hcengineering/ai-assistant-assets':
-        specifier: workspace:^0.7.0
-        version: link:../plugins/ai-assistant-assets
-      '@hcengineering/ai-assistant-resources':
-        specifier: workspace:^0.7.0
-        version: link:../plugins/ai-assistant-resources
       '@hcengineering/ai-bot':
         specifier: workspace:^0.7.0
         version: link:../plugins/ai-bot
@@ -1122,15 +1113,6 @@ importers:
       '@hcengineering/admin-resources':
         specifier: workspace:^0.7.0
         version: link:../../plugins/admin-resources
-      '@hcengineering/ai-assistant':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/ai-assistant
-      '@hcengineering/ai-assistant-assets':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/ai-assistant-assets
-      '@hcengineering/ai-assistant-resources':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/ai-assistant-resources
       '@hcengineering/ai-bot':
         specifier: workspace:^0.7.0
         version: link:../../plugins/ai-bot
@@ -5261,76 +5243,6 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  ../../models/ai-assistant:
-    dependencies:
-      '@hcengineering/ai-assistant':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/ai-assistant
-      '@hcengineering/ai-assistant-resources':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/ai-assistant-resources
-      '@hcengineering/core':
-        specifier: workspace:^0.7.26
-        version: link:../../foundations/core/packages/core
-      '@hcengineering/model':
-        specifier: workspace:^0.7.17
-        version: link:../../foundations/core/packages/model
-      '@hcengineering/model-core':
-        specifier: workspace:^0.7.0
-        version: link:../core
-      '@hcengineering/platform':
-        specifier: workspace:^0.7.20
-        version: link:../../foundations/core/packages/platform
-      '@hcengineering/setting':
-        specifier: workspace:^0.7.0
-        version: link:../../plugins/setting
-      '@hcengineering/ui':
-        specifier: workspace:^0.7.0
-        version: link:../../packages/ui
-    devDependencies:
-      '@hcengineering/platform-rig':
-        specifier: workspace:^0.7.21
-        version: link:../../foundations/utils/packages/platform-rig
-      '@types/jest':
-        specifier: ^30.0.0
-        version: 30.0.0
-      '@types/node':
-        specifier: ^24.13.3
-        version: 24.19.2
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.67.0
-        version: 8.72.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.67.0
-        version: 8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.7.0)
-      eslint-config-love:
-        specifier: ^157.0.0
-        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-n:
-        specifier: ^18.3.0
-        version: 18.5.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-promise:
-        specifier: ^7.3.0
-        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-svelte:
-        specifier: ^3.23.0
-        version: 3.23.1(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3))
-      jest:
-        specifier: ^30.4.2
-        version: 30.5.2(@types/node@24.19.2)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3))
-      prettier:
-        specifier: ^3.6.2
-        version: 3.9.10
-      ts-jest:
-        specifier: ^29.4.15
-        version: 29.4.15(@babel/core@7.29.7)(@jest/transform@30.5.2)(@jest/types@30.5.1)(babel-jest@30.5.2(@babel/core@7.29.7))(esbuild@0.25.12)(jest-util@30.5.1)(jest@30.5.2(@types/node@24.19.2)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3)))(typescript@5.9.3)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   ../../models/ai-bot:
     dependencies:
       '@hcengineering/activity':
@@ -5427,9 +5339,6 @@ importers:
       '@hcengineering/model-activity':
         specifier: workspace:^0.7.0
         version: link:../activity
-      '@hcengineering/model-ai-assistant':
-        specifier: workspace:^0.7.0
-        version: link:../ai-assistant
       '@hcengineering/model-ai-bot':
         specifier: workspace:^0.7.0
         version: link:../ai-bot
@@ -15402,225 +15311,6 @@ importers:
       eslint-plugin-secure-coding:
         specifier: ^5.4.4
         version: 5.4.17(@typescript-eslint/utils@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-svelte:
-        specifier: ^3.23.0
-        version: 3.23.1(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3))
-      jest:
-        specifier: ^30.4.2
-        version: 30.5.2(@types/node@26.6.5)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3))
-      prettier:
-        specifier: ^3.6.2
-        version: 3.9.10
-      prettier-plugin-svelte:
-        specifier: ^3.4.0
-        version: 3.5.2(prettier@3.9.10)(svelte@4.2.20)
-      sass:
-        specifier: ^1.80.0
-        version: 1.106.1
-      svelte-check:
-        specifier: ^3.6.9
-        version: 3.8.6(@babel/core@7.29.7)(postcss-load-config@4.0.2(postcss@8.5.16)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3)))(postcss@8.5.16)(sass@1.106.1)(svelte@4.2.20)
-      svelte-eslint-parser:
-        specifier: ^1.8.1
-        version: 1.10.0(svelte@4.2.20)
-      svelte-loader:
-        specifier: ^3.2.0
-        version: 3.2.4(svelte@4.2.20)
-      svelte-preprocess:
-        specifier: ^5.1.4
-        version: 5.1.4(@babel/core@7.29.7)(postcss-load-config@4.0.2(postcss@8.5.16)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3)))(postcss@8.5.16)(sass@1.106.1)(svelte@4.2.20)(typescript@5.9.3)
-      ts-jest:
-        specifier: ^29.4.15
-        version: 29.4.15(@babel/core@7.29.7)(@jest/transform@30.5.2)(@jest/types@30.5.1)(babel-jest@30.5.2(@babel/core@7.29.7))(jest-util@30.5.1)(jest@30.5.2(@types/node@26.6.5)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3)))(typescript@5.9.3)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  ../../plugins/ai-assistant:
-    dependencies:
-      '@hcengineering/core':
-        specifier: workspace:^0.7.26
-        version: link:../../foundations/core/packages/core
-      '@hcengineering/platform':
-        specifier: workspace:^0.7.20
-        version: link:../../foundations/core/packages/platform
-      '@hcengineering/setting':
-        specifier: workspace:^0.7.0
-        version: link:../setting
-      '@hcengineering/ui':
-        specifier: workspace:^0.7.0
-        version: link:../../packages/ui
-    devDependencies:
-      '@hcengineering/platform-rig':
-        specifier: workspace:^0.7.21
-        version: link:../../foundations/utils/packages/platform-rig
-      '@types/jest':
-        specifier: ^30.0.0
-        version: 30.0.0
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.67.0
-        version: 8.72.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.67.0
-        version: 8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.7.0)
-      eslint-config-love:
-        specifier: ^157.0.0
-        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-n:
-        specifier: ^18.3.0
-        version: 18.5.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-promise:
-        specifier: ^7.3.0
-        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-svelte:
-        specifier: ^3.23.0
-        version: 3.23.1(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3))
-      jest:
-        specifier: ^30.4.2
-        version: 30.5.2(@types/node@26.6.5)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3))
-      prettier:
-        specifier: ^3.6.2
-        version: 3.9.10
-      ts-jest:
-        specifier: ^29.4.15
-        version: 29.4.15(@babel/core@7.29.7)(@jest/transform@30.5.2)(@jest/types@30.5.1)(babel-jest@30.5.2(@babel/core@7.29.7))(jest-util@30.5.1)(jest@30.5.2(@types/node@26.6.5)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3)))(typescript@5.9.3)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  ../../plugins/ai-assistant-assets:
-    dependencies:
-      '@hcengineering/ai-assistant':
-        specifier: workspace:^0.7.0
-        version: link:../ai-assistant
-      '@hcengineering/platform':
-        specifier: workspace:^0.7.20
-        version: link:../../foundations/core/packages/platform
-    devDependencies:
-      '@hcengineering/platform-rig':
-        specifier: workspace:^0.7.21
-        version: link:../../foundations/utils/packages/platform-rig
-      '@types/jest':
-        specifier: ^30.0.0
-        version: 30.0.0
-      '@types/node':
-        specifier: ^24.13.3
-        version: 24.19.2
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.67.0
-        version: 8.72.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.67.0
-        version: 8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.7.0)
-      eslint-config-love:
-        specifier: ^157.0.0
-        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-n:
-        specifier: ^18.3.0
-        version: 18.5.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-promise:
-        specifier: ^7.3.0
-        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-svelte:
-        specifier: ^3.23.0
-        version: 3.23.1(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3))
-      jest:
-        specifier: ^30.4.2
-        version: 30.5.2(@types/node@24.19.2)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3))
-      prettier:
-        specifier: ^3.6.2
-        version: 3.9.10
-      ts-jest:
-        specifier: ^29.4.15
-        version: 29.4.15(@babel/core@7.29.7)(@jest/transform@30.5.2)(@jest/types@30.5.1)(babel-jest@30.5.2(@babel/core@7.29.7))(esbuild@0.25.12)(jest-util@30.5.1)(jest@30.5.2(@types/node@24.19.2)(ts-node@10.9.2(@types/node@24.19.2)(typescript@5.9.3)))(typescript@5.9.3)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  ../../plugins/ai-assistant-resources:
-    dependencies:
-      '@hcengineering/account-client':
-        specifier: workspace:^0.7.25
-        version: link:../../foundations/core/packages/account-client
-      '@hcengineering/ai-assistant':
-        specifier: workspace:^0.7.0
-        version: link:../ai-assistant
-      '@hcengineering/analytics':
-        specifier: workspace:^0.7.19
-        version: link:../../foundations/core/packages/analytics
-      '@hcengineering/card':
-        specifier: workspace:^0.7.0
-        version: link:../card
-      '@hcengineering/card-resources':
-        specifier: workspace:^0.7.0
-        version: link:../card-resources
-      '@hcengineering/contact':
-        specifier: workspace:^0.7.0
-        version: link:../contact
-      '@hcengineering/core':
-        specifier: workspace:^0.7.26
-        version: link:../../foundations/core/packages/core
-      '@hcengineering/integration-client':
-        specifier: workspace:^0.7.0
-        version: link:../../packages/integration-client
-      '@hcengineering/login':
-        specifier: workspace:^0.7.0
-        version: link:../login
-      '@hcengineering/panel':
-        specifier: workspace:^0.7.0
-        version: link:../../packages/panel
-      '@hcengineering/platform':
-        specifier: workspace:^0.7.20
-        version: link:../../foundations/core/packages/platform
-      '@hcengineering/presentation':
-        specifier: workspace:^0.7.0
-        version: link:../../packages/presentation
-      '@hcengineering/setting':
-        specifier: workspace:^0.7.0
-        version: link:../setting
-      '@hcengineering/setting-resources':
-        specifier: workspace:^0.7.0
-        version: link:../setting-resources
-      '@hcengineering/ui':
-        specifier: workspace:^0.7.0
-        version: link:../../packages/ui
-      '@hcengineering/view-resources':
-        specifier: workspace:^0.7.0
-        version: link:../view-resources
-      svelte:
-        specifier: ^4.2.20
-        version: 4.2.20
-    devDependencies:
-      '@hcengineering/platform-rig':
-        specifier: workspace:^0.7.21
-        version: link:../../foundations/utils/packages/platform-rig
-      '@types/jest':
-        specifier: ^30.0.0
-        version: 30.0.0
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.67.0
-        version: 8.72.0(@typescript-eslint/parser@8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.67.0
-        version: 8.72.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.7.0)
-      eslint-config-love:
-        specifier: ^157.0.0
-        version: 157.0.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-n:
-        specifier: ^18.3.0
-        version: 18.5.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      eslint-plugin-promise:
-        specifier: ^7.3.0
-        version: 7.3.0(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-svelte:
         specifier: ^3.23.0
         version: 3.23.1(eslint@9.39.5(jiti@2.7.0))(svelte@4.2.20)(ts-node@10.9.2(@types/node@26.6.5)(typescript@5.9.3))
@@ -31309,6 +30999,12 @@ importers:
       '@hcengineering/core':
         specifier: workspace:^0.7.26
         version: link:../../foundations/core/packages/core
+      '@hcengineering/measurements':
+        specifier: workspace:^0.7.19
+        version: link:../../foundations/core/packages/measurements
+      '@hcengineering/measurements-otlp':
+        specifier: workspace:^0.7.18
+        version: link:../../foundations/core/packages/measurements-otlp
       '@hcengineering/server-token':
         specifier: workspace:^0.7.18
         version: link:../../foundations/core/packages/token

@@ -185,7 +185,11 @@ export function registerPackageDiscoveryTools (
     }
     return new MarketplaceClient(marketplaceUrl, auth.extra.accountToken)
   }
-  const workspace = { type: 'string', minLength: 1, description: `Exact workspace ID from ${meWorkspacesToolId}.` }
+  const workspace = {
+    type: 'string',
+    minLength: 1,
+    description: `Exact value of url returned by ${meWorkspacesToolId}.`
+  }
   const id = { type: 'string', minLength: 1, description: `Exact package ID returned by ${packageSearchToolId}.` }
   const author = {
     type: 'string',

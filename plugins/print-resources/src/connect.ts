@@ -65,10 +65,12 @@ async function connectWorkspace (title: string, workspace: string, token?: strin
 
   const socialIds =
     info.role === AccountRole.DocGuest ? [] : await getAccountClient(accountsUrl, selectedToken).getSocialIds(true)
+  const primarySocialId = socialIds.length === 0 ? ('' as PersonId) : pickPrimarySocialId(socialIds)._id
   const account: Account = {
     uuid: info.account,
     role: info.role,
-    primarySocialId: socialIds.length === 0 ? ('' as PersonId) : pickPrimarySocialId(socialIds)._id,
+    primarySocialId,
+    socialId: info.socialId ?? primarySocialId,
     socialIds: socialIds.map((id) => id._id),
     fullSocialIds: socialIds
   }

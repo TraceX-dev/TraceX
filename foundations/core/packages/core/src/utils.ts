@@ -1011,7 +1011,7 @@ export function parseSocialIdString (id: string): SocialKey {
 }
 
 export function pickPrimarySocialId (socialIds: SocialId[]): SocialId {
-  const activeSocialIds = socialIds.filter((si) => si.isDeleted !== true)
+  const activeSocialIds = socialIds.filter((si) => si.isDeleted !== true && si.type !== SocialIdType.EXTERNAL)
   if (activeSocialIds.length === 0) {
     throw new Error('No active social ids provided')
   }

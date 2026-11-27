@@ -15,8 +15,8 @@
 
 /* eslint-disable @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-var-requires */
 
-import card from '@hcengineering/card'
-import calendar, { AccessLevel } from '@hcengineering/calendar'
+import card, { type Card } from '@hcengineering/card'
+import calendar, { AccessLevel, type Event } from '@hcengineering/calendar'
 import chunter from '@hcengineering/chunter'
 import contact, { type Person } from '@hcengineering/contact'
 import document from '@hcengineering/document'
@@ -45,6 +45,7 @@ process.env.SERVER_SECRET = 'secret'
 process.env.COLLABORATOR_URL = 'http://collaborator.test'
 
 let mockCollaboratorContent = ''
+let mockActingSocialId = 'person-1'
 const mockCollaborator = {
   createMarkup: jest.fn(async (_document: unknown, markup: string) => {
     mockCollaboratorContent = markup
@@ -57,7 +58,9 @@ const mockCollaborator = {
 }
 
 jest.mock('@hcengineering/account-client', () => ({
-  getClient: jest.fn(() => ({ getLoginInfoByToken: jest.fn(async () => ({ socialId: 'person-1' })) })),
+  getClient: jest.fn(() => ({
+    getLoginInfoByToken: jest.fn(async () => ({ primarySocialId: 'person-1', socialId: mockActingSocialId }))
+  })),
   isNetworkError: jest.fn(() => false)
 }))
 jest.mock('@hcengineering/server-client', () => ({ createClient: jest.fn() }))
@@ -113,6 +116,7 @@ describe('Workspace API routes with local plugin resources', () => {
     workspaceDb = new ModelDb(hierarchy)
     domainRequests = []
     mockCollaboratorContent = ''
+    mockActingSocialId = 'person-1'
     mockCollaborator.createMarkup.mockClear()
     mockCollaborator.getMarkup.mockClear()
     mockCollaborator.updateMarkup.mockClear()
@@ -187,6 +191,30 @@ describe('Workspace API routes with local plugin resources', () => {
           expect.objectContaining({ id: createdId, fields: expect.objectContaining({ title: 'Updated through API' }) })
         ]
       }
+    })
+  })
+
+  it('attributes external API writes to the acting identity', async () => {
+    mockActingSocialId = 'external-author'
+    const created = await api('post', '/api/v2/:workspaceId/cards', {
+      body: { space: 'Product', fields: { title: 'External author' } }
+    })
+    expect(created.status).toBe(200)
+    const id = (created.body as { id: Ref<Card> }).id
+    expect(workspaceDb.findAllSync(card.class.Card, { _id: id })[0]).toMatchObject({
+      createdBy: 'external-author',
+      modifiedBy: 'external-author'
+    })
+
+    const event = await api('post', '/api/v2/:workspaceId/calendar/events', {
+      body: { calendar: 'Personal', date: 10, dueDate: 20, title: 'External scheduling' }
+    })
+    expect(event.status).toBe(200)
+    const eventId = (event.body as { id: Ref<Event> }).id
+    expect(workspaceDb.findAllSync(calendar.class.Event, { _id: eventId })[0]).toMatchObject({
+      user: 'person-1',
+      createdBy: 'external-author',
+      modifiedBy: 'external-author'
     })
   })
 

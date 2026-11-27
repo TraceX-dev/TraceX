@@ -86,7 +86,7 @@ export class WorkspaceRestClient {
       info.workspace,
       info.token,
       account,
-      new TxFactory(account.primarySocialId)
+      new TxFactory(account.socialId)
     )
   }
 

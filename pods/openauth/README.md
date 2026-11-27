@@ -79,7 +79,7 @@ These `proxy_pass` directives intentionally have no URI or trailing slash, which
 4. The user explicitly chooses one workspace or all accessible workspaces, including future memberships. Single-workspace access is selected initially and requires choosing a workspace before approval. The issuer validates current membership at approval and stores the selected stable workspace ID on the connection (`workspace_id = NULL` means all accessible workspaces). The UI sends the session token only to the configured issuer. No destination URL is accepted from query input.
 5. A browser-bound, one-use completion creates a separate connection. The TraceX account token stays encrypted on the server. It is not included in the OAuth JWT, access token, browser callback URL, or connection-management response.
 6. OpenAuth handles codes and refresh rotation. Externally issued access tokens are opaque and expire after five minutes. Refresh credentials expire after thirty days of inactivity. Rotation is serialized across replicas; a ten-second reuse window handles concurrent client refreshes, followed by reuse detection and revocation.
-7. Every MCP request resolves the access token through the authenticated server-to-server `/internal/resolve` endpoint. The issuer checks token expiration, connection revocation, resource binding, and the underlying TraceX session, then returns the persisted workspace restriction. Refresh cannot change this restriction. MCP limits workspace discovery to that grant, rejects other workspace IDs before using cached clients, checks current membership, and exchanges the account token for the explicitly selected workspace.
+7. During issuance or refresh, one Accounts call validates the stored TraceX session and resolves its external author. OpenAuth signs the internal account token and stores it encrypted alongside the access-token hash. Both tokens expire at the earlier of the OAuth and TraceX session expirations. Every MCP request uses `/internal/resolve` to check expiration, connection revocation, and resource binding. MCP verifies the returned token locally. For a workspace tool call, one `selectWorkspace` request resolves the short URL and returns the scoped token, endpoint and workspace availability. Accounts validates the external author associated with the selected account. MCP verifies availability, the token's account and the resolved UUID against the OAuth grant before using the workspace client, including cached clients. Refresh cannot change the grant.
 8. The user can revoke each connection in **Account settings → Authentication → MCP connections**. New requests and renewal stop immediately. Already-running operations are not rolled back. If the TraceX session expires, the client must sign in again.
 
 The adapter intentionally supports dynamic public-client registration for Codex. CIMD, confidential clients, custom URI callbacks, stdio, and verified ChatGPT integration are outside this first implementation.
@@ -93,9 +93,25 @@ Run `rushx test` for in-process OAuth tests. To exercise PostgreSQL persistence,
 - Connect Codex by URL and browser sign-in without creating an API key.
 - Exercise the normal password, OTP, external-provider, and MFA login paths used by the installation.
 - List workspaces, then read and write explicitly in two different workspaces through one connection. Duplicate names must not select a workspace implicitly.
-- Authorize a connection for one workspace, verify that discovery returns only it, and confirm that another workspace ID is rejected even when the account has access to both. Repeat after refreshing the token.
+- Authorize a connection for one workspace, verify that discovery returns only it, and confirm that another workspace URL is rejected even when the account has access to both. Repeat after refreshing the token.
 - Remove membership between opening consent and approving it; approval for the removed workspace must fail. Remove membership after authorization and verify that subsequent tool calls are denied.
 - Remove membership and verify that the next operation is denied with workspace-client caching enabled.
 - Check refresh after access expiration and issuer restart.
 - Authorize two connections, revoke one in settings, and verify that its old access and refresh tokens fail while the other connection continues working.
 - Confirm that production and staging connections remain separate.
+
+## External author identity
+
+OAuth connections use an external identity bound to the user and the confirmed source. They retain
+their connection ID and workspace consent and do not create API key rows. Workspace API keys keep
+their existing issuance, author selection and revocation behavior without external identities.
+
+OpenAuth validates the stored ordinary user session with `getLoginInfoByToken` and resolves its
+external author through the existing `addSocialIdToPerson` RPC. OpenAuth is a trusted caller of that
+RPC and uses its ordinary social identity creation and ownership checks. OpenAuth constructs a
+confirmed `EXTERNAL` identity with a canonical `account:source` value and authenticates its RPC call
+with a short-lived signed service token.
+OpenAuth signs the internal token with that author, normalized source and saved connection ID,
+retaining the original session restrictions and expiration limit.
+An invalid user session revokes the connection. A temporary Accounts failure rolls back the token
+exchange so the client can retry with the same code or refresh token.

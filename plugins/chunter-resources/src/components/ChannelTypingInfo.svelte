@@ -1,5 +1,6 @@
 <!--
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License. You may
@@ -89,7 +90,7 @@
   class="root h-4 mt-1 mb-1 ml-0-5 overflow-label"
   data-id="channel-typing-info"
   use:typing={{
-    socialId: acc.primarySocialId,
+    socialId: acc.socialId,
     objectId: object._id,
     onTyping: handleTyping
   }}

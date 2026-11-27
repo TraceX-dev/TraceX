@@ -20,6 +20,7 @@
   import presentation from '@hcengineering/presentation'
   import ui, {
     Button,
+    EditBox,
     DropdownLabels,
     getCurrentLocation,
     Icon,
@@ -48,6 +49,8 @@
   let failed = false
   let identity: LoginInfo | null = null
   let clientName = ''
+  let source = 'external'
+  $: validSource = /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(source.trim().replace(/\s+/g, '-'))
   let workspaces: OAuthWorkspace[] = []
   let workspaceItems: DropdownTextItem[] = []
   let selectedWorkspace: string | undefined
@@ -71,6 +74,8 @@
       }
       const details = await client.getRequest(request)
       clientName = details.clientName
+      const suggestedSource = clientName.trim().replace(/\s+/g, '-')
+      source = /^[a-z0-9][a-z0-9._-]{0,63}$/i.test(suggestedSource) ? suggestedSource : 'external'
       rememberOAuthRequest(request)
       identity = await getAccount(false)
       if (identity?.token !== undefined) await loadWorkspaces(identity.token)
@@ -84,6 +89,7 @@
   async function authorize (): Promise<void> {
     if (
       submitting ||
+      !validSource ||
       workspaces.length === 0 ||
       identity?.token === undefined ||
       client === undefined ||
@@ -94,7 +100,7 @@
     if (workspaceId === undefined) return
     submitting = true
     try {
-      await client.completeRequest(request, identity.token, workspaceId)
+      await client.completeRequest(request, identity.token, workspaceId, source)
       // The destination is built exclusively from trusted installation configuration, never query input.
       clearOAuthRequest()
       window.location.assign(client.getCompletionUrl(request))
@@ -175,6 +181,10 @@
         <Label label={login.string.NoAvailableWorkspacesDescription} />
       </div>
     {:else}
+      <div class="flex-col flex-gap-2">
+        <Label label={login.string.AccessSource} />
+        <EditBox bind:value={source} placeholder={login.string.AccessSource} />
+      </div>
       <div class="flex-col flex-gap-4" data-id="mcp-workspace-access">
         <div class="flex-col flex-gap-2">
           <span class="text-md font-medium caption-color"><Label label={login.string.SelectWorkspace} /></span>

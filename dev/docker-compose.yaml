@@ -290,6 +290,8 @@ services:
       - OPENAUTH_MCP_RESOURCE_URL=http://tracex.local:4020/mcp
       - OPENAUTH_LOGIN_URL=http://tracex.local:8087/login/oauth
       - OPENAUTH_ALLOW_HTTP=true
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4318
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
       - PORT=3001
     restart: unless-stopped
   mcp:

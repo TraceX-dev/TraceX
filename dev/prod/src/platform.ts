@@ -86,7 +86,6 @@ import { achievementId } from '@hcengineering/achievement'
 import { emojiId } from '@hcengineering/emoji'
 import billingPlugin, { billingId } from '@hcengineering/billing'
 import { hulyMailId } from '@hcengineering/huly-mail'
-import { aiAssistantId } from '@hcengineering/ai-assistant'
 import { ratingId } from '@hcengineering/rating'
 import { qalicoId } from '@tracex/qalico'
 
@@ -204,8 +203,6 @@ import '@hcengineering/billing-assets'
 import * as BillingLang from '@hcengineering/billing-assets/lang'
 import '@hcengineering/huly-mail-assets'
 import * as HulyMailLang from '@hcengineering/huly-mail-assets/lang'
-import '@hcengineering/ai-assistant-assets'
-import * as AiAssistantLang from '@hcengineering/ai-assistant-assets/lang'
 import '@hcengineering/rating-assets'
 import * as RatingLang from '@hcengineering/rating-assets/lang'
 import '@tracex/qalico-assets'
@@ -411,7 +408,6 @@ function configureI18n(): void {
   addStringsLoader(emojiId, EmojiLang.loadLang)
   addStringsLoader(billingId, BillingLang.loadLang)
   addStringsLoader(hulyMailId, HulyMailLang.loadLang)
-  addStringsLoader(aiAssistantId, AiAssistantLang.loadLang)
   addStringsLoader(ratingId, RatingLang.loadLang)
   addStringsLoader(qalicoId, QalicoLang.loadLang)
 }
@@ -716,10 +712,6 @@ export async function configurePlatform(): Promise<void> {
   addLocation(
     hulyMailId,
     async () => await import(/* webpackChunkName: "hulyMail" */ '@hcengineering/huly-mail-resources')
-  )
-  addLocation(
-    aiAssistantId,
-    async () => await import(/* webpackChunkName: "ai-assistant" */ '@hcengineering/ai-assistant-resources')
   )
   addLocation(ratingId, async () => await import(/* webpackChunkName: "rating" */ '@hcengineering/rating-resources'))
 

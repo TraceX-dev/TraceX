@@ -13,19 +13,74 @@
 // limitations under the License.
 //
 
-import type { MeasureContext } from '@hcengineering/core'
+import { NoMetricsContext, type MeasureContext, type TxOperations } from '@hcengineering/core'
 import { tools } from '@hcengineering/ai-tools'
-import { McpServer } from '@modelcontextprotocol/server'
+import { McpServer, type CallToolResult } from '@modelcontextprotocol/server'
 import { get, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { McpConfig } from '../config'
 import type { TraceXAuthInfo } from '../auth'
 import { createMcpServer, createServer, toToolResult } from '../server'
-import type { WorkspaceManager } from '../workspace'
+import type { WorkspaceConnection, WorkspaceManager } from '../workspace'
 
 jest.mock('@hcengineering/ai-tools', () => ({ tools: [] }))
 
 describe('MCP tool naming', () => {
+  it.each(['connect', 'execute'])(
+    'logs the original %s error while returning a generic workspace failure',
+    async (stage) => {
+      const failure = new Error('Workspace author initialization failed')
+      const tool: (typeof tools)[number] = {
+        name: 'card_get',
+        description: 'Read a card',
+        inputSchema: { type: 'object', properties: {} },
+        execute: jest.fn().mockRejectedValue(failure)
+      }
+      const auth: Partial<TraceXAuthInfo> = {
+        resource: new URL('https://mcp.test/mcp'),
+        extra: {
+          account: 'account-id',
+          accountToken: 'private-account-token',
+          connectionId: 'connection-id',
+          workspaceId: null
+        }
+      }
+      const client: Partial<TxOperations> = { getHierarchy: jest.fn(), getModel: jest.fn() }
+      const connection: Partial<WorkspaceConnection> = { client: client as TxOperations }
+      const manager: Partial<WorkspaceManager> = {
+        getConnection:
+          stage === 'connect' ? jest.fn().mockRejectedValue(failure) : jest.fn().mockResolvedValue(connection)
+      }
+      const context = new NoMetricsContext()
+      const log = jest.spyOn(context, 'error').mockImplementation(() => {})
+      const register = jest.spyOn(McpServer.prototype, 'registerTool')
+      let server: McpServer | undefined
+      tools.push(tool)
+      try {
+        server = createMcpServer(auth as TraceXAuthInfo, manager as WorkspaceManager, context)
+        const invoke = register.mock.calls.find(([name]) => name === tool.name)?.[2] as (
+          args: Record<string, unknown>
+        ) => Promise<CallToolResult>
+        const result = await invoke({ workspace: 'engineering' })
+        expect(result.isError).toBe(true)
+        expect(JSON.stringify(result)).toContain('workspace_operation_failed')
+        expect(JSON.stringify(result)).not.toContain(failure.message)
+        expect(log).toHaveBeenCalledWith('MCP workspace operation failed', {
+          tool: tool.name,
+          workspace: 'engineering',
+          error: failure.message,
+          stack: failure.stack
+        })
+        expect(JSON.stringify(log.mock.calls)).not.toContain('private-account-token')
+      } finally {
+        tools.pop()
+        register.mockRestore()
+        log.mockRestore()
+        await server?.close()
+      }
+    }
+  )
+
   it('registers human-readable titles separately from tool identifiers', async () => {
     const tool: (typeof tools)[number] = {
       name: 'card_get',

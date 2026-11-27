@@ -117,7 +117,7 @@ export async function start (ctx: MeasureContext, config: Config, storageAdapter
       return {
         workspace: wsIds.uuid,
         readonly: isReadOnlyOrGuest(token.account, token.extra),
-        context: { connectionId: generateId(), wsIds, clientFactory: simpleClientFactory(token) },
+        context: { connectionId: generateId(), wsIds, clientFactory: simpleClientFactory(rawToken, token) },
         readClientFactory: userClientFactory(rawToken, token)
       }
     }, agentApi)
@@ -133,7 +133,7 @@ export async function start (ctx: MeasureContext, config: Config, storageAdapter
     return {
       connectionId: generateId(),
       wsIds,
-      clientFactory: simpleClientFactory(token)
+      clientFactory: simpleClientFactory(rawToken, token)
     }
   }
 

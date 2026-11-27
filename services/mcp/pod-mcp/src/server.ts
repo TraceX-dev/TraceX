@@ -49,7 +49,7 @@ const SERVER_NAME = 'tracex-mcp'
 const SERVER_VERSION = '0.1.0'
 const SERVER_INSTRUCTIONS = `Use only authorized TraceX workspaces. Never request or expose tokens. Discover IDs and fields through read-only tools and follow their schemas. Mutate only with user intent, reload existing objects, respect readonly/history errors and report the target workspace.
 
-Call ${meWorkspacesToolId} to discover workspaces authorized by this connection. A connection may be restricted to one workspace. Every other tool requires the exact workspace ID returned by ${meWorkspacesToolId}. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes.
+Call ${meWorkspacesToolId} to discover workspaces authorized by this connection. A connection may be restricted to one workspace. Pass the exact short URL from the returned url field as the workspace argument. There is no implicit current or last-used workspace. When the intended workspace is ambiguous, ask the user before proceeding. Do not guess from duplicate workspace or object names. State the target workspace when reporting changes.
 For packages, read ${packageAuthoringGuideToolId}, then only relevant sections and installed contracts. Own technical choices; do not ask managers to select triggers, storage keys or process architecture. Record reasonable assumptions in the draft review. Ask concise business questions only for material contradictions, outcome-changing missing rules or unconfirmed required capabilities. Search reusable packages before new logic; never invent APIs or runtime behavior. To add a Marketplace process to a card package draft, follow Reusing a Marketplace process and use package_add_dependency with the verified release lock and parent bindings. Do not copy, rewrite or add a wrapper process. Validate and save the requested draft with its dependencies; UI installation applies the complete tree later. MCP never installs, executes or publishes. The guide distinguishes draft edits from new package versions.
 
 Prefer narrow queries, practical limits and structuredContent. Reuse retrieved guidance and contracts during the task instead of repeatedly loading whole documents or unchanged YAML. Correct invalid arguments from tool diagnostics.`
@@ -150,7 +150,7 @@ export function createMcpServer (
         ...tool.inputSchema.properties,
         workspace: {
           type: 'string',
-          description: `Exact workspace ID returned by ${meWorkspacesToolId}. Required for every call; never infer an implicit current workspace.`
+          description: `Exact value of url returned by ${meWorkspacesToolId}.`
         }
       },
       required: [...(tool.inputSchema.required ?? []), 'workspace']
@@ -173,7 +173,7 @@ export function createMcpServer (
                 {
                   error: {
                     code: 'workspace_required',
-                    message: `Choose an explicit workspace ID from ${meWorkspacesToolId}.`
+                    message: `Choose a workspace URL from ${meWorkspacesToolId}.`
                   }
                 },
                 true
@@ -198,13 +198,14 @@ export function createMcpServer (
               content: [
                 {
                   type: 'text' as const,
-                  text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl}; ${workspace})`
+                  text: `TraceX workspace: ${connection.workspaceName} (${connection.workspaceUrl})`
                 },
                 ...result.content
               ]
             }
           })
-        } catch {
+        } catch (error: unknown) {
+          ctx.error('MCP workspace operation failed', { tool: tool.name, workspace, ...errorLog(error) })
           return jsonText(
             {
               error: {

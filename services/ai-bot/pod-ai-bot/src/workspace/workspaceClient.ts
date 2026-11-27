@@ -1,5 +1,6 @@
 //
 // Copyright © 2024 Hardcore Engineering Inc.
+// Copyright © 2026 TraceX SAS.
 // Copyright © 2026 TraceX.
 //
 // Licensed under the Eclipse Public License, Version 2.0 (the "License");
@@ -135,6 +136,7 @@ export class WorkspaceClient {
       uuid: this.personUuid,
       role: AccountRole.User,
       primarySocialId: this.primarySocialId._id,
+      socialId: this.primarySocialId._id,
       socialIds: this.socialIds.map((it) => it._id),
       fullSocialIds: this.socialIds
     }

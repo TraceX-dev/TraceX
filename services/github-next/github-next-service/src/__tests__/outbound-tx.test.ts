@@ -19,13 +19,19 @@ import {
   type Integration,
   type WorkspaceLoginInfo
 } from '@hcengineering/account-client'
-import { createMarkupOperations, createRestTxOperations, type MarkupOperations } from '@hcengineering/api-client'
+import {
+  createMarkupOperations,
+  createRestTxOperations,
+  type MarkupOperations,
+  type RestTxOperations
+} from '@hcengineering/api-client'
 import { getClient as getCollaboratorClient, type CollaboratorClient } from '@hcengineering/collaborator-client'
 import core, {
   AccountRole,
   MeasureMetricsContext,
   systemAccountUuid,
   TxFactory,
+  type Account,
   type Class,
   type Client,
   type Data,
@@ -33,7 +39,6 @@ import core, {
   type DocumentUpdate,
   type PersonId,
   type Ref,
-  type TxOperations,
   type WorkspaceUuid
 } from '@hcengineering/core'
 import githubNext, { githubNextIntegrationKind, type GithubNextObjectSyncState } from '@hcengineering/github-next'
@@ -112,9 +117,18 @@ describe('outbound transaction client reuse', () => {
       role: AccountRole.Owner
     }
     const client: Pick<Client, 'findOne'> = { findOne }
-    const restOperations: Pick<TxOperations, 'client' | 'user'> = {
+    const restAccount: Account = {
+      uuid: systemAccountUuid,
+      role: AccountRole.Owner,
+      primarySocialId: core.account.System,
+      socialId: core.account.System,
+      socialIds: [core.account.System],
+      fullSocialIds: []
+    }
+    const restOperations: Pick<RestTxOperations, 'client' | 'user' | 'account'> = {
       client: client as Client,
-      user: core.account.System
+      user: core.account.System,
+      account: restAccount
     }
     const markup: MarkupOperations = {
       fetchMarkup: jest.fn(),
@@ -124,7 +138,7 @@ describe('outbound transaction client reuse', () => {
     jest.mocked(getAccountClient).mockReturnValue(account as AccountClient)
     jest.mocked(account.listIntegrations).mockResolvedValue([accountIntegration])
     jest.mocked(account.getLoginInfoByToken).mockResolvedValue(loginInfo)
-    jest.mocked(createRestTxOperations).mockResolvedValue(restOperations as TxOperations)
+    jest.mocked(createRestTxOperations).mockResolvedValue(restOperations as RestTxOperations)
     jest.mocked(createMarkupOperations).mockReturnValue(markup)
     jest.mocked(getCollaboratorClient).mockReturnValue(collaborator as CollaboratorClient)
     findOne.mockImplementation(async (objectClass: Ref<Class<Doc>>) =>

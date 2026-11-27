@@ -13,9 +13,9 @@
 // limitations under the License.
 //
 
-import { systemAccountUuid } from '@hcengineering/core'
+import { systemAccountUuid, type PersonUuid } from '@hcengineering/core'
 import type { ResolvedAccessToken } from '@hcengineering/openauth-client'
-import { decodeToken } from '@hcengineering/server-token'
+import { decodeToken, generateToken } from '@hcengineering/server-token'
 import { createMcpTokenVerifier } from '../auth'
 import type { McpConfig } from '../config'
 
@@ -32,6 +32,17 @@ const config: McpConfig = {
   OAuthAllowHttp: false
 }
 
+const account = '00000000-0000-4000-8000-000000000002' as PersonUuid
+const accountToken = generateToken(
+  account,
+  undefined,
+  {
+    externalConnectionId: 'connection-id',
+    externalSocialId: 'external-id'
+  },
+  config.ServerSecret
+)
+
 describe('opaque MCP OAuth tokens', () => {
   const fetchMock = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
   const originalFetch = global.fetch
@@ -46,8 +57,8 @@ describe('opaque MCP OAuth tokens', () => {
   function resolved (resource = config.OAuthResourceURL, workspaceId: string | null = null): Response {
     const value: ResolvedAccessToken = {
       connectionId: 'connection-id',
-      account: 'account-id',
-      accountToken: 'private-account-token',
+      account,
+      accountToken,
       clientId: 'client-id',
       resource,
       workspaceId,
@@ -60,7 +71,7 @@ describe('opaque MCP OAuth tokens', () => {
     fetchMock.mockResolvedValue(resolved())
     const result = await createMcpTokenVerifier(config).verifyAccessToken('opaque-client-token')
     expect(result.resource?.toString()).toBe(config.OAuthResourceURL)
-    expect(result.extra?.accountToken).toBe('private-account-token')
+    expect(result.extra?.accountToken).toBe(accountToken)
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe(`${config.OAuthInternalURL}/internal/resolve`)
     const serviceToken = String(new Headers(options?.headers).get('Authorization')).slice('Bearer '.length)
@@ -99,5 +110,14 @@ describe('opaque MCP OAuth tokens', () => {
     await expect(verifier.verifyAccessToken('client-token')).rejects.toThrow('Invalid response')
     fetchMock.mockResolvedValueOnce(new Response('internal-sensitive-details', { status: 500 }))
     await expect(verifier.verifyAccessToken('client-token')).rejects.toThrow('authorization service is unavailable')
+  })
+
+  it('checks the returned delegation signature and connection', async () => {
+    const verifier = createMcpTokenVerifier(config)
+    const access: ResolvedAccessToken = await resolved().json()
+    fetchMock.mockResolvedValueOnce(Response.json({ ...access, accountToken: 'invalid-token' }))
+    fetchMock.mockResolvedValueOnce(Response.json({ ...access, connectionId: 'other-connection' }))
+    await expect(verifier.verifyAccessToken('client-token')).rejects.toThrow('Invalid response')
+    await expect(verifier.verifyAccessToken('client-token')).rejects.toThrow('Invalid response')
   })
 })

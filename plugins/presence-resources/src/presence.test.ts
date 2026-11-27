@@ -32,6 +32,7 @@ describe('presence in read-only views', () => {
       uuid: 'user' as AccountUuid,
       role,
       primarySocialId: '' as Account['primarySocialId'],
+      socialId: '' as Account['primarySocialId'],
       socialIds: [],
       fullSocialIds: []
     }
