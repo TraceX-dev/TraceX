@@ -34,6 +34,7 @@
   } from '@hcengineering/core'
   import type { IntlString } from '@hcengineering/platform'
   import presentation, { createQuery, getClient } from '@hcengineering/presentation'
+  import setting from '@hcengineering/setting'
   import { DropdownLabels, FormGroup, FormRow, Label, StateTag, StateType, Toggle } from '@hcengineering/ui'
   import view from '@hcengineering/view'
   import { createEventDispatcher, onMount } from 'svelte'
@@ -265,7 +266,7 @@
   {#if supportsGroups && (canManageGroups || boundGroups.length > 0)}
     <FormRow label={core.string.UserGroups}>
       <DropdownLabels
-        icon={contact.icon.ComponentMembers}
+        icon={setting.icon.UserGroups}
         justify={'left'}
         items={groupItems}
         multiselect

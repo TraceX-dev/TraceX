@@ -52,7 +52,7 @@
 <div class="antiPopup popup" data-id="create-user-group">
   <div class="flex-between fs-title mb-2">
     <Label label={setting.string.CreateUserGroupTitle} />
-    <Icon icon={setting.icon.Members} size={'large'} />
+    <Icon icon={setting.icon.UserGroups} size={'large'} />
   </div>
   <span class="text-md content-dark-color mb-6"><Label label={setting.string.CreateUserGroupDescription} /></span>
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 -->
 <script lang="ts">
-  import contact, { type Employee, formatName } from '@hcengineering/contact'
+  import { type Employee, formatName } from '@hcengineering/contact'
   import { AccountArrayEditor } from '@hcengineering/contact-resources'
   import contactResources from '@hcengineering/contact-resources/src/plugin'
   import core, {
@@ -334,7 +334,7 @@
             <div class="interactiveCell" on:click|stopPropagation role="none">
               {#if supportsGroups(space)}
                 <DropdownLabels
-                  icon={contact.icon.ComponentMembers}
+                  icon={setting.icon.UserGroups}
                   justify={'left'}
                   items={groupItems}
                   multiselect

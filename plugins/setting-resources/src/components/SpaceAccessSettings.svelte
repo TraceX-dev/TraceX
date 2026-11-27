@@ -225,7 +225,7 @@
           }}
         />
         <NavItem
-          icon={setting.icon.Members}
+          icon={setting.icon.UserGroups}
           label={core.string.UserGroups}
           selected={activeTab === 'groups'}
           on:click={() => {

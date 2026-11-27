@@ -104,7 +104,7 @@
         <Loading />
       {:else if visibleGroups.length === 0}
         <SectionEmpty
-          icon={setting.icon.Members}
+          icon={setting.icon.UserGroups}
           label={groups.length === 0 ? setting.string.NoUserGroups : presentation.string.NoResults}
         />
       {:else}
