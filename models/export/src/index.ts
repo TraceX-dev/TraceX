@@ -21,6 +21,7 @@ import type {
   DocumentExportPreviewFunction,
   DocumentExportAvailabilityFunction,
   DocumentBulkExportFunction,
+  ExportOrigin,
   ExportResultRecord
 } from '@hcengineering/export'
 import { type Builder, Model, Prop, ArrOf, TypeRef, TypeString, TypeNumber, UX } from '@hcengineering/model'
@@ -75,8 +76,23 @@ export class TExportResultRecord extends TDoc implements ExportResultRecord {
     title?: string
 }
 
+@Model(exportPlugin.class.ExportOrigin, core.class.Doc, DOMAIN_EXPORT)
+export class TExportOrigin extends TDoc implements ExportOrigin {
+  sourceWorkspace!: string
+  sourceId!: Ref<Doc>
+  sourceClass!: Ref<Class<Doc>>
+  targetId!: Ref<Doc>
+  targetClass!: Ref<Class<Doc>>
+}
+
 export function createModel (builder: Builder): void {
-  builder.createModel(TExportResultRecord, TDocumentExporter)
+  builder.createModel(TExportResultRecord, TExportOrigin, TDocumentExporter)
+
+  // Every exported document is looked up by its origin on repeated exports.
+  builder.createDoc(core.class.DomainIndexConfiguration, core.space.Model, {
+    domain: DOMAIN_EXPORT,
+    indexes: [{ keys: { sourceWorkspace: 1, sourceId: 1 } }, { keys: { sourceWorkspace: 1, targetId: 1 } }]
+  })
 
   builder.createDoc(
     exportPlugin.class.DocumentExporter,

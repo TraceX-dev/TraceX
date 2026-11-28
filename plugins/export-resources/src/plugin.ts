@@ -59,6 +59,13 @@ export default mergeIds(exportId, exportPlugin, {
     ExportFilterAll: '' as IntlString,
     ExportChildDocuments: '' as IntlString,
     ExportChildDocumentsDescription: '' as IntlString,
+    ExistingDocumentsMode: '' as IntlString,
+    ExistingDocumentsSkip: '' as IntlString,
+    ExistingDocumentsNewVersion: '' as IntlString,
+    ExistingDocumentsDescription: '' as IntlString,
+    NothingToExport: '' as IntlString,
+    AlreadyImportedSkipped: '' as IntlString<{ count: number }>,
+    NewDraftVersionsCreated: '' as IntlString<{ count: number }>,
 
     // Table export dialog
     ExportMarkdown: '' as IntlString,

@@ -26,6 +26,7 @@ import type {
   DocumentExporter,
   DocumentExportFunction,
   DocumentExportAvailabilityFunction,
+  ExportOrigin,
   ExportResultRecord
 } from './types'
 
@@ -38,6 +39,7 @@ export const exportPlugin = plugin(exportId, {
   },
   class: {
     ExportResultRecord: '' as Ref<Class<ExportResultRecord>>,
+    ExportOrigin: '' as Ref<Class<ExportOrigin>>,
     DocumentExporter: '' as Ref<Class<DocumentExporter>>
   },
   string: {

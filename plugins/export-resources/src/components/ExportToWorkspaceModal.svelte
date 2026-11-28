@@ -33,7 +33,7 @@
   import { createEventDispatcher } from 'svelte'
 
   import plugin from '../plugin'
-  import { exportToWorkspace } from '../export'
+  import { exportToWorkspace, type ExistingDocumentsMode } from '../export'
 
   export let query: DocumentQuery<Doc> | undefined = undefined
   export let value: Doc | Doc[] | Space
@@ -56,6 +56,13 @@
   // Hidden and forced to true when exporting an entire space — the space already
   // enumerates every document inside it.
   let includeChildren: boolean = false
+
+  // Selected documents already imported by an earlier export are skipped by default.
+  let existingDocuments: ExistingDocumentsMode = 'skip'
+  const existingDocumentsItems = [
+    { id: 'skip' as const, label: plugin.string.ExistingDocumentsSkip },
+    { id: 'newVersion' as const, label: plugin.string.ExistingDocumentsNewVersion }
+  ]
 
   const exportFilterItems = [
     { id: 'effectiveOnly' as const, label: plugin.string.ExportFilterEffectiveOnly },
@@ -157,7 +164,8 @@
       undefined,
       exportFilterMode === 'skipArchivedObsolete',
       exportFilterMode === 'effectiveOnly',
-      effectiveIncludeChildren
+      effectiveIncludeChildren,
+      existingDocuments
     )
     loading = false
     dispatch('close', true)
@@ -199,6 +207,13 @@
       <Label label={plugin.string.ExportFilterMode} />
     </span>
     <DropdownLabelsIntl items={exportFilterItems} bind:selected={exportFilterMode} kind="regular" size="large" />
+    <span class="pl-2 pt-4 secondary-textColor">
+      <Label label={plugin.string.ExistingDocumentsMode} />
+    </span>
+    <DropdownLabelsIntl items={existingDocumentsItems} bind:selected={existingDocuments} kind="regular" size="large" />
+    <span class="pl-2 pb-2 text-sm content-dark-color">
+      <Label label={plugin.string.ExistingDocumentsDescription} />
+    </span>
     {#if spaceExport !== true}
       <div class="pl-2 py-4">
         <ToggleWithLabel

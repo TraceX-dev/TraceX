@@ -20,6 +20,16 @@ import { getCurrentLanguage } from '@hcengineering/theme'
 import ExportNotification from './components/ExportNotification.svelte'
 import plugin from './plugin'
 
+/** What to do with selected documents that an earlier export already imported. */
+export type ExistingDocumentsMode = 'skip' | 'newVersion'
+
+interface ExportToWorkspaceReport {
+  message?: string
+  exportedCount?: number
+  newVersionCount?: number
+  skippedDocuments?: Array<{ docId: string, name: string, reason: string }>
+}
+
 export async function exportToWorkspace (
   _class: Ref<Class<Doc>>,
   query: DocumentQuery<Doc> | undefined,
@@ -28,7 +38,8 @@ export async function exportToWorkspace (
   relations?: RelationDefinition[] | undefined,
   skipDeletedObsolete?: boolean,
   exportOnlyEffective?: boolean,
-  includeChildren?: boolean
+  includeChildren?: boolean,
+  existingDocuments: ExistingDocumentsMode = 'skip'
 ): Promise<void> {
   const lang = getCurrentLanguage()
 
@@ -81,7 +92,8 @@ export async function exportToWorkspace (
       fieldMappers,
       skipDeletedObsolete,
       exportOnlyEffective,
-      includeChildren
+      includeChildren,
+      existingDocuments
     }
     if (relations != null) {
       body.relations = relations
@@ -125,18 +137,49 @@ export async function exportToWorkspace (
       return
     }
 
-    addNotification(
-      await translate(plugin.string.ExportToWorkspaceCompleted, {}, lang),
-      await translate(plugin.string.ExportToWorkspaceCompletedMessage, {}, lang),
-      ExportNotification,
-      undefined,
-      NotificationSeverity.Success
-    )
+    let report: ExportToWorkspaceReport = {}
+    try {
+      report = await res.json()
+    } catch {
+      // Older export services reply without a report.
+    }
+    await showCompletionNotification(report)
   } catch (err) {
     console.error('Export failed:', err)
     const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
     await showFailureNotification(errorMessage)
   }
+}
+
+async function showCompletionNotification (report: ExportToWorkspaceReport): Promise<void> {
+  const lang = getCurrentLanguage()
+  const skipped = report.skippedDocuments?.length ?? 0
+  const newVersions = report.newVersionCount ?? 0
+  const nothingExported = (report.exportedCount ?? 0) === 0 && skipped > 0
+
+  const lines: string[] = []
+  if (!nothingExported) {
+    lines.push(await translate(plugin.string.ExportToWorkspaceCompletedMessage, {}, lang))
+  }
+  if (newVersions > 0) {
+    lines.push(await translate(plugin.string.NewDraftVersionsCreated, { count: newVersions }, lang))
+  }
+  if (skipped > 0) {
+    const names = report.skippedDocuments?.map((d) => d.name).join(', ') ?? ''
+    lines.push(`${await translate(plugin.string.AlreadyImportedSkipped, { count: skipped }, lang)} (${names})`)
+  }
+
+  addNotification(
+    await translate(
+      nothingExported ? plugin.string.NothingToExport : plugin.string.ExportToWorkspaceCompleted,
+      {},
+      lang
+    ),
+    lines.join(' '),
+    ExportNotification,
+    undefined,
+    nothingExported ? NotificationSeverity.Info : NotificationSeverity.Success
+  )
 }
 
 async function showNoDocumentsNotification (): Promise<void> {

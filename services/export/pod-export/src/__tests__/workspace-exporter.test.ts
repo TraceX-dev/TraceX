@@ -30,6 +30,12 @@ import {
 import core from '@hcengineering/model-core'
 import { type StorageAdapter, type Pipeline } from '@hcengineering/server-core'
 import { CrossWorkspaceExporter, type PipelineFactory, type RelationDefinition } from '../workspace'
+import { EXPORT_ORIGIN_CLASS } from '../workspace/origin-resolver'
+
+/** createDoc calls that created exported documents, leaving out the recorded export origins. */
+function documentCreations (createDocMock: jest.Mock): any[][] {
+  return createDocMock.mock.calls.filter((call) => call[0] !== EXPORT_ORIGIN_CLASS)
+}
 
 // Mock document classes
 const mockDocClass = 'test:class:TestDoc' as Ref<Class<Doc>>
@@ -748,7 +754,7 @@ describe('CrossWorkspaceExporter', () => {
       // Both documents should be created
       // eslint-disable-next-line @typescript-eslint/unbound-method
       const createDocMock = targetClient.createDoc as jest.Mock
-      expect(createDocMock).toHaveBeenCalledTimes(3)
+      expect(documentCreations(createDocMock)).toHaveLength(3)
     })
 
     it('should skip predefined IDs in forward relations', async () => {
@@ -808,7 +814,7 @@ describe('CrossWorkspaceExporter', () => {
       // Only main doc + space should be created (not trying to migrate the template)
       // eslint-disable-next-line @typescript-eslint/unbound-method
       const createDocMock = targetClient.createDoc as jest.Mock
-      expect(createDocMock).toHaveBeenCalledTimes(2)
+      expect(documentCreations(createDocMock)).toHaveLength(2)
     })
   })
 
@@ -873,7 +879,7 @@ describe('CrossWorkspaceExporter', () => {
       // Both parent and child should be created + space
       // eslint-disable-next-line @typescript-eslint/unbound-method
       const createDocMock = targetClient.createDoc as jest.Mock
-      expect(createDocMock).toHaveBeenCalledTimes(3)
+      expect(documentCreations(createDocMock)).toHaveLength(3)
     })
   })
 

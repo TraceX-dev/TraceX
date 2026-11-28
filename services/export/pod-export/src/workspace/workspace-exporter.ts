@@ -28,6 +28,7 @@ import { isEffectiveDocument, shouldSkipDocument } from '@hcengineering/export'
 import { AttachmentExporter } from './attachment-exporter'
 import { DataMapper } from './data-mapper'
 import { DocumentExporter } from './document-exporter'
+import { OriginResolver } from './origin-resolver'
 import { RelationExporter } from './relation-exporter'
 import { SpaceExporter } from './space-exporter'
 import { type ExportOptions, type ExportResult, type ExportState, type PipelineFactory } from './types'
@@ -131,7 +132,8 @@ export class CrossWorkspaceExporter {
       skipDeletedObsolete = true,
       exportOnlyEffective = false,
       includeChildren = false,
-      customHandlers = []
+      customHandlers = [],
+      existingDocuments = 'skip'
     } = options
 
     // Store field mappers
@@ -148,6 +150,11 @@ export class CrossWorkspaceExporter {
     this.documentExporter.setDataMapper(this.dataMapper)
     // Register custom export handlers for this run
     this.documentExporter.setCustomHandlers(customHandlers)
+    // Reuse what earlier exports from the same source workspace already imported
+    this.documentExporter.setOriginResolver(
+      new OriginResolver(this.context, this.targetClient, this.state, this.sourceWorkspace.uuid)
+    )
+    this.documentExporter.setExistingDocumentsMode(existingDocuments)
 
     // Pre-fetch current account's employee ID if available
     if (this.currentAccount !== undefined) {
@@ -172,7 +179,9 @@ export class CrossWorkspaceExporter {
       exportedCount: 0,
       skippedCount: 0,
       errors: [],
-      exportedDocuments: []
+      exportedDocuments: [],
+      skippedDocuments: [],
+      newVersionCount: 0
     }
 
     // Create source pipeline to access LowLevelStorage
@@ -262,15 +271,19 @@ export class CrossWorkspaceExporter {
                 lowLevelStorage,
                 existingDocsMap,
                 resolvedRelations,
-                includeChildren
+                includeChildren,
+                true
               )
+              const docName =
+                (mappedDoc as any).name ??
+                (mappedDoc as any).title ??
+                hierarchy.getClass(mappedDoc._class)?.label ??
+                mappedDoc._id
               if (exported) {
                 result.exportedCount++
-                const docName =
-                  (mappedDoc as any).name ??
-                  (mappedDoc as any).title ??
-                  hierarchy.getClass(mappedDoc._class)?.label ??
-                  mappedDoc._id
+                if (this.documentExporter.newVersions.has(mappedDoc._id)) {
+                  result.newVersionCount++
+                }
                 // Use target workspace doc id so the notification panel can resolve docs in the target workspace
                 const targetDocId = this.state.idMapping.get(mappedDoc._id)
                 if (targetDocId !== undefined) {
@@ -281,6 +294,14 @@ export class CrossWorkspaceExporter {
                 }
               } else {
                 result.skippedCount++
+                const reason = this.documentExporter.skipped.get(mappedDoc._id)
+                if (reason !== undefined) {
+                  result.skippedDocuments.push({
+                    docId: mappedDoc._id,
+                    name: typeof docName === 'string' ? docName : String(docName),
+                    reason
+                  })
+                }
               }
             } catch (err: any) {
               this.context.error(`Error exporting document ${doc._id}:`, {

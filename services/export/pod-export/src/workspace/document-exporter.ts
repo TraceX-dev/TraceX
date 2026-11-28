@@ -34,9 +34,21 @@ import {
 import core from '@hcengineering/model-core'
 import { type AttachmentExporter } from './attachment-exporter'
 import { type DataMapper } from './data-mapper'
+import {
+  DOCUMENTS,
+  type NewVersionPlan,
+  type OriginResolver,
+  type SkipReason,
+  type VersionDoc
+} from './origin-resolver'
 import { type RelationExporter } from './relation-exporter'
 import { type SpaceExporter } from './space-exporter'
-import { type CustomExportHandler, type ExportState, type RelationDefinition } from './types'
+import {
+  type CustomExportHandler,
+  type ExistingDocumentsMode,
+  type ExportState,
+  type RelationDefinition
+} from './types'
 
 // Keep in sync with the controlled documents plugin, which owns these sequences.
 const DOCUMENT_NAMESPACE = 'documents'
@@ -51,6 +63,13 @@ export class DocumentExporter {
   private relationExporter: RelationExporter | undefined
   private dataMapper: DataMapper
   private customHandlers: CustomExportHandler[] = []
+  private originResolver: OriginResolver | undefined
+  private existingDocuments: ExistingDocumentsMode = 'skip'
+
+  /** Documents selected for export that were not exported, with the reason. */
+  readonly skipped = new Map<Ref<Doc>, SkipReason>()
+  /** Documents selected for export that were created as a new version of an already imported document. */
+  readonly newVersions = new Set<Ref<Doc>>()
 
   constructor (
     private readonly context: MeasureContext,
@@ -75,6 +94,15 @@ export class DocumentExporter {
     this.customHandlers = handlers
   }
 
+  /** Reuse documents imported by earlier exports, matched by their recorded origin. */
+  setOriginResolver (resolver: OriginResolver | undefined): void {
+    this.originResolver = resolver
+  }
+
+  setExistingDocumentsMode (mode: ExistingDocumentsMode): void {
+    this.existingDocuments = mode
+  }
+
   /**
    * Export a single document
    */
@@ -86,7 +114,8 @@ export class DocumentExporter {
     sourceLowLevel: LowLevelStorage,
     existingDocsMap: Map<Ref<Doc>, Doc>,
     relations: RelationDefinition[],
-    includeChildren: boolean = false
+    includeChildren: boolean = false,
+    root: boolean = false
   ): Promise<boolean> {
     if (this.state.processingDocs.has(doc._id)) {
       return false
@@ -101,6 +130,20 @@ export class DocumentExporter {
     if (customTargetId !== undefined) {
       this.state.idMapping.set(doc._id, customTargetId)
       return true
+    }
+
+    let versionPlan: NewVersionPlan | undefined
+    if (this.originResolver !== undefined) {
+      const reuse = await this.resolveReuse(doc, root, sourceHierarchy, sourceLowLevel)
+      if (reuse.kind === 'skip') {
+        this.state.idMapping.set(doc._id, reuse.mapTo)
+        if (root) {
+          this.skipped.set(doc._id, reuse.reason)
+        }
+        this.context.info(`Reusing ${reuse.mapTo} for ${doc._id} (${doc._class}): ${reuse.reason}`)
+        return false
+      }
+      versionPlan = reuse.plan
     }
 
     if (conflictStrategy === 'skip') {
@@ -128,6 +171,10 @@ export class DocumentExporter {
       const targetId = generateId()
       this.state.idMapping.set(doc._id, targetId)
 
+      if (versionPlan !== undefined) {
+        await this.mapSourceProjectMetas(doc as VersionDoc, versionPlan, sourceHierarchy, sourceLowLevel)
+      }
+
       // First: Export forward relations (dependencies must exist before this doc)
       if (this.relationExporter === undefined) {
         throw new Error('RelationExporter not initialized')
@@ -143,9 +190,19 @@ export class DocumentExporter {
       )
 
       // Create the document
-      const targetSpace = await this.spaceExporter.getOrCreateTargetSpace(doc.space, sourceHierarchy, sourceLowLevel)
+      const targetSpace =
+        versionPlan !== undefined
+          ? versionPlan.latest.space
+          : await this.spaceExporter.getOrCreateTargetSpace(doc.space, sourceHierarchy, sourceLowLevel)
       const data = await this.dataMapper.prepareDocumentData(doc, targetSpace, isAttached)
-      await this.createDocument(doc, data, targetId, targetSpace, isAttached)
+      if (versionPlan !== undefined) {
+        applyVersionPlan(data, versionPlan)
+      }
+      await this.createDocument(doc, data, targetId, targetSpace, isAttached, versionPlan !== undefined)
+      await this.originResolver?.record(doc, targetId, doc._class)
+      if (versionPlan !== undefined && root) {
+        this.newVersions.add(doc._id)
+      }
 
       // Now: Export inverse relations (they can now reference this document)
       if (this.relationExporter === undefined) {
@@ -160,6 +217,12 @@ export class DocumentExporter {
         sourceLowLevel,
         includeChildren
       )
+      if (versionPlan !== undefined) {
+        await this.ensureListedInHierarchy(targetId, versionPlan)
+      }
+      if (this.originResolver?.isDerived(doc._class, DOCUMENTS.ProjectMeta) === true) {
+        await this.exportFolderEntries(doc, sourceHierarchy, sourceLowLevel, relations, includeChildren)
+      }
       await this.exportSpaceRelations(
         doc,
         doc.space,
@@ -291,9 +354,11 @@ export class DocumentExporter {
     data: any,
     targetId: Ref<Doc>,
     targetSpace: Ref<Space>,
-    isAttached: boolean
+    isAttached: boolean,
+    keepIdentifier: boolean = false
   ): Promise<void> {
-    const shouldAllocate = this.dataMapper.shouldAllocateIdentifier(sourceDoc._class)
+    // A new version keeps the identifier of the document it extends.
+    const shouldAllocate = !keepIdentifier && this.dataMapper.shouldAllocateIdentifier(sourceDoc._class)
     const parsedCode = shouldAllocate && typeof data.code === 'string' ? parseIdentifier(data.code) : null
     const hasSequence =
       shouldAllocate && typeof data.seqNumber === 'number' && Number.isSafeInteger(data.seqNumber) && data.seqNumber > 0
@@ -392,6 +457,118 @@ export class DocumentExporter {
     )
   }
 
+  /**
+   * Decide whether `doc` reuses a document imported by an earlier export.
+   * - Same source document already imported: reuse it.
+   * - Another version of an already imported document: skip it, or create it as
+   *   a new version of the imported document (see OriginResolver.planVersion).
+   */
+  private async resolveReuse (
+    doc: Doc,
+    root: boolean,
+    sourceHierarchy: Hierarchy,
+    sourceLowLevel: LowLevelStorage
+  ): Promise<{ kind: 'skip', reason: SkipReason, mapTo: Ref<Doc> } | { kind: 'create', plan?: NewVersionPlan }> {
+    const resolver = this.originResolver
+    if (resolver === undefined) return { kind: 'create' }
+
+    const existing = await resolver.resolveExisting(doc, sourceHierarchy, sourceLowLevel)
+    if (existing !== undefined) {
+      return { kind: 'skip', reason: 'alreadyImported', mapTo: existing }
+    }
+
+    if (!resolver.isDocument(doc)) return { kind: 'create' }
+
+    const targetMeta = await resolver.resolveMeta(doc.attachedTo)
+    if (targetMeta === undefined) return { kind: 'create' }
+
+    const decision = await resolver.planVersion(
+      doc,
+      targetMeta,
+      root,
+      this.existingDocuments === 'newVersion',
+      sourceHierarchy,
+      sourceLowLevel
+    )
+    if (decision.kind === 'skip') return decision
+    return { kind: 'create', plan: decision.kind === 'newVersion' ? decision.plan : undefined }
+  }
+
+  /**
+   * List the new version under the hierarchy entry of the document it extends:
+   * map the source hierarchy entries of the document onto the target one, so the
+   * exported ProjectDocument of the version attaches there instead of a new entry.
+   */
+  private async mapSourceProjectMetas (
+    doc: VersionDoc,
+    plan: NewVersionPlan,
+    sourceHierarchy: Hierarchy,
+    sourceLowLevel: LowLevelStorage
+  ): Promise<void> {
+    const targetProjectMeta = plan.latestProjectDocument?.attachedTo
+    if (targetProjectMeta === undefined) return
+    const domain = sourceHierarchy.findDomain(DOCUMENTS.ProjectMeta)
+    if (domain === undefined) return
+    const sourceProjectMetas = await sourceLowLevel.rawFindAll<Doc>(domain, { meta: doc.attachedTo })
+    for (const projectMeta of sourceProjectMetas) {
+      if ((projectMeta as any).meta !== doc.attachedTo || this.state.idMapping.has(projectMeta._id)) continue
+      this.state.idMapping.set(projectMeta._id, targetProjectMeta)
+    }
+  }
+
+  /** Make sure the new version is listed in the document tree, next to the version it extends. */
+  private async ensureListedInHierarchy (targetId: Ref<Doc>, plan: NewVersionPlan): Promise<void> {
+    const latest = plan.latestProjectDocument
+    if (latest === undefined || this.originResolver === undefined) {
+      this.context.warn(`No hierarchy entry found for ${plan.latest._id}, new version ${targetId} is not listed`)
+      return
+    }
+    const existing = await this.originResolver.findProjectDocumentOf(targetId)
+    if (existing !== undefined) return
+    await this.targetClient.addCollection(
+      DOCUMENTS.ProjectDocument,
+      latest.space,
+      latest.attachedTo,
+      latest.attachedToClass,
+      latest.collection,
+      { project: latest.project, initial: latest.project, document: targetId }
+    )
+  }
+
+  /**
+   * Folders are listed in the tree through a ProjectDocument pointing at the
+   * Folder id, which no relation reaches. Without it a folder (and everything
+   * under it) is not shown, so export it together with the folder's ProjectMeta.
+   */
+  private async exportFolderEntries (
+    projectMeta: Doc,
+    sourceHierarchy: Hierarchy,
+    sourceLowLevel: LowLevelStorage,
+    relations: RelationDefinition[],
+    includeChildren: boolean
+  ): Promise<void> {
+    const domain = sourceHierarchy.findDomain(DOCUMENTS.ProjectDocument)
+    if (domain === undefined) return
+    const entries = await sourceLowLevel.rawFindAll<Doc>(domain, {
+      attachedTo: projectMeta._id,
+      document: DOCUMENTS.Folder
+    })
+    for (const entry of entries) {
+      const prjdoc = entry as any
+      if (prjdoc.attachedTo !== projectMeta._id || prjdoc.document !== DOCUMENTS.Folder) continue
+      await this.exportDocument(
+        entry,
+        'duplicate',
+        false,
+        sourceHierarchy,
+        sourceLowLevel,
+        new Map(),
+        relations,
+        includeChildren
+      )
+    }
+  }
+
   private async exportCollections (
     sourceDoc: Doc,
     targetDocId: Ref<Doc>,
@@ -447,6 +624,39 @@ export class DocumentExporter {
           })
         }
       }
+    }
+  }
+}
+
+/**
+ * Turn prepared document data into a new version of an already imported document:
+ * same identifier, next version number (following the target's own numbering) and
+ * the team of the target's latest version, which are people of the target workspace.
+ */
+function applyVersionPlan (data: Record<string, any>, plan: NewVersionPlan): void {
+  const { latest } = plan
+  data.code = latest.code
+  data.prefix = latest.prefix
+  data.seqNumber = latest.seqNumber
+  data.major = plan.major
+  data.minor = plan.minor
+  if (latest.owner !== undefined) data.owner = latest.owner
+  data.reviewers = latest.reviewers ?? []
+  data.approvers = latest.approvers ?? []
+  data.coAuthors = latest.coAuthors ?? []
+  data.externalApprovers = []
+  data.attachedTo = plan.targetMeta
+  data.attachedToClass = latest.attachedToClass
+  data.collection = latest.collection
+
+  // Templates number their documents with their own counter: keep the target's.
+  const latestTemplate = (latest as any)[DOCUMENTS.DocumentTemplate]
+  const template = data[DOCUMENTS.DocumentTemplate]
+  if (latestTemplate !== undefined && template !== undefined && typeof template === 'object') {
+    data[DOCUMENTS.DocumentTemplate] = {
+      ...template,
+      sequence: latestTemplate.sequence,
+      docPrefix: latestTemplate.docPrefix
     }
   }
 }

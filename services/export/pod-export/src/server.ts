@@ -102,7 +102,7 @@ import {
 } from '@hcengineering/doc-convert'
 import { markupToJSON, type MarkupNode } from '@hcengineering/text'
 import { assertFitsEditorSchema } from './document-import'
-import { CrossWorkspaceExporter, type ExportOptions, type ExportResult } from './workspace'
+import { CrossWorkspaceExporter, type ExistingDocumentsMode, type ExportOptions, type ExportResult } from './workspace'
 import { createProductVersionHandler } from './handlers/product-version-handler'
 
 const extractCookieToken = (cookie?: string): string | null => {
@@ -724,7 +724,8 @@ export function createServer (
           fieldMappers,
           skipDeletedObsolete,
           exportOnlyEffective,
-          includeChildren
+          includeChildren,
+          existingDocuments
         }: {
           targetWorkspace: WorkspaceUuid
           _class: Ref<Class<Doc>>
@@ -738,6 +739,7 @@ export function createServer (
           skipDeletedObsolete?: boolean
           exportOnlyEffective?: boolean
           includeChildren?: boolean
+          existingDocuments?: ExistingDocumentsMode
         } = req.body
 
         // Validate required parameters
@@ -752,6 +754,10 @@ export function createServer (
         if (conflictStrategy !== undefined && conflictStrategy !== 'skip' && conflictStrategy !== 'duplicate') {
           measureCtx.warn(`Invalid conflictStrategy: ${String(conflictStrategy)}`)
           throw new ApiError(400, 'Invalid conflictStrategy. Must be "skip" or "duplicate"')
+        }
+        if (existingDocuments !== undefined && existingDocuments !== 'skip' && existingDocuments !== 'newVersion') {
+          measureCtx.warn(`Invalid existingDocuments: ${String(existingDocuments)}`)
+          throw new ApiError(400, 'Invalid existingDocuments. Must be "skip" or "newVersion"')
         }
         if (includeAttachments !== undefined && typeof includeAttachments !== 'boolean') {
           measureCtx.warn(`Invalid includeAttachments: ${String(includeAttachments)}`)
@@ -769,7 +775,8 @@ export function createServer (
           hasQuery: hasQueryFilter(query),
           conflictStrategy: conflictStrategy ?? 'duplicate',
           includeAttachments: includeAttachments ?? true,
-          includeChildren: includeChildren ?? false
+          includeChildren: includeChildren ?? false,
+          existingDocuments: existingDocuments ?? 'skip'
         })
 
         const decodedToken = decodeToken(token)
@@ -878,15 +885,30 @@ export function createServer (
             skipDeletedObsolete: skipDeletedObsolete ?? true,
             exportOnlyEffective: exportOnlyEffective ?? false,
             includeChildren: includeChildren ?? false,
-            customHandlers: [createProductVersionHandler()]
+            customHandlers: [createProductVersionHandler()],
+            existingDocuments: existingDocuments ?? 'skip'
           }
 
           const exportResult: ExportResult = await exporter.export(options)
           audit.set({
             exportedCount: exportResult.exportedCount,
             skippedCount: exportResult.skippedCount,
-            errorCount: exportResult.errors.length
+            errorCount: exportResult.errors.length,
+            alreadyImportedCount: exportResult.skippedDocuments.length,
+            newVersionCount: exportResult.newVersionCount
           })
+
+          const report = {
+            exportedCount: exportResult.exportedCount,
+            newVersionCount: exportResult.newVersionCount,
+            skippedDocuments: exportResult.skippedDocuments
+          }
+
+          // Everything selected was already imported: nothing to do, which is not an error.
+          if (exportResult.exportedCount === 0 && exportResult.skippedDocuments.length > 0 && exportResult.success) {
+            res.status(200).send({ message: 'Nothing to export', ...report })
+            return
+          }
 
           if (exportResult.exportedCount === 0) {
             throw new ApiError(400, 'No documents found to export', { reason: 'no_documents' })
@@ -910,7 +932,7 @@ export function createServer (
             })
           }
 
-          res.status(200).send({ message: 'Export completed' })
+          res.status(200).send({ message: 'Export completed', ...report })
         } catch (err: any) {
           if (err instanceof ApiError) throw err
           measureCtx.error('Export failed:', err)

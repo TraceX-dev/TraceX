@@ -98,6 +98,21 @@ export interface ExportResultRecord extends Doc {
   title?: string
 }
 
+/**
+ * Persistent link between a document exported from another workspace and the
+ * document it produced in this workspace. Lets repeated exports reuse already
+ * imported objects (templates, categories, folders, ...) instead of duplicating them.
+ *
+ * @public
+ */
+export interface ExportOrigin extends Doc {
+  sourceWorkspace: string
+  sourceId: Ref<Doc>
+  sourceClass: Ref<Class<Doc>>
+  targetId: Ref<Doc>
+  targetClass: Ref<Class<Doc>>
+}
+
 export enum OperationType {
   IDENTITY = 'identity',
   GROUP_BY = 'group_by'

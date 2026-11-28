@@ -57,6 +57,14 @@ export interface CustomExportHandler<T extends Doc = Doc> {
   resolve: (sourceDoc: T, ctx: CustomExportHandlerContext) => Promise<Ref<Doc> | undefined>
 }
 
+/**
+ * What to do with a selected document that an earlier export already imported:
+ * - 'skip': leave the imported document as it is.
+ * - 'newVersion': when the source has a newer version, create it as a new draft
+ *   version of the imported document (unless a draft is already in progress).
+ */
+export type ExistingDocumentsMode = 'skip' | 'newVersion'
+
 export interface RelationDefinition {
   /** When set, this relation applies only to documents of this class (or its subclasses). */
   sourceClass?: Ref<Class<Doc>>
@@ -91,6 +99,8 @@ export interface ExportOptions {
   // Class-specific export handlers, applied before the default flow. Useful
   // for collapsing or deduplicating documents (e.g. ProductVersion).
   customHandlers?: CustomExportHandler[]
+  // Selected documents already imported by an earlier export. Defaults to 'skip'.
+  existingDocuments?: ExistingDocumentsMode
 }
 
 export interface ExportResult {
@@ -99,6 +109,10 @@ export interface ExportResult {
   skippedCount: number
   errors: Array<{ docId: string, error: string }>
   exportedDocuments: Array<{ docId: Ref<Doc>, name: string }>
+  // Selected documents that were not exported because an earlier export already imported them.
+  skippedDocuments: Array<{ docId: Ref<Doc>, name: string, reason: 'alreadyImported' | 'draftInProgress' }>
+  // How many of the exported documents are new versions of already imported documents.
+  newVersionCount: number
 }
 
 /**
