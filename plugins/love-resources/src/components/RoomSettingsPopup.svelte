@@ -21,8 +21,12 @@
 
   import RoomTranscriptionSettings from './RoomTranscriptionSettings.svelte'
   import love from '../plugin'
+  import { rooms } from '../stores'
 
   export let room: Room
+
+  // The popup receives a snapshot, use the live room so settings reflect changes made here
+  $: liveRoom = $rooms.find((it) => it._id === room._id) ?? room
 
   const dispatch = createEventDispatcher()
 
@@ -65,7 +69,7 @@
     </div>
     <div class="component">
       {#if selectedGroup.id === 'transcription'}
-        <RoomTranscriptionSettings {room} />
+        <RoomTranscriptionSettings room={liveRoom} />
       {/if}
     </div>
   </div>

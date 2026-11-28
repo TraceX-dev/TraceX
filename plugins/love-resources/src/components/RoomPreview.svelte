@@ -15,7 +15,17 @@
 <script lang="ts">
   import { getCurrentEmployee, Person } from '@hcengineering/contact'
   import { Avatar, myEmployeeStore, getPersonByPersonRef, statusByUserStore } from '@hcengineering/contact-resources'
-  import { ParticipantInfo, Room, RoomAccess, RoomType, MeetingStatus, isOffice, Office } from '@hcengineering/love'
+  import {
+    ParticipantInfo,
+    Room,
+    RoomAccess,
+    RoomType,
+    MeetingStatus,
+    isOffice,
+    Office,
+    requiresApproval,
+    roomAccessIcon
+  } from '@hcengineering/love'
   import { Icon, Label, eventToHTMLElement, showPopup } from '@hcengineering/ui'
   import { createEventDispatcher } from 'svelte'
   import { getClient } from '@hcengineering/presentation'
@@ -86,6 +96,7 @@
   }
 
   $: disabled = room._class === love.class.Office && _info.length === 0
+  $: showApprovalIcon = requiresApproval(room)
 
   let personPopupVisible: Ref<Person> | undefined = undefined
 
@@ -306,10 +317,12 @@
       <!-- {#if !isOffice(room)}
         <RoomLanguage {room} />
       {/if} -->
-      {#if room.access === RoomAccess.DND || room.type === RoomType.Video}
+      {#if room.access === RoomAccess.DND || showApprovalIcon || room.type === RoomType.Video}
         <div class="flex-row-center flex-no-shrink h-full flex-gap-2">
           {#if room.access === RoomAccess.DND}
             <Icon icon={love.icon.DND} fill={'var(--bg-negative-default)'} size={'small'} />
+          {:else if showApprovalIcon}
+            <Icon icon={roomAccessIcon[room.access]} size={'small'} />
           {/if}
           {#if room.type === RoomType.Video}
             <Icon icon={love.icon.CamEnabled} size={'small'} />

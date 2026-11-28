@@ -55,6 +55,7 @@ const love = plugin(loveId, {
     Knock: '' as IntlString,
     Open: '' as IntlString,
     DND: '' as IntlString,
+    InviteOnly: '' as IntlString,
     StartTranscription: '' as IntlString,
     StopTranscription: '' as IntlString,
     Meeting: '' as IntlString,
@@ -168,13 +169,15 @@ const love = plugin(loveId, {
 export const roomAccessIcon = {
   [RoomAccess.Open]: love.icon.Open,
   [RoomAccess.Knock]: love.icon.Knock,
-  [RoomAccess.DND]: love.icon.DND
+  [RoomAccess.DND]: love.icon.DND,
+  [RoomAccess.InviteOnly]: love.icon.Invite
 }
 
 export const roomAccessLabel = {
   [RoomAccess.Open]: love.string.Open,
   [RoomAccess.Knock]: love.string.Knock,
-  [RoomAccess.DND]: love.string.DND
+  [RoomAccess.DND]: love.string.DND,
+  [RoomAccess.InviteOnly]: love.string.InviteOnly
 }
 
 export default love

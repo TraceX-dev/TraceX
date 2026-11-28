@@ -6,7 +6,9 @@ import { Preference } from '@hcengineering/preference'
 export enum RoomAccess {
   Open,
   Knock,
-  DND
+  DND,
+  // Entry only by an invitation from a room owner, knocking is not available
+  InviteOnly
 }
 
 export enum RoomType {
@@ -118,6 +120,10 @@ export interface Room extends Doc {
   attachments?: number
   meetings?: number
   messages?: number
+  // Owners manage access of a shared room. A room without owners is public.
+  owners?: Array<Ref<Person>>
+  // Access the room returns to when it becomes empty
+  defaultAccess?: RoomAccess
 }
 
 export interface Office extends Room {
