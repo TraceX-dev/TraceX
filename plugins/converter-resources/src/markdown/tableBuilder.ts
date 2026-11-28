@@ -14,7 +14,16 @@
 // limitations under the License.
 //
 
-import core, { type Class, type Client, type Doc, type Hierarchy, type Ref, type PersonId } from '@hcengineering/core'
+import core, {
+  type Class,
+  type Client,
+  type Doc,
+  type Hierarchy,
+  type Lookup,
+  type Ref,
+  type PersonId,
+  type WithLookup
+} from '@hcengineering/core'
 import { type MarkupNode, MarkupNodeType } from '@hcengineering/text'
 import { markdownToMarkup, markupToMarkdown } from '@hcengineering/text-markdown'
 import { tableLanguage } from '../data/language'
@@ -127,6 +136,36 @@ async function preloadRefLookups (
         }
       }
     }
+  }
+}
+
+/**
+ * Load the view's lookups (`options.lookup` and `$lookup.*` columns) for rows that were read without
+ * them: copies of selected or loaded rows and fixed-table refreshes query by id only, so every
+ * `$lookup.*` column (category, template, author...) would otherwise come out empty.
+ */
+async function preloadConfigLookups (
+  docs: Doc[],
+  cardClass: Ref<Class<Doc>>,
+  lookup: Lookup<Doc>,
+  client: Client
+): Promise<void> {
+  if (Object.keys(lookup).length === 0) return
+  const missing = docs.filter((doc) => (doc as WithLookup<Doc>).$lookup === undefined)
+  if (missing.length === 0) return
+  try {
+    const found = await client.findAll(
+      cardClass,
+      { _id: { $in: missing.map((doc) => doc._id) } },
+      { lookup, showArchived: true, limit: missing.length }
+    )
+    const byId = new Map(found.map((doc) => [doc._id, doc]))
+    for (const doc of missing) {
+      const loaded = byId.get(doc._id)?.$lookup
+      if (loaded !== undefined) (doc as WithLookup<Doc>).$lookup = { ...loaded }
+    }
+  } catch (error) {
+    console.warn('Failed to preload lookups for markdown table', error)
   }
 }
 
@@ -335,8 +374,13 @@ export async function buildTableData (
   // The config entries the columns were built from, kept as given (with presenters, props, labels)
   // so a refresh rebuilds exactly the same columns. Undefined when columns come from the viewlet.
   let sourceKeys: Array<string | BuildModelKey> | undefined
+  const lookup = buildConfigLookup(
+    hierarchy,
+    props.cardClass,
+    actualConfig !== undefined && actualConfig.length > 0 ? actualConfig : (viewlet?.config ?? []),
+    viewlet?.options?.lookup
+  )
   if (actualConfig !== undefined && actualConfig.length > 0) {
-    const lookup = buildConfigLookup(hierarchy, props.cardClass, actualConfig, viewlet?.options?.lookup)
     const hiddenKeys = viewlet?.configOptions?.hiddenKeys ?? []
     const keys = actualConfig.filter((key: string | BuildModelKey) => {
       if (typeof key === 'string') {
@@ -363,6 +407,8 @@ export async function buildTableData (
     return empty
   }
 
+  // Columns such as `$lookup.category.title` read the view's lookups, which rows loaded by id lack
+  await preloadConfigLookups(docs, props.cardClass, lookup, client)
   // Preload referenced documents for RefTo / ArrOf<RefTo> attributes into $lookup
   await preloadRefLookups(docs, displayableModel, hierarchy, client)
   // Preload associations for $associations keys

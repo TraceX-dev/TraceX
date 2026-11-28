@@ -29,6 +29,7 @@ import { type AttributeModel } from '@hcengineering/view'
 import { getClient } from '@hcengineering/presentation'
 import { isIntlString } from '@hcengineering/converter-resources'
 import tags from '@hcengineering/tags'
+import { formatName } from '@hcengineering/contact'
 
 /**
  * Format version number from major and minor
@@ -243,6 +244,11 @@ export async function formatControlledDocumentValue (
           }
           return String(nestedValue)
         }
+      }
+      // For the author ($lookup.owner): the person's display name, as OwnerPresenter shows it
+      if (lookupParts.length === 1 && lookupParts[0] === 'owner') {
+        const name: unknown = (lookupObj as Record<string, unknown>).name
+        return typeof name === 'string' ? formatName(name) : undefined
       }
       // For template: check label to determine if it's code or version
       if (lookupParts.length === 1) {

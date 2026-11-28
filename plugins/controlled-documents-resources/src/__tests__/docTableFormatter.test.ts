@@ -103,4 +103,9 @@ describe('controlled document table values', () => {
   it('formats a resolved template document as its code', async () => {
     expect(await format({ key: '$lookup.template', label: documents.string.Template })).toBe('SOP-1')
   })
+
+  it('formats the looked-up author as the person name', async () => {
+    const doc = { ...card, $lookup: { owner: { name: 'Rollet,Charles' } } } as unknown as Partial<TestDocument>
+    expect(await format({ key: '$lookup.owner', label: documents.string.Author }, doc)).toBe('Charles Rollet')
+  })
 })

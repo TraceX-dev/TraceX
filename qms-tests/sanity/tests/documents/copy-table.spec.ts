@@ -24,6 +24,8 @@ interface TableSource {
   path: string
   title: string
   columns: string[]
+  /** Copy the checked row (the dialog's "Selected rows" scope) instead of the whole view. */
+  selectRow?: boolean
 }
 
 interface ColumnValue {
@@ -71,7 +73,14 @@ test('QMS. Library and Templates table copies retain their column values when pa
     {
       path: 'library?mode=all',
       title: document.title,
-      columns: ['ID', 'Title', 'Status', 'Version', 'Space', 'Category', 'Template', 'Template version']
+      columns: ['ID', 'Title', 'Status', 'Version', 'Space', 'Category', 'Template', 'Template version', 'Author']
+    },
+    {
+      // Selected rows are reloaded by id, without the view's lookups (category, template, author).
+      path: 'library?mode=all',
+      title: document.title,
+      columns: ['ID', 'Title', 'Status', 'Version', 'Space', 'Category', 'Template', 'Template version', 'Author'],
+      selectRow: true
     },
     {
       path: 'templates',
@@ -94,7 +103,7 @@ test('QMS. Library and Templates table copies retain their column values when pa
   }
 
   for (const source of sources) {
-    await test.step(`Copy ${source.path} through the browser clipboard and verify the pasted columns`, async () => {
+    await test.step(`Copy ${source.path}${source.selectRow === true ? ' (selected rows)' : ''} through the browser clipboard and verify the pasted columns`, async () => {
       await page.goto(`${PlatformURI}/${DocumentURI}/${source.path}`)
       const search = page.locator('.searchInput-wrapper')
       await search.click()
@@ -107,11 +116,20 @@ test('QMS. Library and Templates table copies retain their column values when pa
       const values = await columnValues(sourceTable, sourceRows, source.columns)
       expect(values.find((column) => column.header === 'Title')?.value).toBe(source.title)
 
-      // Keep the whole-view scope to cover the Templates lookup resolution failure.
+      if (source.selectRow === true) {
+        const checkbox = sourceRows.locator('.antiTable-cells__checkCell input[type="checkbox"]')
+        await sourceRows.hover()
+        await sourceRows.locator('.antiTable-cells__checkCell').click()
+        await expect(checkbox).toBeChecked()
+      }
+      // Without a checked row the whole-view scope covers the Templates lookup resolution failure.
       await page.locator('[data-id="btnCopyTable"]').click()
       const dialog = page.locator('div.antiPopup').filter({
         has: page.getByRole('button', { name: 'Copy to clipboard', exact: true })
       })
+      if (source.selectRow === true) {
+        await expect(dialog).toContainText('Selected only (1)')
+      }
       await dialog.locator('div.control').nth(0).locator('button').click()
       await page.locator('div.selectPopup button.menu-item', { hasText: 'TraceX table — can be refreshed' }).click()
       await dialog.getByRole('button', { name: 'Copy to clipboard', exact: true }).click()
