@@ -19,7 +19,7 @@ import { type AnyComponent } from '@hcengineering/ui'
 import type { AttributeModel } from '@hcengineering/view'
 import { getClient } from '@hcengineering/presentation'
 import { getCurrentLanguage } from '@hcengineering/theme'
-import { buildModel, getObjectLinkFragment } from '@hcengineering/view-resources'
+import { buildConfigLookup, buildModel, getObjectLinkFragment } from '@hcengineering/view-resources'
 import { buildMarkdownTableFromDocs, buildTableData } from '../markdown'
 
 jest.mock('@hcengineering/platform', () => {
@@ -142,6 +142,38 @@ describe('buildTableData', () => {
     )
     expect(data.rows).toEqual([['Quality Manual']])
     expect(data.config).toEqual(config)
+  })
+
+  it('loads the view lookups for rows read by id, such as selected rows', async () => {
+    const lookup = { category: 'documents:class:DocumentCategory' }
+    jest.mocked(buildConfigLookup).mockReturnValueOnce(lookup)
+    jest
+      .mocked(buildModel)
+      .mockResolvedValue([
+        {
+          key: '$lookup.category.title',
+          label: 'Category' as IntlString,
+          displayProps: {}
+        } as unknown as AttributeModel
+      ])
+    // Selected rows are reloaded by id without the view's lookups (see loadFullRows).
+    const plain = { _id: 'doc1', _class: CARD_CLASS } as unknown as Doc
+    mockClient.findAll.mockImplementation(async (_class: unknown, query: any) =>
+      query?._id?.$in !== undefined ? [{ ...plain, $lookup: { category: { title: 'Quality Manual' } } }] : []
+    )
+
+    const data = await buildTableData(
+      [plain],
+      { cardClass: CARD_CLASS, config: ['$lookup.category.title'] },
+      mockClient
+    )
+
+    expect(mockClient.findAll).toHaveBeenCalledWith(
+      CARD_CLASS,
+      { _id: { $in: ['doc1'] } },
+      expect.objectContaining({ lookup, showArchived: true })
+    )
+    expect(data.rows).toEqual([['Quality Manual']])
   })
 
   it('produces one row per document with the configured columns', async () => {
